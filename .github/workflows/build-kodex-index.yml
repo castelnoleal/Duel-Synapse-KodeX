@@ -1,0 +1,62 @@
+name: Build Kodex Search Index
+
+on:
+  push:
+    paths:
+      - 'data/cards.min.json'
+      - '.github/workflows/build-kodex-index.yml'
+  workflow_dispatch:
+  schedule:
+    - cron: '37 */6 * * *'
+
+permissions:
+  contents: write
+
+jobs:
+  build-index:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Build compact Kodex index
+        shell: python
+        run: |
+          import json, re
+          from pathlib import Path
+          src=Path('data/cards.min.json')
+          if not src.exists() or src.stat().st_size == 0:
+              raise SystemExit('cards.min.json is missing or empty')
+          raw=json.loads(src.read_text(encoding='utf-8'))
+          cards=raw.get('data',raw) if isinstance(raw,dict) else raw
+          if not isinstance(cards,list) or len(cards)<10000:
+              raise SystemExit(f'Unexpected card count: {len(cards) if isinstance(cards,list) else "not-list"}')
+          out=[]
+          for c in cards:
+              imgs=c.get('card_images') or []
+              img=imgs[0] if imgs and isinstance(imgs[0],dict) else {}
+              misc=c.get('misc_info') or []
+              misc=misc[0] if misc and isinstance(misc,list) else (misc if isinstance(misc,dict) else {})
+              kid=misc.get('konami_id')
+              try: kid=int(kid) if kid not in (None,'') else None
+              except: kid=None
+              out.append({
+                'id':c.get('id'),'name':c.get('name',''),'konami_id':kid,
+                'type':c.get('type',''),'archetype':c.get('archetype',''),
+                'desc':c.get('desc',''),'race':c.get('race',''),'attribute':c.get('attribute',''),
+                'level':c.get('level'),'rank':c.get('rank'),'linkval':c.get('linkval'),
+                'image':img.get('image_url',''),'image_small':img.get('image_url_small','')
+              })
+          out.sort(key=lambda x:(x['name'] or '').casefold())
+          p=Path('indexes'); p.mkdir(exist_ok=True)
+          (p/'search.json').write_text(json.dumps(out,ensure_ascii=False,separators=(',',':')),encoding='utf-8')
+          (p/'search-meta.json').write_text(json.dumps({'schema':1,'card_count':len(out),'source':'data/cards.min.json'},separators=(',',':')),encoding='utf-8')
+          print(f'Built Kodex search index: {len(out)} cards')
+          assert len(out)>10000
+          assert any(x['name']=='Ash Blossom & Joyous Spring' and x['konami_id']==12950 for x in out)
+      - name: Publish index
+        run: |
+          git config user.name 'MEIOCG Database Bot'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add indexes/search.json indexes/search-meta.json
+          if git diff --cached --quiet; then echo 'No index changes.'; else git commit -m 'Build Kodex search index'; git push; fi
