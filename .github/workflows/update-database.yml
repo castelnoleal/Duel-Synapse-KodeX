@@ -30,44 +30,31 @@ jobs:
           import json, re, urllib.request
           from pathlib import Path
           from datetime import datetime, timezone
-
-          # misc=yes is required because YGOPRODeck exposes the official
-          # Konami database ID in misc_info.konami_id.
           API = "https://db.ygoprodeck.com/api/v7/cardinfo.php?misc=yes"
           VER = "https://db.ygoprodeck.com/api/v7/checkDBVer.php"
-
           def get(url):
               req = urllib.request.Request(url, headers={"User-Agent":"MEIOCG-Database-Updater/2.1"})
-              with urllib.request.urlopen(req, timeout=180) as r:
-                  return json.loads(r.read())
-
-          def norm(s):
-              return re.sub(r"\s+", " ", (s or "").strip().lower())
-
+              with urllib.request.urlopen(req, timeout=180) as r: return json.loads(r.read())
+          def norm(s): return re.sub(r"\s+", " ", (s or "").strip().lower())
           def konami_id(card):
               misc = card.get("misc_info") or []
-              if isinstance(misc, list):
-                  misc = misc[0] if misc else {}
+              if isinstance(misc, list): misc = misc[0] if misc else {}
               if isinstance(misc, dict):
                   value = misc.get("konami_id")
                   if value not in (None, ""):
                       try: return int(value)
-                      except (TypeError, ValueError): pass
-              for key in ("konami_id", "konamiId", "konamiID", "konami_db_id", "konami_database_id"):
-                  value = card.get(key)
+                      except: pass
+              for key in ("konami_id","konamiId","konamiID","konami_db_id","konami_database_id"):
+                  value=card.get(key)
                   if value not in (None, ""):
                       try: return int(value)
-                      except (TypeError, ValueError): pass
+                      except: pass
               return None
-
-          data = Path("data"); idx = Path("indexes")
-          data.mkdir(exist_ok=True); idx.mkdir(exist_ok=True)
-          version = get(VER)
-          cards = get(API).get("data", [])
+          data=Path("data"); idx=Path("indexes"); data.mkdir(exist_ok=True); idx.mkdir(exist_ok=True)
+          version=get(VER); cards=get(API).get("data",[])
           if not cards: raise SystemExit("No cards returned; update aborted.")
-          (data/"cards.json").write_text(json.dumps(cards, ensure_ascii=False, separators=(",",":")), encoding="utf-8")
-
-          names, ids, archetypes, types, search = {}, {}, {}, {}, []
+          (data/"cards.json").write_text(json.dumps(cards,ensure_ascii=False,separators=(",",":")),encoding="utf-8")
+          names,ids,archetypes,types,search={}, {}, {}, {}, []
           for c in cards:
               cid=c["id"]; name=c.get("name",""); kid=konami_id(c)
               ids[str(cid)]={"id":cid,"name":name,"konami_id":kid}
@@ -80,16 +67,12 @@ jobs:
               image=images[0].get("image_url") if images and isinstance(images[0],dict) else ""
               image_small=images[0].get("image_url_small") if images and isinstance(images[0],dict) else image
               search.append({"id":cid,"name":name,"konami_id":kid,"type":t or "","desc":c.get("desc",""),"race":c.get("race",""),"attribute":c.get("attribute",""),"level":c.get("level"),"rank":c.get("rank"),"linkval":c.get("linkval"),"image":image,"image_small":image_small,"archetype":a or ""})
-
-          for filename,obj in [("name.json",names),("id.json",ids),("archetype.json",archetypes),("type.json",types)]:
-              (idx/filename).write_text(json.dumps(obj,ensure_ascii=False,separators=(",",":")),encoding="utf-8")
+          for filename,obj in [("name.json",names),("id.json",ids),("archetype.json",archetypes),("type.json",types)]: (idx/filename).write_text(json.dumps(obj,ensure_ascii=False,separators=(",",":")),encoding="utf-8")
           search.sort(key=lambda x:norm(x["name"]))
           (idx/"search.json").write_text(json.dumps(search,ensure_ascii=False,separators=(",",":")),encoding="utf-8")
-
           metadata={"database":"MEIOCG-Database","schema_version":2,"status":"populated","last_import_utc":datetime.now(timezone.utc).isoformat(),"source":{"name":"YGOPRODeck","api_version":"v7","database_version":version},"card_count":len(cards),"image_count":sum(len(c.get("card_images",[])) for c in cards),"search_index":"indexes/search.json"}
           (data/"metadata.json").write_text(json.dumps(metadata,ensure_ascii=False,indent=2),encoding="utf-8")
           print(f"Built MEIOCG database: {len(cards)} cards; search index: {len(search)}")
-
       - name: Validate search index
         run: |
           test -s indexes/search.json
@@ -100,15 +83,12 @@ jobs:
           assert any(c.get('name')=='Ash Blossom & Joyous Spring' and c.get('konami_id') for c in x), 'Ash Blossom Konami ID missing'
           print(f'Validated search index: {len(x)} cards')
           PY
-
       - name: Commit changes
         run: |
           git config user.name "MEIOCG Database Bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/cards.json data/metadata.json indexes/
-          if git diff --cached --quiet; then
-            echo "No changes."
-          else
-            git commit -m "Update MEIOCG card database and fast search index"
-            git push
-          fi
+          if git diff --cached --quiet; then echo "No changes."; else git commit -m "Update MEIOCG card database and fast search index"; git push; fi
+
+# Force a fresh build after Kodex search-engine fixes.
+# This comment intentionally triggers the workflow once through the push-path rule.
