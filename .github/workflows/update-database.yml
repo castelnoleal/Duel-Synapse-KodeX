@@ -31,11 +31,13 @@ jobs:
           from pathlib import Path
           from datetime import datetime, timezone
 
-          API = "https://db.ygoprodeck.com/api/v7/cardinfo.php"
+          # misc=yes is required because YGOPRODeck exposes the official
+          # Konami database ID in misc_info.konami_id.
+          API = "https://db.ygoprodeck.com/api/v7/cardinfo.php?misc=yes"
           VER = "https://db.ygoprodeck.com/api/v7/checkDBVer.php"
 
           def get(url):
-              req = urllib.request.Request(url, headers={"User-Agent":"MEIOCG-Database-Updater/2.0"})
+              req = urllib.request.Request(url, headers={"User-Agent":"MEIOCG-Database-Updater/2.1"})
               with urllib.request.urlopen(req, timeout=180) as r:
                   return json.loads(r.read())
 
@@ -47,11 +49,10 @@ jobs:
               if isinstance(misc, list):
                   misc = misc[0] if misc else {}
               if isinstance(misc, dict):
-                  for key in ("konami_id", "konamiId", "konamiID", "konami_db_id", "konami_database_id"):
-                      value = misc.get(key)
-                      if value not in (None, ""):
-                          try: return int(value)
-                          except (TypeError, ValueError): pass
+                  value = misc.get("konami_id")
+                  if value not in (None, ""):
+                      try: return int(value)
+                      except (TypeError, ValueError): pass
               for key in ("konami_id", "konamiId", "konamiID", "konami_db_id", "konami_database_id"):
                   value = card.get(key)
                   if value not in (None, ""):
@@ -88,6 +89,17 @@ jobs:
           metadata={"database":"MEIOCG-Database","schema_version":2,"status":"populated","last_import_utc":datetime.now(timezone.utc).isoformat(),"source":{"name":"YGOPRODeck","api_version":"v7","database_version":version},"card_count":len(cards),"image_count":sum(len(c.get("card_images",[])) for c in cards),"search_index":"indexes/search.json"}
           (data/"metadata.json").write_text(json.dumps(metadata,ensure_ascii=False,indent=2),encoding="utf-8")
           print(f"Built MEIOCG database: {len(cards)} cards; search index: {len(search)}")
+
+      - name: Validate search index
+        run: |
+          test -s indexes/search.json
+          python3 - <<'PY'
+          import json
+          x=json.load(open('indexes/search.json',encoding='utf-8'))
+          assert len(x)>10000, f'Unexpectedly small search index: {len(x)}'
+          assert any(c.get('name')=='Ash Blossom & Joyous Spring' and c.get('konami_id') for c in x), 'Ash Blossom Konami ID missing'
+          print(f'Validated search index: {len(x)} cards')
+          PY
 
       - name: Commit changes
         run: |
