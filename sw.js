@@ -1,8 +1,9 @@
-const CACHE='meiocg-search-v6';
+const CACHE='meiocg-search-v7';
 const CORE=['/','/index.html','/indexes/search.json','/assets/meiocg-watermark.svg'];
 const BRAND_CSS=`<style id="meiocg-watermark-style">.meiocg-watermark{position:fixed;inset:0;z-index:0;display:grid;place-items:center;pointer-events:none;user-select:none;overflow:hidden}.meiocg-watermark img{width:min(72vw,920px);max-height:62vh;object-fit:contain;opacity:.13;filter:drop-shadow(0 8px 35px rgba(0,0,0,.28))}.wrap{position:relative;z-index:1}.settings-fab,.settings-panel{z-index:60}</style>`;
 const BRAND_HTML='<div class="meiocg-watermark" aria-hidden="true"><img src="/assets/meiocg-watermark.svg" alt=""></div>';
 async function branded(response){try{const type=response.headers.get('content-type')||'';if(!type.includes('text/html'))return response;let text=await response.text();if(!text.includes('meiocg-watermark'))text=text.replace('</head>',BRAND_CSS+'</head>').replace('<body>',BRAND_HTML+'<body>');const headers=new Headers(response.headers);headers.set('content-type','text/html; charset=utf-8');return new Response(text,{status:response.status,statusText:response.statusText,headers})}catch(e){return response}}
-self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(CORE)).then(()=>self.skipWaiting())));
+async function cacheCore(){const c=await caches.open(CACHE);for(const path of CORE){try{const r=await fetch(path,{cache:'no-store'});const out=path==='/'||path.endsWith('/index.html')?await branded(r):r;if(out.ok)await c.put(path,out)}catch(e){}}}
+self.addEventListener('install',e=>e.waitUntil(cacheCore().then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',e=>{const u=new URL(e.request.url);if(u.origin!==location.origin||e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(async hit=>{if(hit)return hit;try{const fresh=await fetch(e.request);const out=u.pathname==='/'||u.pathname.endsWith('/index.html')?await branded(fresh.clone()):fresh;if(out.ok)caches.open(CACHE).then(c=>c.put(e.request,out.clone()));return out}catch(err){return hit||new Response('Offline',{status:503})}}))});
