@@ -1,19 +1,40 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>MEIOCG Database</title>
-  <meta name="description" content="MEIOCG centralized Yu-Gi-Oh! card database.">
-  <style>
-    body{font-family:system-ui,sans-serif;max-width:900px;margin:0 auto;padding:40px 20px;line-height:1.6}
-    code{background:#eee;padding:.15em .35em;border-radius:4px}
-  </style>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MEIOCG Card Database</title>
+<meta name="description" content="Fast MEIOCG Yu-Gi-Oh! card and ruling search engine.">
+<link rel="preconnect" href="https://cards.meiocg.org" crossorigin>
+<style>
+:root{--bg:#080a0f;--panel:#11151d;--panel2:#171c26;--text:#f4f7fb;--muted:#8e99aa;--line:#27303d;--accent:#5ea0ff;--accent2:#7dd3fc;--danger:#ff6b6b}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% -10%,#182235 0,#080a0f 45%);color:var(--text);font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;min-height:100vh}
+.wrap{max-width:1180px;margin:auto;padding:34px 18px 70px}.hero{text-align:center;margin-bottom:24px}.logo{font-weight:900;letter-spacing:.08em;font-size:13px;color:var(--accent2)}h1{font-size:clamp(30px,6vw,54px);margin:8px 0 7px}p{color:var(--muted);margin:0}.search{position:sticky;top:12px;z-index:10;margin:22px auto 18px;display:flex;gap:10px;max-width:900px;background:rgba(17,21,29,.88);backdrop-filter:blur(18px);padding:10px;border:1px solid var(--line);border-radius:18px;box-shadow:0 18px 50px #0008}.search input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:var(--text);font-size:18px;padding:12px 13px}.count{white-space:nowrap;color:var(--muted);font-size:12px;align-self:center;padding:0 10px}.layout{display:grid;grid-template-columns:minmax(260px,430px) 1fr;gap:16px}.panel{background:rgba(17,21,29,.92);border:1px solid var(--line);border-radius:18px;overflow:hidden}.results{max-height:72vh;overflow:auto}.result{display:flex;gap:12px;padding:13px 15px;border-bottom:1px solid #202733;cursor:pointer}.result:hover,.result.active{background:var(--panel2)}.thumb{width:48px;height:68px;object-fit:cover;border-radius:6px;background:#090b10}.rname{font-weight:750}.rid{font-size:11px;color:var(--muted);margin-top:4px}.detail{min-height:72vh;padding:22px}.empty{color:var(--muted);text-align:center;padding:55px 20px}.cardhead{display:flex;gap:18px}.cardimg{width:180px;max-width:32%;height:auto;object-fit:contain;align-self:flex-start}.meta h2{margin:0 0 8px;font-size:27px}.pill{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:4px 8px;font-size:11px;color:var(--muted);margin:2px}.desc{white-space:pre-wrap;color:#d7dce5;line-height:1.55;margin-top:16px}.rulehead{display:flex;justify-content:space-between;align-items:center;margin:28px 0 10px}.rulehead h3{margin:0}.status{font-size:12px;color:var(--muted)}.qa{border:1px solid var(--line);border-radius:14px;margin:10px 0;background:#0d1118;overflow:hidden}.qat{padding:14px 15px;font-weight:750}.qab{padding:0 15px 15px;color:#d9dee7;line-height:1.55;white-space:pre-wrap}.tag{font-size:10px;color:var(--accent2);margin-left:8px}.error{color:var(--danger)}@media(max-width:820px){.layout{grid-template-columns:1fr}.results{max-height:38vh}.detail{min-height:auto}.cardhead{align-items:flex-start}.cardimg{width:120px}}
+</style>
 </head>
 <body>
-  <h1>MEIOCG Database</h1>
-  <p>Centralized card-data repository for MEIOCG projects.</p>
-  <p>This repository is designed to provide optimized local/static data for Duel Synapse and other MEIOCG applications.</p>
-  <p>Database status: <strong>Foundation ready</strong>.</p>
-</body>
-</html>
+<div class="wrap">
+  <header class="hero"><div class="logo">MEIOCG DATABASE</div><h1>Yu-Gi-Oh! Card Search</h1><p>Fast local search with instant card-specific Q&A loading.</p></header>
+  <div class="search"><input id="q" autocomplete="off" placeholder="Search card name, ID, or print code…"><span id="count" class="count">Loading index…</span></div>
+  <main class="layout"><section class="panel results" id="results"></section><section class="panel detail" id="detail"><div class="empty">Start typing to search the MEIOCG card database.</div></section></main>
+</div>
+<script>
+const ROOT='';
+const INDEX_URL='indexes/search.json';
+const RULING_URL=id=>`data/rulings/cards/${encodeURIComponent(id)}.json`;
+const CARD_CACHE='meiocg-card-v1';
+let cards=[], selected=null, timer=0;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm=s=>String(s||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').trim();
+function score(c,q){const n=norm(c.name), x=norm(q); if(!x)return 0; if(n===x)return 10000; if(n.startsWith(x))return 7000-x.length; if(n.includes(x))return 5000-x.length; const words=x.split(/\s+/).filter(Boolean);let hit=0;for(const w of words)if(n.includes(w))hit++;return hit?3000+hit*100-w.length:0}
+function renderResults(list){$('results').innerHTML=list.length?list.map((c,i)=>`<div class="result ${selected?.id===c.id?'active':''}" data-i="${i}"><img class="thumb" loading="lazy" src="${esc(c.image||'')}" onerror="this.style.visibility='hidden'"><div><div class="rname">${esc(c.name)}</div><div class="rid">ID ${esc(c.id)}${c.konami_id?` · DB ${esc(c.konami_id)}`:''}</div></div></div>`).join(''):`<div class="empty">No matching cards.</div>`; [...document.querySelectorAll('.result')].forEach((el,i)=>el.onclick=()=>openCard(list[i])); $('count').textContent=list.length?`${list.length} result${list.length===1?'':'s'}`:'0 results'}
+function search(){clearTimeout(timer);timer=setTimeout(()=>{const q=$('q').value.trim(); if(!q){renderResults([]);$('count').textContent=`${cards.length.toLocaleString()} cards`;return}const list=cards.map(c=>[score(c,q),c]).filter(x=>x[0]>0).sort((a,b)=>b[0]-a[0]||a[1].name.localeCompare(b[1].name)).slice(0,80).map(x=>x[1]);renderResults(list)},30)}
+function textOf(api){const en=api?.qaData?.en||{};const ja=api?.qaData?.ja||{};return {title:en.title||ja.title||'',question:en.question||ja.question||'',answer:en.answer||ja.answer||''}}
+function resolveRefs(s){return String(s||'').replace(/<<([0-9]+)>>/g,(_,id)=>{const c=cards.find(x=>String(x.id)===id||String(x.konami_id)===id);return c?c.name:`#${id}`})}
+async function openCard(c){selected=c;renderResults(cards.filter(x=>score(x,$('q').value)>0).slice(0,80));$('detail').innerHTML=`<div class="cardhead"><img class="cardimg" src="${esc(c.image||'')}" onerror="this.style.display='none'"><div class="meta"><h2>${esc(c.name)}</h2><span class="pill">ID ${esc(c.id)}</span>${c.konami_id?`<span class="pill">Konami DB ${esc(c.konami_id)}</span>`:''}${c.type?`<span class="pill">${esc(c.type)}</span>`:''}<div class="desc">${esc(c.desc||'')}</div></div></div><div class="rulehead"><h3>Rulings / Q&A</h3><span class="status" id="rstatus">Loading…</span></div><div id="qas"></div>`; if(!c.konami_id){$('rstatus').textContent='No Konami DB ID';return} const key=`${RULING_URL(c.konami_id)}`;try{let data;const cached=localStorage.getItem(key);if(cached){try{data=JSON.parse(cached);renderQAs(data);fetch(key,{cache:'no-cache'}).then(r=>r.ok?r.json():null).then(f=>{if(f){localStorage.setItem(key,JSON.stringify(f));}}).catch(()=>{});return}catch{}}const r=await fetch(key,{cache:'force-cache'});if(!r.ok)throw new Error(`HTTP ${r.status}`);data=await r.json();localStorage.setItem(key,JSON.stringify(data));renderQAs(data)}catch(e){$('rstatus').innerHTML='<span class="error">Unable to load rulings</span>';}}
+function renderQAs(data){const records=Array.isArray(data?.records)?data.records:[];$('rstatus').textContent=`${records.length} Q&A${records.length===1?'':'s'}`;$('qas').innerHTML=records.length?records.map((r,i)=>{const t=textOf(r.api||r.history);return `<article class="qa"><div class="qat">${esc(resolveRefs(t.title||`Q&A #${r.id}`))}<span class="tag">#${esc(r.id)}</span></div><div class="qab"><b>Q:</b> ${esc(resolveRefs(t.question))}\n\n<b>A:</b> ${esc(resolveRefs(t.answer))}</div></article>`}).join(''):`<div class="empty">No documented Q&A for this card.</div>`}
+async function init(){try{const r=await fetch(INDEX_URL,{cache:'force-cache'});if(!r.ok)throw 0;cards=await r.json();$('count').textContent=`${cards.length.toLocaleString()} cards`; $('q').focus()}catch(e){$('count').textContent='Index unavailable';$('results').innerHTML='<div class="empty">Search index is unavailable. Run the database update workflow once to generate indexes/search.json.</div>'}}
+$('q').addEventListener('input',search);$('q').addEventListener('keydown',e=>{if(e.key==='Escape'){$('q').value='';search();}});init();
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body></html>
