@@ -2,6 +2,9 @@ name: Update MEIOCG Database
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/update-database.yml'
   schedule:
     - cron: "17 2 * * 1"
 
@@ -47,69 +50,43 @@ jobs:
                   for key in ("konami_id", "konamiId", "konamiID", "konami_db_id", "konami_database_id"):
                       value = misc.get(key)
                       if value not in (None, ""):
-                          try:
-                              return int(value)
-                          except (TypeError, ValueError):
-                              pass
+                          try: return int(value)
+                          except (TypeError, ValueError): pass
               for key in ("konami_id", "konamiId", "konamiID", "konami_db_id", "konami_database_id"):
                   value = card.get(key)
                   if value not in (None, ""):
-                      try:
-                          return int(value)
-                      except (TypeError, ValueError):
-                          pass
+                      try: return int(value)
+                      except (TypeError, ValueError): pass
               return None
 
-          data = Path("data")
-          idx = Path("indexes")
-          data.mkdir(exist_ok=True)
-          idx.mkdir(exist_ok=True)
-
+          data = Path("data"); idx = Path("indexes")
+          data.mkdir(exist_ok=True); idx.mkdir(exist_ok=True)
           version = get(VER)
           cards = get(API).get("data", [])
-          if not cards:
-              raise SystemExit("No cards returned; update aborted.")
-
+          if not cards: raise SystemExit("No cards returned; update aborted.")
           (data/"cards.json").write_text(json.dumps(cards, ensure_ascii=False, separators=(",",":")), encoding="utf-8")
 
-          names, ids, archetypes, types = {}, {}, {}, {}
-          search = []
+          names, ids, archetypes, types, search = {}, {}, {}, {}, []
           for c in cards:
-              cid = c["id"]
-              name = c.get("name", "")
-              kid = konami_id(c)
-              ids[str(cid)] = {"id": cid, "name": name, "konami_id": kid}
-              n = norm(name)
-              if n: names.setdefault(n, []).append(cid)
-              a = c.get("archetype")
-              if a: archetypes.setdefault(a, []).append(cid)
-              t = c.get("type")
-              if t: types.setdefault(t, []).append(cid)
-              images = c.get("card_images") or []
-              image = images[0].get("image_url") if images and isinstance(images[0], dict) else ""
-              image_small = images[0].get("image_url_small") if images and isinstance(images[0], dict) else image
-              search.append({
-                  "id": cid, "name": name, "konami_id": kid,
-                  "type": c.get("type", ""), "desc": c.get("desc", ""),
-                  "race": c.get("race", ""), "attribute": c.get("attribute", ""),
-                  "level": c.get("level"), "rank": c.get("rank"), "linkval": c.get("linkval"),
-                  "image": image, "image_small": image_small, "archetype": a or ""
-              })
+              cid=c["id"]; name=c.get("name",""); kid=konami_id(c)
+              ids[str(cid)]={"id":cid,"name":name,"konami_id":kid}
+              n=norm(name)
+              if n: names.setdefault(n,[]).append(cid)
+              a=c.get("archetype"); t=c.get("type")
+              if a: archetypes.setdefault(a,[]).append(cid)
+              if t: types.setdefault(t,[]).append(cid)
+              images=c.get("card_images") or []
+              image=images[0].get("image_url") if images and isinstance(images[0],dict) else ""
+              image_small=images[0].get("image_url_small") if images and isinstance(images[0],dict) else image
+              search.append({"id":cid,"name":name,"konami_id":kid,"type":t or "","desc":c.get("desc",""),"race":c.get("race",""),"attribute":c.get("attribute",""),"level":c.get("level"),"rank":c.get("rank"),"linkval":c.get("linkval"),"image":image,"image_small":image_small,"archetype":a or ""})
 
-          for filename, obj in [("name.json", names), ("id.json", ids), ("archetype.json", archetypes), ("type.json", types)]:
-              (idx/filename).write_text(json.dumps(obj, ensure_ascii=False, separators=(",",":")), encoding="utf-8")
+          for filename,obj in [("name.json",names),("id.json",ids),("archetype.json",archetypes),("type.json",types)]:
+              (idx/filename).write_text(json.dumps(obj,ensure_ascii=False,separators=(",",":")),encoding="utf-8")
+          search.sort(key=lambda x:norm(x["name"]))
+          (idx/"search.json").write_text(json.dumps(search,ensure_ascii=False,separators=(",",":")),encoding="utf-8")
 
-          search.sort(key=lambda x: norm(x["name"]))
-          (idx/"search.json").write_text(json.dumps(search, ensure_ascii=False, separators=(",",":")), encoding="utf-8")
-
-          metadata = {
-              "database":"MEIOCG-Database", "schema_version":2, "status":"populated",
-              "last_import_utc":datetime.now(timezone.utc).isoformat(),
-              "source":{"name":"YGOPRODeck","api_version":"v7","database_version":version},
-              "card_count":len(cards), "image_count":sum(len(c.get("card_images",[])) for c in cards),
-              "search_index":"indexes/search.json"
-          }
-          (data/"metadata.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
+          metadata={"database":"MEIOCG-Database","schema_version":2,"status":"populated","last_import_utc":datetime.now(timezone.utc).isoformat(),"source":{"name":"YGOPRODeck","api_version":"v7","database_version":version},"card_count":len(cards),"image_count":sum(len(c.get("card_images",[])) for c in cards),"search_index":"indexes/search.json"}
+          (data/"metadata.json").write_text(json.dumps(metadata,ensure_ascii=False,indent=2),encoding="utf-8")
           print(f"Built MEIOCG database: {len(cards)} cards; search index: {len(search)}")
 
       - name: Commit changes
