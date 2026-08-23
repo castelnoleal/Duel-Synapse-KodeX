@@ -1,18 +1,19 @@
 {
   "database": "MEIOCG-Database",
-  "schema_version": 1,
+  "schema_version": 2,
   "status": "populated",
-  "last_import_utc": "2026-08-17T03:15:20.787457+00:00",
+  "last_import_utc": "2026-08-23T01:45:25.189791+00:00",
   "source": {
     "name": "YGOPRODeck",
     "api_version": "v7",
     "database_version": [
       {
-        "database_version": "146.67",
-        "last_update": "2026-08-17 00:03:29"
+        "database_version": "146.68",
+        "last_update": "2026-08-21 00:00:28"
       }
     ]
   },
-  "card_count": 14515,
-  "image_count": 14679
+  "card_count": 14519,
+  "image_count": 14683,
+  "search_index": "indexes/search.json"
 }
