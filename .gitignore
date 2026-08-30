@@ -1,0 +1,24 @@
+# Secrets and local environment files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Local/runtime data
+.DS_Store
+Thumbs.db
+node_modules/
+.npm/
+.cache/
+.tmp/
+
+# Logs
+*.log
+logs/
+
+# Local editor files
+.vscode/
+.idea/
