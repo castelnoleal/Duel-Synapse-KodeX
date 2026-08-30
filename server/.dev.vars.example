@@ -1,0 +1,2 @@
+# Local development only. Never commit the real value.
+GITHUB_TOKEN="replace-with-a-read-only-token-for-Duel-Synapse-KodeX"
