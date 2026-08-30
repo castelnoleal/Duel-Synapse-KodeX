@@ -1,0 +1,114 @@
+const REPO = "castelnoleal/Duel-Synapse-KodeX";
+const BRANCH = "main";
+const INDEX_PATH = "indexes/search.json";
+const RULING_PREFIX = "data/rulings/cards/";
+const ALLOWED_ORIGINS = new Set(["https://kodex.meiocg.org"]);
+const CACHE_NAME = "kodex-private-origin-v1";
+
+function corsHeaders(origin) {
+  const h = {
+    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Vary": "Origin",
+  };
+  if (origin && ALLOWED_ORIGINS.has(origin)) h["Access-Control-Allow-Origin"] = origin;
+  return h;
+}
+
+function json(data, status = 200, origin = "") {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": status === 200 ? "public, max-age=60, stale-while-revalidate=300" : "no-store",
+      ...corsHeaders(origin),
+    },
+  });
+}
+
+function normalize(value) {
+  return String(value ?? "").toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function score(card, query) {
+  const q = normalize(query);
+  if (!q) return 0;
+  const name = normalize(card.name);
+  const archetype = normalize(card.archetype);
+  const id = String(card.id ?? "");
+  const kid = String(card.konami_id ?? "");
+  if (name === q) return 100000;
+  if (id === q || kid === q) return 95000;
+  if (name.startsWith(q)) return 80000;
+  if (name.includes(q)) return 60000;
+  if (archetype.includes(q)) return 40000;
+  const words = q.split(" ").filter(Boolean);
+  const hits = words.filter(w => name.includes(w) || archetype.includes(w)).length;
+  return hits ? 20000 + hits * 100 : 0;
+}
+
+async function githubFetch(path, env) {
+  if (!env.GITHUB_TOKEN) throw new Error("GITHUB_TOKEN is not configured");
+  const url = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/${path}`;
+  const cache = await caches.open(CACHE_NAME);
+  const cacheKey = new Request(`https://private-origin.invalid/${encodeURIComponent(path)}`);
+  const hit = await cache.match(cacheKey);
+  if (hit) return hit;
+
+  const r = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+      Accept: "application/vnd.github.raw+json",
+      "User-Agent": "MEIOCG-KodeX-Private-Origin/1.0",
+    },
+  });
+  if (!r.ok) throw new Error(`Private KodeX origin returned ${r.status}`);
+  const copy = new Response(r.body, { status: 200, headers: { "Content-Type": r.headers.get("Content-Type") || "application/json" } });
+  await cache.put(cacheKey, copy.clone());
+  return copy;
+}
+
+async function getIndex(env) {
+  const r = await githubFetch(INDEX_PATH, env);
+  const data = await r.json();
+  if (!Array.isArray(data)) throw new Error("Invalid KodeX search index");
+  return data;
+}
+
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+    const origin = request.headers.get("Origin") || "";
+
+    if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(origin) });
+    if (request.method !== "GET") return json({ error: "Method not allowed" }, 405, origin);
+
+    try {
+      if (url.pathname === "/health") return json({ ok: true, service: "Duel Synapse KodeX private origin" }, 200, origin);
+
+      if (url.pathname === "/api/search") {
+        const q = (url.searchParams.get("q") || "").trim();
+        if (!q) return json({ results: [] }, 200, origin);
+        if (q.length > 120) return json({ error: "Query too long" }, 400, origin);
+        const limit = Math.min(Math.max(Number(url.searchParams.get("limit") || 40), 1), 80);
+        const filter = (url.searchParams.get("type") || "all").toLowerCase();
+        const cards = await getIndex(env);
+        const results = cards.map(c => [score(c, q), c]).filter(x => x[0] > 0).filter(x => filter === "all" || String(x[1].type || "").toLowerCase().includes(filter)).sort((a,b) => b[0] - a[0] || String(a[1].name).localeCompare(String(b[1].name))).slice(0, limit).map(x => x[1]);
+        return json({ results, count: results.length }, 200, origin);
+      }
+
+      const m = url.pathname.match(/^\/api\/ruling\/(\d+)$/);
+      if (m) {
+        const id = m[1];
+        if (!/^[0-9]{1,12}$/.test(id)) return json({ error: "Invalid ruling id" }, 400, origin);
+        const r = await githubFetch(`${RULING_PREFIX}${id}.json`, env);
+        return new Response(r.body, { status: 200, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=300, stale-while-revalidate=1800", ...corsHeaders(origin) } });
+      }
+
+      return json({ error: "Not found" }, 404, origin);
+    } catch (error) {
+      console.error(error);
+      return json({ error: "KodeX service unavailable" }, 503, origin);
+    }
+  },
+};
