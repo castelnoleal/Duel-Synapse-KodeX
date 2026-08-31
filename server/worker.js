@@ -1,148 +1,20 @@
-const REPO = "castelnoleal/Duel-Synapse-KodeX";
-const BRANCH = "main";
-const INDEX_PATH = "indexes/search.json";
-const RULING_PREFIX = "data/rulings/cards/";
-const ALLOWED_ORIGINS = new Set(["https://kodex.meiocg.org"]);
-const CACHE_NAME = "kodex-private-origin-v5";
-
-function corsHeaders(origin) {
-  const h = {
-    "Access-Control-Allow-Methods": "GET, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
-    "Vary": "Origin",
-  };
-  if (origin && ALLOWED_ORIGINS.has(origin)) h["Access-Control-Allow-Origin"] = origin;
-  return h;
-}
-
-function json(data, status = 200, origin = "") {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": status === 200 ? "public, max-age=60, stale-while-revalidate=300" : "no-store",
-      ...corsHeaders(origin),
-    },
-  });
-}
-
-function normalize(value) {
-  return String(value ?? "").toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
-}
-
-function score(card, query) {
-  const q = normalize(query);
-  if (!q) return 0;
-  const name = normalize(card.name);
-  const archetype = normalize(card.archetype);
-  const id = String(card.id ?? "");
-  const kid = String(card.konami_id ?? "");
-  if (name === q) return 100000;
-  if (id === q || kid === q) return 95000;
-  if (name.startsWith(q)) return 80000;
-  if (name.includes(q)) return 60000;
-  if (archetype.includes(q)) return 40000;
-  const words = q.split(" ").filter(Boolean);
-  const hits = words.filter(w => name.includes(w) || archetype.includes(w)).length;
-  return hits ? 20000 + hits * 100 : 0;
-}
-
-async function githubFetch(path, env) {
-  if (!env.GITHUB_TOKEN) throw new Error("GITHUB_TOKEN is not configured");
-  const url = `https://api.github.com/repos/${REPO}/contents/${path}?ref=${encodeURIComponent(BRANCH)}`;
-  const cache = await caches.open(CACHE_NAME);
-  const cacheKey = new Request(`https://private-origin.invalid/${encodeURIComponent(path)}`);
-  const hit = await cache.match(cacheKey);
-  if (hit) return hit;
-  const r = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${env.GITHUB_TOKEN}`,
-      Accept: "application/vnd.github.raw",
-      "X-GitHub-Api-Version": "2022-11-28",
-      "User-Agent": "MEIOCG-KodeX-Private-Origin/5.0",
-    },
-  });
-  if (!r.ok) {
-    console.error(`GitHub Contents API returned ${r.status} for ${path}`);
-    throw new Error(`Private KodeX origin returned ${r.status}`);
-  }
-  const copy = new Response(r.body, {
-    status: 200,
-    headers: {
-      "Content-Type": r.headers.get("Content-Type") || "application/octet-stream",
-      "Cache-Control": "public, max-age=300, stale-while-revalidate=1800",
-    },
-  });
-  await cache.put(cacheKey, copy.clone());
-  return copy;
-}
-
-async function getIndex(env) {
-  const r = await githubFetch(INDEX_PATH, env);
-  const data = await r.json();
-  if (!Array.isArray(data)) throw new Error("Invalid KodeX search index");
-  return data;
-}
-
-async function servePublicUi(pathname, env) {
-  // Only these UI assets are exposed. The repository itself remains private.
-  let repoPath = null;
-  let contentType = "text/plain; charset=utf-8";
-  if (pathname === "/" || pathname === "/index.html" || pathname === "/kodex" || pathname === "/kodex/") {
-    repoPath = "kodex/index.html";
-    contentType = "text/html; charset=utf-8";
-  } else if (pathname === "/sw.js" || pathname === "/kodex/sw.js") {
-    repoPath = "kodex/sw.js";
-    contentType = "application/javascript; charset=utf-8";
-  } else if (pathname === "/assets/meiocg-watermark.svg") {
-    repoPath = "assets/meiocg-watermark.svg";
-    contentType = "image/svg+xml";
-  }
-  if (!repoPath) return null;
-  const r = await githubFetch(repoPath, env);
-  return new Response(r.body, {
-    status: 200,
-    headers: {
-      "Content-Type": contentType,
-      "Cache-Control": "public, max-age=300, stale-while-revalidate=1800",
-    },
-  });
-}
-
-export default {
-  async fetch(request, env) {
-    const url = new URL(request.url);
-    const origin = request.headers.get("Origin") || "";
-    if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(origin) });
-    if (request.method !== "GET") return json({ error: "Method not allowed" }, 405, origin);
-    try {
-      if (url.pathname === "/health" || url.pathname === "/api/health") {
-        return json({ ok: true, service: "Duel Synapse KodeX private origin" }, 200, origin);
-      }
-      if (url.pathname === "/api/search") {
-        const q = (url.searchParams.get("q") || "").trim();
-        if (!q) return json({ results: [] }, 200, origin);
-        if (q.length > 120) return json({ error: "Query too long" }, 400, origin);
-        const requestedLimit = Number(url.searchParams.get("limit") || 40);
-        const limit = Math.min(Math.max(Number.isFinite(requestedLimit) ? requestedLimit : 40, 1), 80);
-        const filter = (url.searchParams.get("type") || "all").toLowerCase();
-        const cards = await getIndex(env);
-        const results = cards.map(c => [score(c, q), c]).filter(x => x[0] > 0).filter(x => filter === "all" || String(x[1].type || "").toLowerCase().includes(filter)).sort((a,b) => b[0] - a[0] || String(a[1].name).localeCompare(String(b[1].name))).slice(0, limit).map(x => x[1]);
-        return json({ results, count: results.length }, 200, origin);
-      }
-      const m = url.pathname.match(/^\/api\/ruling\/(\d+)$/);
-      if (m) {
-        const id = m[1];
-        if (!/^[0-9]{1,12}$/.test(id)) return json({ error: "Invalid ruling id" }, 400, origin);
-        const r = await githubFetch(`${RULING_PREFIX}${id}.json`, env);
-        return new Response(r.body, { status: 200, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=300, stale-while-revalidate=1800", ...corsHeaders(origin) } });
-      }
-      const ui = await servePublicUi(url.pathname, env);
-      if (ui) return ui;
-      return json({ error: "Not found" }, 404, origin);
-    } catch (error) {
-      console.error(error);
-      return json({ error: "KodeX service unavailable" }, 503, origin);
-    }
-  },
-};
+const REPO="castelnoleal/Duel-Synapse-KodeX",BRANCH="main",INDEX_PATH="indexes/search.json",RULING_PREFIX="data/rulings/cards/",CACHE_NAME="kodex-private-origin-v6",ALLOWED_ORIGINS=new Set(["https://kodex.meiocg.org"]);
+function corsHeaders(origin){const h={"Access-Control-Allow-Methods":"GET, OPTIONS","Access-Control-Allow-Headers":"Content-Type",Vary:"Origin"};if(origin&&ALLOWED_ORIGINS.has(origin))h["Access-Control-Allow-Origin"]=origin;return h}
+function json(data,status=200,origin=""){return new Response(JSON.stringify(data),{status,headers:{"Content-Type":"application/json; charset=utf-8","Cache-Control":status===200?"public, max-age=60, stale-while-revalidate=300":"no-store",...corsHeaders(origin)}})}
+function normalize(v){return String(v??"").toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim()}
+function score(c,q){q=normalize(q);const n=normalize(c.name),a=normalize(c.archetype),id=String(c.id??""),k=String(c.konami_id??"");if(!q)return 0;if(n===q)return 100000;if(id===q||k===q)return 95000;if(n.startsWith(q))return 80000;if(n.includes(q))return 60000;if(a.includes(q))return 40000;const w=q.split(" ").filter(Boolean),h=w.filter(x=>n.includes(x)||a.includes(x)).length;return h?20000+h*100:0}
+async function githubFetch(path,env,ttl=300){if(!env.GITHUB_TOKEN)throw Error("GITHUB_TOKEN is not configured");const u=`https://api.github.com/repos/${REPO}/contents/${path}?ref=${encodeURIComponent(BRANCH)}`,cache=await caches.open(CACHE_NAME),key=new Request(`https://private-origin.invalid/${encodeURIComponent(path)}`),hit=await cache.match(key);if(hit)return hit;const r=await fetch(u,{headers:{Authorization:`Bearer ${env.GITHUB_TOKEN}`,Accept:"application/vnd.github.raw","X-GitHub-Api-Version":"2022-11-28","User-Agent":"MEIOCG-KodeX-Private-Origin/6.0"}});if(!r.ok)throw Error(`Private KodeX origin returned ${r.status}`);const copy=new Response(r.body,{status:200,headers:{"Content-Type":r.headers.get("Content-Type")||"application/octet-stream", "Cache-Control":`public, max-age=${ttl}, stale-while-revalidate=1800`}});await cache.put(key,copy.clone());return copy}
+async function getIndex(env){const d=await(await githubFetch(INDEX_PATH,env)).json();if(!Array.isArray(d))throw Error("Invalid KodeX search index");return d}
+function apiUiScript(){return `<script>
+const API=location.origin+'/api',SEARCH=API+'/search',RUL=id=>API+'/ruling/'+encodeURIComponent(id);let selected=null,filter='all',timer=0;const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function render(list){window.__results=list||[];const q=$('q').value.trim();$('count').textContent=q?list.length+' matches':'Private KodeX';$('results').innerHTML=list.length?list.map(c=>'<div class="result '+(selected&&String(selected.id)===String(c.id)?'active':'')+'" data-id="'+esc(c.id)+'"><img class="thumb" loading="lazy" src="'+esc(c.image_small||c.image||'')+'" onerror="this.style.visibility=\'hidden\'"><div><div class="rname">'+esc(c.name)+'</div><div class="rid">ID '+esc(c.id)+(c.konami_id?' · Konami DB '+esc(c.konami_id):'')+'</div>'+(c.archetype?'<div class="rarchetype">'+esc(c.archetype)+'</div>':'')+'</div></div>').join(''):'<div class="empty">No matching cards.<br><br>Try a card name, passcode, Konami DB ID, or archetype.</div>';document.querySelectorAll('.result').forEach(e=>e.onclick=()=>openCard(window.__results.find(c=>String(c.id)===e.dataset.id)))}
+async function search(){const q=$('q').value.trim();clearTimeout(timer);if(!q){$('count').textContent='Private KodeX';$('results').innerHTML='<div class="empty">Search the MEIOCG KodeX database.</div>';return}$('count').textContent='Searching…';try{const r=await fetch(SEARCH+'?q='+encodeURIComponent(q)+'&limit=100&type='+encodeURIComponent(filter==='all'?'all':filter),{cache:'no-store'});if(!r.ok)throw Error();const d=await r.json();render(Array.isArray(d.results)?d.results:[])}catch(e){$('count').textContent='Service unavailable';$('results').innerHTML='<div class="empty">Unable to reach the private KodeX service.<br><br>Please try again.</div>'}}
+function refs(s){return String(s||'').replace(/<<([0-9]+)>>/g,(_,id)=>{const c=(window.__results||[]).find(x=>String(x.id)===id||String(x.konami_id)===id);return c?c.name:'#'+id})}function textOf(x){const e=x?.qaData?.en||{},j=x?.qaData?.ja||{};return{title:e.title||j.title||'',question:e.question||j.question||'',answer:e.answer||j.answer||''}}
+async function openCard(c){if(!c)return;selected=c;document.body.classList.add('has-card');const detail=$('detail');detail.innerHTML='<div class="cardhead"><img class="cardimg" src="'+esc(c.image||c.image_small||'')+'" onerror="this.style.display=\'none\'"><div class="meta"><h2>'+esc(c.name)+'</h2>'+(c.id?'<span class="pill">ID '+esc(c.id)+'</span>':'')+(c.konami_id?'<span class="pill">Konami DB '+esc(c.konami_id)+'</span>':'')+(c.type?'<span class="pill">'+esc(c.type)+'</span>':'')+(c.archetype?'<span class="pill">'+esc(c.archetype)+'</span>':'')+'<div class="desc">'+esc(c.desc||'')+'</div><div class="actions"><button class="btn" id="copy">Copy card name</button><button class="btn" id="link">Copy card link</button></div></div></div><div class="rulehead"><h3>Rulings / Q&A</h3><span id="status" class="status">Loading…</span></div><div id="qas"></div>';$('copy').onclick=()=>navigator.clipboard?.writeText(c.name);$('link').onclick=()=>navigator.clipboard?.writeText(location.href.split('#')[0]+'#card='+encodeURIComponent(c.id));if(!c.konami_id){$('status').textContent='No Konami DB ID in index';return}try{const r=await fetch(RUL(c.konami_id),{cache:'no-store'});if(!r.ok)throw Error();renderQAs(await r.json())}catch(e){$('status').textContent='No ruling file available for this card'}}
+function renderQAs(d){const rs=Array.isArray(d?.records)?d.records:[];$('status').textContent=rs.length+' Q&A'+(rs.length===1?'':'s')+' · click a question to expand';$('qas').innerHTML=rs.length?rs.map(r=>{const t=textOf(r.api||r.history),q=t.question||t.title||('Q&A #'+r.id);return '<article class="qa"><div class="qat" role="button" tabindex="0" aria-expanded="false"><span>'+esc(refs(q))+'</span><span class="tag">#'+esc(r.id)+'</span><span class="chev">›</span></div><div class="qab"><b>Question</b>\\n'+esc(refs(t.question||q))+'\\n\\n<b>Answer / Ruling</b>\\n'+esc(refs(t.answer))+'</div></article>'}).join(''):'<div class="empty">No documented Q&A for this card.</div>';document.querySelectorAll('.qat').forEach(el=>{const f=()=>{const qa=el.parentElement,o=qa.classList.toggle('open');el.setAttribute('aria-expanded',o?'true':'false')};el.onclick=f;el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();f()}}})}
+function setup(){document.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{filter=b.dataset.filter;document.querySelectorAll('.chip').forEach(x=>x.classList.toggle('active',x===b));search()});$('q').oninput=()=>{clearTimeout(timer);timer=setTimeout(search,180)};document.addEventListener('keydown',e=>{if(e.key==='/'&&document.activeElement!==$('q')){e.preventDefault();$('q').focus()}if(e.key==='Escape'){$('q').value='';search()}});const fab=$('settingsFab'),panel=$('settingsPanel'),wf=$('wallFile'),wo=$('wallOpacity'),wc=$('wallClear'),wall=$('wallpaper');if(fab&&panel)fab.onclick=()=>{const o=panel.classList.toggle('open');fab.setAttribute('aria-expanded',o?'true':'false')};const apply=()=>{const s=localStorage.getItem('kodex:wallpaper'),o=Number(localStorage.getItem('kodex:wall-opacity')||55);if(s){wall.style.backgroundImage='url("'+s.replace(/"/g,'\\"')+'")';wall.style.opacity=String(o/100)}else wall.style.opacity='0'};wf&&(wf.onchange=()=>{const f=wf.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>{localStorage.setItem('kodex:wallpaper',r.result);apply()};r.readAsDataURL(f)});wo&&(wo.oninput=()=>{localStorage.setItem('kodex:wall-opacity',wo.value);apply()});wc&&(wc.onclick=()=>{localStorage.removeItem('kodex:wallpaper');wall.style.opacity='0'});apply();if(wo)wo.value=localStorage.getItem('kodex:wall-opacity')||55}
+(async()=>{setup();try{const h=await fetch(API+'/health',{cache:'no-store'});$('count').textContent=h.ok?'Private KodeX ready':'Private KodeX unavailable'}catch(e){$('count').textContent='Private KodeX unavailable'}const m=location.hash.match(/^#card=(\\d+)$/);if(m){try{const r=await fetch(SEARCH+'?q='+m[1]+'&limit=1',{cache:'no-store'}),d=await r.json();if(d.results?.[0])openCard(d.results[0])}catch(e){}}else $('results').innerHTML='<div class="empty">Search the MEIOCG KodeX database.</div>'})();
+</script>`}
+async function serveUi(env){const r=await githubFetch("index.html",env,120),html=await r.text();const stripped=html.replace(/<script[\\s\\S]*?<\\/script>/gi,"");return new Response(stripped.replace(/<\\/body>/i,apiUiScript()+"</body>"),{status:200,headers:{"Content-Type":"text/html; charset=utf-8","Cache-Control":"public, max-age=60, stale-while-revalidate=300"}})}
+async function serveAsset(path,env){const allowed={"/meiocglogo.png":["meiocglogo.png","image/png"],"/assets/meiocg-watermark.svg":["assets/meiocg-watermark.svg","image/svg+xml"]};const x=allowed[path];if(!x)return null;const r=await githubFetch(x[0],env,86400);return new Response(r.body,{status:200,headers:{"Content-Type":x[1],"Cache-Control":"public, max-age=86400, stale-while-revalidate=604800"}})}
+export default{async fetch(request,env){const u=new URL(request.url),origin=request.headers.get("Origin")||"";if(request.method==="OPTIONS")return new Response(null,{status:204,headers:corsHeaders(origin)});if(request.method!=="GET")return json({error:"Method not allowed"},405,origin);try{if(u.pathname==="/health"||u.pathname==="/api/health")return json({ok:true,service:"Duel Synapse KodeX private origin"},200,origin);if(u.pathname==="/api/search"){const q=(u.searchParams.get("q")||"").trim();if(!q)return json({results:[]},200,origin);if(q.length>120)return json({error:"Query too long"},400,origin);const requested=Number(u.searchParams.get("limit")||40),limit=Math.min(Math.max(Number.isFinite(requested)?requested:40,1),100),filter=(u.searchParams.get("type")||"all").toLowerCase(),cards=await getIndex(env),results=cards.map(c=>[score(c,q),c]).filter(x=>x[0]>0).filter(x=>filter==="all"||String(x[1].type||"").toLowerCase().includes(filter)).sort((a,b)=>b[0]-a[0]||String(a[1].name).localeCompare(String(b[1].name))).slice(0,limit).map(x=>x[1]);return json({results,count:results.length},200,origin)}const m=u.pathname.match(/^\\/api\\/ruling\\/(\\d+)$/);if(m){const id=m[1],r=await githubFetch(`${RULING_PREFIX}${id}.json`,env,300);return new Response(r.body,{status:200,headers:{"Content-Type":"application/json; charset=utf-8","Cache-Control":"public, max-age=300, stale-while-revalidate=1800",...corsHeaders(origin)}})}if(u.pathname==="/"||u.pathname==="/index.html"||u.pathname==="/kodex"||u.pathname==="/kodex/")return await serveUi(env);const a=await serveAsset(u.pathname,env);if(a)return a;return json({error:"Not found"},404,origin)}catch(e){console.error(e);return json({error:"KodeX service unavailable"},503,origin)}}};
