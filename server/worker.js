@@ -3,7 +3,7 @@ const BRANCH = "main";
 const INDEX_PATH = "indexes/search.json";
 const RULING_PREFIX = "data/rulings/cards/";
 const ALLOWED_ORIGINS = new Set(["https://kodex.meiocg.org"]);
-const CACHE_NAME = "kodex-private-origin-v2";
+const CACHE_NAME = "kodex-private-origin-v3";
 
 function corsHeaders(origin) {
   const h = {
@@ -50,8 +50,6 @@ function score(card, query) {
 async function githubFetch(path, env) {
   if (!env.GITHUB_TOKEN) throw new Error("GITHUB_TOKEN is not configured");
 
-  // Authenticated GitHub Contents API access works with private repositories.
-  // The token stays entirely inside the Worker and is never returned to clients.
   const url = `https://api.github.com/repos/${REPO}/contents/${path}?ref=${encodeURIComponent(BRANCH)}`;
   const cache = await caches.open(CACHE_NAME);
   const cacheKey = new Request(`https://private-origin.invalid/${encodeURIComponent(path)}`);
@@ -61,13 +59,16 @@ async function githubFetch(path, env) {
   const r = await fetch(url, {
     headers: {
       Authorization: `Bearer ${env.GITHUB_TOKEN}`,
-      Accept: "application/vnd.github.raw+json",
+      Accept: "application/vnd.github.raw",
       "X-GitHub-Api-Version": "2022-11-28",
-      "User-Agent": "MEIOCG-KodeX-Private-Origin/2.0",
+      "User-Agent": "MEIOCG-KodeX-Private-Origin/3.0",
     },
   });
 
-  if (!r.ok) throw new Error(`Private KodeX origin returned ${r.status}`);
+  if (!r.ok) {
+    console.error(`GitHub Contents API returned ${r.status} for ${path}`);
+    throw new Error(`Private KodeX origin returned ${r.status}`);
+  }
 
   const copy = new Response(r.body, {
     status: 200,
@@ -102,7 +103,8 @@ export default {
         const q = (url.searchParams.get("q") || "").trim();
         if (!q) return json({ results: [] }, 200, origin);
         if (q.length > 120) return json({ error: "Query too long" }, 400, origin);
-        const limit = Math.min(Math.max(Number(url.searchParams.get("limit") || 40), 1), 80);
+        const requestedLimit = Number(url.searchParams.get("limit") || 40);
+        const limit = Math.min(Math.max(Number.isFinite(requestedLimit) ? requestedLimit : 40, 1), 80);
         const filter = (url.searchParams.get("type") || "all").toLowerCase();
         const cards = await getIndex(env);
         const results = cards.map(c => [score(c, q), c]).filter(x => x[0] > 0).filter(x => filter === "all" || String(x[1].type || "").toLowerCase().includes(filter)).sort((a,b) => b[0] - a[0] || String(a[1].name).localeCompare(String(b[1].name))).slice(0, limit).map(x => x[1]);
