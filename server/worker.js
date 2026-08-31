@@ -3,7 +3,7 @@ const BRANCH = "main";
 const INDEX_PATH = "indexes/search.json";
 const RULING_PREFIX = "data/rulings/cards/";
 const ALLOWED_ORIGINS = new Set(["https://kodex.meiocg.org"]);
-const CACHE_NAME = "kodex-private-origin-v3";
+const CACHE_NAME = "kodex-private-origin-v4";
 
 function corsHeaders(origin) {
   const h = {
@@ -49,27 +49,23 @@ function score(card, query) {
 
 async function githubFetch(path, env) {
   if (!env.GITHUB_TOKEN) throw new Error("GITHUB_TOKEN is not configured");
-
   const url = `https://api.github.com/repos/${REPO}/contents/${path}?ref=${encodeURIComponent(BRANCH)}`;
   const cache = await caches.open(CACHE_NAME);
   const cacheKey = new Request(`https://private-origin.invalid/${encodeURIComponent(path)}`);
   const hit = await cache.match(cacheKey);
   if (hit) return hit;
-
   const r = await fetch(url, {
     headers: {
       Authorization: `Bearer ${env.GITHUB_TOKEN}`,
       Accept: "application/vnd.github.raw",
       "X-GitHub-Api-Version": "2022-11-28",
-      "User-Agent": "MEIOCG-KodeX-Private-Origin/3.0",
+      "User-Agent": "MEIOCG-KodeX-Private-Origin/4.0",
     },
   });
-
   if (!r.ok) {
     console.error(`GitHub Contents API returned ${r.status} for ${path}`);
     throw new Error(`Private KodeX origin returned ${r.status}`);
   }
-
   const copy = new Response(r.body, {
     status: 200,
     headers: {
@@ -92,13 +88,12 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const origin = request.headers.get("Origin") || "";
-
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(origin) });
     if (request.method !== "GET") return json({ error: "Method not allowed" }, 405, origin);
-
     try {
-      if (url.pathname === "/health") return json({ ok: true, service: "Duel Synapse KodeX private origin" }, 200, origin);
-
+      if (url.pathname === "/health" || url.pathname === "/api/health") {
+        return json({ ok: true, service: "Duel Synapse KodeX private origin" }, 200, origin);
+      }
       if (url.pathname === "/api/search") {
         const q = (url.searchParams.get("q") || "").trim();
         if (!q) return json({ results: [] }, 200, origin);
@@ -110,7 +105,6 @@ export default {
         const results = cards.map(c => [score(c, q), c]).filter(x => x[0] > 0).filter(x => filter === "all" || String(x[1].type || "").toLowerCase().includes(filter)).sort((a,b) => b[0] - a[0] || String(a[1].name).localeCompare(String(b[1].name))).slice(0, limit).map(x => x[1]);
         return json({ results, count: results.length }, 200, origin);
       }
-
       const m = url.pathname.match(/^\/api\/ruling\/(\d+)$/);
       if (m) {
         const id = m[1];
@@ -118,7 +112,6 @@ export default {
         const r = await githubFetch(`${RULING_PREFIX}${id}.json`, env);
         return new Response(r.body, { status: 200, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=300, stale-while-revalidate=1800", ...corsHeaders(origin) } });
       }
-
       return json({ error: "Not found" }, 404, origin);
     } catch (error) {
       console.error(error);
