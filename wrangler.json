@@ -6,5 +6,11 @@
   "workers_dev": true,
   "observability": {
     "enabled": true
-  }
+  },
+  "routes": [
+    {
+      "pattern": "kodex.meiocg.org/api/*",
+      "zone_name": "meiocg.org"
+    }
+  ]
 }
