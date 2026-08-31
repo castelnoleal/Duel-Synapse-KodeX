@@ -3,7 +3,7 @@ const BRANCH = "main";
 const INDEX_PATH = "indexes/search.json";
 const RULING_PREFIX = "data/rulings/cards/";
 const ALLOWED_ORIGINS = new Set(["https://kodex.meiocg.org"]);
-const CACHE_NAME = "kodex-private-origin-v1";
+const CACHE_NAME = "kodex-private-origin-v2";
 
 function corsHeaders(origin) {
   const h = {
@@ -49,7 +49,10 @@ function score(card, query) {
 
 async function githubFetch(path, env) {
   if (!env.GITHUB_TOKEN) throw new Error("GITHUB_TOKEN is not configured");
-  const url = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/${path}`;
+
+  // Authenticated GitHub Contents API access works with private repositories.
+  // The token stays entirely inside the Worker and is never returned to clients.
+  const url = `https://api.github.com/repos/${REPO}/contents/${path}?ref=${encodeURIComponent(BRANCH)}`;
   const cache = await caches.open(CACHE_NAME);
   const cacheKey = new Request(`https://private-origin.invalid/${encodeURIComponent(path)}`);
   const hit = await cache.match(cacheKey);
@@ -59,11 +62,20 @@ async function githubFetch(path, env) {
     headers: {
       Authorization: `Bearer ${env.GITHUB_TOKEN}`,
       Accept: "application/vnd.github.raw+json",
-      "User-Agent": "MEIOCG-KodeX-Private-Origin/1.0",
+      "X-GitHub-Api-Version": "2022-11-28",
+      "User-Agent": "MEIOCG-KodeX-Private-Origin/2.0",
     },
   });
+
   if (!r.ok) throw new Error(`Private KodeX origin returned ${r.status}`);
-  const copy = new Response(r.body, { status: 200, headers: { "Content-Type": r.headers.get("Content-Type") || "application/json" } });
+
+  const copy = new Response(r.body, {
+    status: 200,
+    headers: {
+      "Content-Type": r.headers.get("Content-Type") || "application/json",
+      "Cache-Control": "public, max-age=300, stale-while-revalidate=1800",
+    },
+  });
   await cache.put(cacheKey, copy.clone());
   return copy;
 }
