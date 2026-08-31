@@ -3,7 +3,7 @@ const BRANCH = "main";
 const INDEX_PATH = "indexes/search.json";
 const RULING_PREFIX = "data/rulings/cards/";
 const ALLOWED_ORIGINS = new Set(["https://kodex.meiocg.org"]);
-const CACHE_NAME = "kodex-private-origin-v4";
+const CACHE_NAME = "kodex-private-origin-v5";
 
 function corsHeaders(origin) {
   const h = {
@@ -59,7 +59,7 @@ async function githubFetch(path, env) {
       Authorization: `Bearer ${env.GITHUB_TOKEN}`,
       Accept: "application/vnd.github.raw",
       "X-GitHub-Api-Version": "2022-11-28",
-      "User-Agent": "MEIOCG-KodeX-Private-Origin/4.0",
+      "User-Agent": "MEIOCG-KodeX-Private-Origin/5.0",
     },
   });
   if (!r.ok) {
@@ -69,7 +69,7 @@ async function githubFetch(path, env) {
   const copy = new Response(r.body, {
     status: 200,
     headers: {
-      "Content-Type": r.headers.get("Content-Type") || "application/json",
+      "Content-Type": r.headers.get("Content-Type") || "application/octet-stream",
       "Cache-Control": "public, max-age=300, stale-while-revalidate=1800",
     },
   });
@@ -82,6 +82,31 @@ async function getIndex(env) {
   const data = await r.json();
   if (!Array.isArray(data)) throw new Error("Invalid KodeX search index");
   return data;
+}
+
+async function servePublicUi(pathname, env) {
+  // Only these UI assets are exposed. The repository itself remains private.
+  let repoPath = null;
+  let contentType = "text/plain; charset=utf-8";
+  if (pathname === "/" || pathname === "/index.html" || pathname === "/kodex" || pathname === "/kodex/") {
+    repoPath = "kodex/index.html";
+    contentType = "text/html; charset=utf-8";
+  } else if (pathname === "/sw.js" || pathname === "/kodex/sw.js") {
+    repoPath = "kodex/sw.js";
+    contentType = "application/javascript; charset=utf-8";
+  } else if (pathname === "/assets/meiocg-watermark.svg") {
+    repoPath = "assets/meiocg-watermark.svg";
+    contentType = "image/svg+xml";
+  }
+  if (!repoPath) return null;
+  const r = await githubFetch(repoPath, env);
+  return new Response(r.body, {
+    status: 200,
+    headers: {
+      "Content-Type": contentType,
+      "Cache-Control": "public, max-age=300, stale-while-revalidate=1800",
+    },
+  });
 }
 
 export default {
@@ -112,6 +137,8 @@ export default {
         const r = await githubFetch(`${RULING_PREFIX}${id}.json`, env);
         return new Response(r.body, { status: 200, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=300, stale-while-revalidate=1800", ...corsHeaders(origin) } });
       }
+      const ui = await servePublicUi(url.pathname, env);
+      if (ui) return ui;
       return json({ error: "Not found" }, 404, origin);
     } catch (error) {
       console.error(error);
