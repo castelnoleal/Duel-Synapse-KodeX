@@ -3,5 +3,8 @@
   "name": "duel-synapse-kodex",
   "main": "worker.js",
   "compatibility_date": "2026-08-31",
-  "workers_dev": true
+  "workers_dev": true,
+  "observability": {
+    "enabled": true
+  }
 }
