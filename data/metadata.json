@@ -1,10 +1,11 @@
 {
   "database": "MEIOCG-Database",
-  "schema_version": 3,
+  "version": "1.0.0",
+  "schema_version": 1,
   "status": "populated",
-  "last_import_utc": "2026-09-14T04:50:53.959378+00:00",
+  "last_import_utc": "2026-09-14T07:52:45.521844+00:00",
   "source": {
-    "name": "YGOPRODeck card data + YGOResources Q&A mirror",
+    "name": "YGOPRODeck API",
     "api_version": "v7",
     "database_version": [
       {
@@ -14,5 +15,14 @@
     ]
   },
   "card_count": 14559,
-  "search_count": 14559
+  "image_count": 14723,
+  "cards_sha256": "7819fc56f03b15f03f674f58ce3a0e8f375c44be9da68696216df80d15308a65",
+  "files": {
+    "full": "data/cards.json",
+    "compact": "data/cards.min.json",
+    "name_index": "indexes/name.json",
+    "id_index": "indexes/id.json",
+    "archetype_index": "indexes/archetype.json",
+    "type_index": "indexes/type.json"
+  }
 }
