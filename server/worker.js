@@ -1,25 +1,23 @@
 const REPO = "castelnoleal/Duel-Synapse-KodeX";
 const BRANCH = "main";
-const CACHE_NAME = "kodex-private-origin-v7";
-const ALLOWED_ORIGINS = new Set(["https://kodex.meiocg.org"]);
+const CACHE_NAME = "kodex-private-origin-v8";
 
-function corsHeaders(origin) {
-  const headers = {
+function corsHeaders() {
+  return {
+    "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
-    "Vary": "Origin",
+    "Access-Control-Max-Age": "86400",
   };
-  if (origin && ALLOWED_ORIGINS.has(origin)) headers["Access-Control-Allow-Origin"] = origin;
-  return headers;
 }
 
-function json(data, status = 200, origin = "") {
+function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       "Content-Type": "application/json; charset=utf-8",
       "Cache-Control": status === 200 ? "public, max-age=60, stale-while-revalidate=300" : "no-store",
-      ...corsHeaders(origin),
+      ...corsHeaders(),
     },
   });
 }
@@ -36,7 +34,7 @@ async function githubFile(path, env, cacheSeconds = 300) {
       Authorization: `Bearer ${env.GITHUB_TOKEN}`,
       Accept: "application/vnd.github.raw",
       "X-GitHub-Api-Version": "2022-11-28",
-      "User-Agent": "MEIOCG-KodeX-Private-Origin/7.0",
+      "User-Agent": "MEIOCG-KodeX-Private-Origin/8.0",
     },
   });
   if (!response.ok) throw new Error(`Private KodeX origin returned ${response.status}`);
@@ -51,26 +49,23 @@ async function githubFile(path, env, cacheSeconds = 300) {
   return copy;
 }
 
-function withHeaders(response, headers) {
+function withHeaders(response, headers = {}) {
   const result = new Response(response.body, response);
-  Object.entries(headers).forEach(([key, value]) => result.headers.set(key, value));
+  Object.entries({...headers, ...corsHeaders()}).forEach(([key, value]) => result.headers.set(key, value));
   return result;
 }
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    const origin = request.headers.get("Origin") || "";
-    if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(origin) });
-    if (request.method !== "GET") return json({ error: "Method not allowed" }, 405, origin);
+    if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders() });
+    if (request.method !== "GET") return json({ error: "Method not allowed" }, 405);
 
     try {
       if (url.pathname === "/health" || url.pathname === "/api/health") {
-        return json({ ok: true, service: "Duel Synapse KodeX private origin" }, 200, origin);
+        return json({ ok: true, service: "Duel Synapse KodeX private origin" });
       }
 
-      // Serve the original KodeX UI unchanged. The repository remains private;
-      // this Worker is the only public delivery layer.
       if (url.pathname === "/" || url.pathname === "/index.html" || url.pathname === "/kodex" || url.pathname === "/kodex/") {
         const response = await githubFile("index.html", env, 120);
         return withHeaders(response, {
@@ -79,14 +74,11 @@ export default {
         });
       }
 
-      // Keep the original frontend's existing paths working, but source them
-      // through the authenticated Worker rather than GitHub directly.
       if (url.pathname === "/indexes/search.json") {
         const response = await githubFile("indexes/search.json", env, 300);
         return withHeaders(response, {
           "Content-Type": "application/json; charset=utf-8",
           "Cache-Control": "public, max-age=300, stale-while-revalidate=1800",
-          ...corsHeaders(origin),
         });
       }
 
@@ -96,17 +88,16 @@ export default {
         return withHeaders(response, {
           "Content-Type": "application/json; charset=utf-8",
           "Cache-Control": "public, max-age=300, stale-while-revalidate=1800",
-          ...corsHeaders(origin),
         });
       }
 
-      if (url.pathname === "/meiocglogo.png") return githubFile("meiocglogo.png", env, 86400);
-      if (url.pathname === "/assets/meiocg-watermark.svg") return githubFile("assets/meiocg-watermark.svg", env, 86400);
+      if (url.pathname === "/meiocglogo.png") return withHeaders(await githubFile("meiocglogo.png", env, 86400));
+      if (url.pathname === "/assets/meiocg-watermark.svg") return withHeaders(await githubFile("assets/meiocg-watermark.svg", env, 86400));
 
-      return json({ error: "Not found" }, 404, origin);
+      return json({ error: "Not found" }, 404);
     } catch (error) {
       console.error(error);
-      return json({ error: "KodeX service unavailable" }, 503, origin);
+      return json({ error: "KodeX service unavailable" }, 503);
     }
   },
 };
