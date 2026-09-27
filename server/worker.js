@@ -1,6 +1,6 @@
 const REPO = "castelnoleal/Duel-Synapse-KodeX";
 const BRANCH = "main";
-const CACHE_NAME = "kodex-private-origin-v8";
+const CACHE_NAME = "kodex-private-origin-v9";
 
 function corsHeaders() {
   return {
