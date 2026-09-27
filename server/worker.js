@@ -137,7 +137,7 @@ async function translateText(text, source, target, ctx) {
   }
   const translated=[];
   for(const chunk of chunks) translated.push(await translateChunk(chunk,source,target,ctx));
-  return translated.join("\\n");
+  return translated.join("\n");
 }
 function withHeaders(response, headers = {}) {
   const result = new Response(response.body, response);
