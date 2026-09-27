@@ -1,6 +1,6 @@
 const REPO = "castelnoleal/Duel-Synapse-KodeX";
 const BRANCH = "main";
-const CACHE_NAME = "kodex-private-origin-v9";
+const CACHE_NAME = "kodex-private-origin-v10";
 
 function corsHeaders() {
   return {
@@ -60,17 +60,65 @@ async function translateChunk(text, source, target, ctx) {
   const key = translationCacheKey(text, source, target);
   const hit = await cache.match(key);
   if (hit) return await hit.text();
-  const endpoint = new URL("https://translate.googleapis.com/translate_a/single");
-  endpoint.searchParams.set("client", "gtx");
-  endpoint.searchParams.set("sl", source || "auto");
-  endpoint.searchParams.set("tl", target || "en");
-  endpoint.searchParams.set("dt", "t");
-  endpoint.searchParams.set("q", text);
-  const response = await fetch(endpoint.toString(), { headers: { "User-Agent": "MEIOCG-KodeX-Translation/1.0" } });
-  if (!response.ok) throw new Error(`Translation upstream returned ${response.status}`);
-  const data = await response.json();
-  const translated = Array.isArray(data?.[0]) ? data[0].map(x => x?.[0] || "").join("") : "";
-  if (!translated) throw new Error("Translation upstream returned no text");
+  const headers = {
+    "User-Agent": "MEIOCG-KodeX-Translation/1.0",
+    "Accept": "application/json,text/plain,*/*",
+  };
+  let translated = "";
+  let lastError = null;
+
+  const endpoints = [
+    ["https://translate.googleapis.com/translate_a/single", "gtx"],
+    ["https://translate.google.com/translate_a/single", "gtx"],
+  ];
+
+  for (const [base, client] of endpoints) {
+    try {
+      const endpoint = new URL(base);
+      endpoint.searchParams.set("client", client);
+      endpoint.searchParams.set("sl", source || "auto");
+      endpoint.searchParams.set("tl", target || "en");
+      endpoint.searchParams.set("dt", "t");
+      endpoint.searchParams.set("ie", "UTF-8");
+      endpoint.searchParams.set("oe", "UTF-8");
+      endpoint.searchParams.set("q", text);
+      const response = await fetch(endpoint.toString(), { headers });
+      if (!response.ok) {
+        lastError = new Error(`Translation upstream returned ${response.status}`);
+        continue;
+      }
+      const data = await response.json();
+      translated = Array.isArray(data?.[0]) ? data[0].map(x => x?.[0] || "").join("") : "";
+      if (translated.trim()) break;
+      lastError = new Error("Translation upstream returned no text");
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (!translated.trim()) {
+    try {
+      const endpoint = new URL("https://clients5.google.com/translate_a/t");
+      endpoint.searchParams.set("client", "dict-chrome-ex");
+      endpoint.searchParams.set("sl", source || "auto");
+      endpoint.searchParams.set("tl", target || "en");
+      endpoint.searchParams.set("dt", "t");
+      endpoint.searchParams.set("ie", "UTF-8");
+      endpoint.searchParams.set("oe", "UTF-8");
+      endpoint.searchParams.set("q", text);
+      const response = await fetch(endpoint.toString(), { headers });
+      if (!response.ok) throw new Error(`Translation fallback returned ${response.status}`);
+      const data = await response.json();
+      translated = Array.isArray(data?.sentences)
+        ? data.sentences.map(x => x?.trans || "").join("")
+        : "";
+      if (!translated.trim()) throw new Error("Translation fallback returned no text");
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (!translated.trim()) throw (lastError || new Error("Translation upstream returned no text"));
   const cached = new Response(translated, { headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "public, max-age=604800" } });
   ctx.waitUntil(cache.put(key, cached.clone()));
   return translated;
@@ -81,7 +129,7 @@ async function translateText(text, source, target, ctx) {
   let remaining=String(text||"").trim();
   while(remaining.length>0){
     if(remaining.length<=3500){chunks.push(remaining);break;}
-    let cut=remaining.lastIndexOf("\\n",3500);
+    let cut=remaining.lastIndexOf("\n",3500);
     if(cut<1200)cut=remaining.lastIndexOf(" ",3500);
     if(cut<1200)cut=3500;
     chunks.push(remaining.slice(0,cut));
