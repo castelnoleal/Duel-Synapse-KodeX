@@ -49,6 +49,48 @@ async function githubFile(path, env, cacheSeconds = 300) {
   return copy;
 }
 
+
+
+function translationCacheKey(text, source, target) {
+  return new Request(`https://kodex-translation-cache.invalid/${encodeURIComponent(source)}/${encodeURIComponent(target)}/${encodeURIComponent(text)}`);
+}
+
+async function translateChunk(text, source, target, ctx) {
+  const cache = await caches.open("kodex-translation-v1");
+  const key = translationCacheKey(text, source, target);
+  const hit = await cache.match(key);
+  if (hit) return await hit.text();
+  const endpoint = new URL("https://translate.googleapis.com/translate_a/single");
+  endpoint.searchParams.set("client", "gtx");
+  endpoint.searchParams.set("sl", source || "auto");
+  endpoint.searchParams.set("tl", target || "en");
+  endpoint.searchParams.set("dt", "t");
+  endpoint.searchParams.set("q", text);
+  const response = await fetch(endpoint.toString(), { headers: { "User-Agent": "MEIOCG-KodeX-Translation/1.0" } });
+  if (!response.ok) throw new Error(`Translation upstream returned ${response.status}`);
+  const data = await response.json();
+  const translated = Array.isArray(data?.[0]) ? data[0].map(x => x?.[0] || "").join("") : "";
+  if (!translated) throw new Error("Translation upstream returned no text");
+  const cached = new Response(translated, { headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "public, max-age=604800" } });
+  ctx.waitUntil(cache.put(key, cached.clone()));
+  return translated;
+}
+
+async function translateText(text, source, target, ctx) {
+  const chunks=[];
+  let remaining=String(text||"").trim();
+  while(remaining.length>0){
+    if(remaining.length<=3500){chunks.push(remaining);break;}
+    let cut=remaining.lastIndexOf("\\n",3500);
+    if(cut<1200)cut=remaining.lastIndexOf(" ",3500);
+    if(cut<1200)cut=3500;
+    chunks.push(remaining.slice(0,cut));
+    remaining=remaining.slice(cut).trimStart();
+  }
+  const translated=[];
+  for(const chunk of chunks) translated.push(await translateChunk(chunk,source,target,ctx));
+  return translated.join("\\n");
+}
 function withHeaders(response, headers = {}) {
   const result = new Response(response.body, response);
   Object.entries({...headers, ...corsHeaders()}).forEach(([key, value]) => result.headers.set(key, value));
@@ -59,6 +101,24 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders() });
+    if (url.pathname === "/translate") {
+      if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
+      try {
+        const body = await request.json();
+        const q = String(body?.q || "").trim();
+        const source = String(body?.source || "auto").trim().toLowerCase();
+        const target = String(body?.target || "en").trim().toLowerCase();
+        if (!q) return json({ error: "Missing q" }, 400);
+        if (q.length > 15000) return json({ error: "Text too long" }, 413);
+        if (target !== "en") return json({ error: "Only English translation is supported" }, 400);
+        if (!/^(auto|[a-z]{2,8})$/.test(source)) return json({ error: "Invalid source language" }, 400);
+        const translatedText = await translateText(q, source, target, ctx);
+        return json({ translatedText, source, target });
+      } catch (error) {
+        console.error(error);
+        return json({ error: "Translation service unavailable" }, 503);
+      }
+    }
     if (request.method !== "GET") return json({ error: "Method not allowed" }, 405);
 
     try {
