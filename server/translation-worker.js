@@ -119,6 +119,51 @@ async function fetchGoogle(text, source, target, baseUrl) {
   };
 }
 
+async function fetchLingva(text, source, target) {
+  const langSource = source || "auto";
+  const endpoint = new URL(
+    `https://lingva.ml/api/v1/${encodeURIComponent(langSource)}/${encodeURIComponent(target)}`
+  );
+
+  const response = await fetchWithTimeout(endpoint.toString(), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      "User-Agent": "MEIOCG-KodeX-Translation/3.0"
+    },
+    body: JSON.stringify({
+      query: text
+    })
+  }, 8000);
+
+  if (!response.ok) {
+    return {
+      ok: false,
+      status: response.status,
+      error: `Lingva upstream returned HTTP ${response.status}`
+    };
+  }
+
+  const data = await response.json();
+  const translatedText = String(data?.translation || "").trim();
+
+  if (!translatedText) {
+    return {
+      ok: false,
+      status: 502,
+      error: "Lingva returned no translated text"
+    };
+  }
+
+  return {
+    ok: true,
+    translatedText,
+    detectedLanguage: data?.info?.detectedSourceLanguage || source,
+    source: "lingva"
+  };
+}
+
 async function fetchMyMemory(text, source, target) {
   const langSource = source === "auto" ? "auto" : source;
   const endpoint = new URL("https://api.mymemory.translated.net/get");
@@ -191,7 +236,21 @@ async function translate(text, source, target) {
     }
   }
 
-  // Independent fallback provider.
+  // Independent fallback providers.
+  // Lingva provides a public REST API without an API key.
+  try {
+    const result = await fetchLingva(text, source, target);
+    if (result.ok) return result;
+    lastError = result;
+  } catch (error) {
+    lastError = {
+      ok: false,
+      status: 502,
+      error: String(error?.message || error)
+    };
+  }
+
+  // MyMemory remains as a secondary fallback.
   try {
     const result = await fetchMyMemory(text, source, target);
     if (result.ok) return result;
