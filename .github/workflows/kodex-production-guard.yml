@@ -4,11 +4,6 @@ on:
   push:
     branches: ["main"]
   workflow_dispatch:
-    inputs:
-      base_url:
-        description: "Production URL to smoke-test"
-        required: false
-        default: "https://kodex.meiocg.org"
 
 permissions:
   contents: read
@@ -22,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      KODEX_BASE_URL: ${{ inputs.base_url || 'https://kodex.meiocg.org' }}
+      KODEX_BASE_URL: https://kodex.meiocg.org
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -80,6 +75,10 @@ jobs:
           sleep 15
           curl -fsS --retry 5 --retry-delay 3 "${KODEX_BASE_URL}/" >/dev/null
           echo "Production root is reachable after rollback."
+
+      - name: Re-run browser smoke tests after rollback
+        if: steps.smoke.outcome == 'failure'
+        run: npx playwright test tests/kodex.smoke.spec.mjs
 
       - name: Fail the workflow when smoke tests failed
         if: steps.smoke.outcome == 'failure'
