@@ -12,7 +12,7 @@ if (!html.includes('<script>') || !html.includes('</script>')) {
   fail('index.html does not contain the expected inline script.');
 }
 
-const scripts = [...html.matchAll(/<script(?:\\s[^>]*)?>([\\s\\S]*?)<\\/script>/gi)]
+const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)]
   .map(m => m[1])
   .filter(s => s.trim());
 
