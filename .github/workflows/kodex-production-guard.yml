@@ -1,0 +1,88 @@
+name: KodeX Production Guard
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Production URL to smoke-test"
+        required: false
+        default: "https://kodex.meiocg.org"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kodex-production-guard
+  cancel-in-progress: false
+
+jobs:
+  production-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      KODEX_BASE_URL: ${{ inputs.base_url || 'https://kodex.meiocg.org' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Wait for Cloudflare deployment
+        run: |
+          for i in {1..18}; do
+            if curl -fsS --retry 2 --retry-delay 2 "${KODEX_BASE_URL}/" >/dev/null; then
+              echo "Production endpoint is reachable."
+              exit 0
+            fi
+            echo "Waiting for production deployment/propagation ($i/18)..."
+            sleep 10
+          done
+          echo "Production endpoint did not become reachable."
+          exit 1
+
+      - name: Install Playwright
+        run: |
+          npm install --no-save --no-package-lock @playwright/test@1.63.0
+          npx playwright install --with-deps chromium
+
+      - name: Run production smoke tests
+        id: smoke
+        continue-on-error: true
+        run: npx playwright test tests/kodex.smoke.spec.mjs
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kodex-production-playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Roll back unhealthy Worker
+        if: steps.smoke.outcome == 'failure'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "${CLOUDFLARE_API_TOKEN}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID}" ]; then
+            echo "::error::Smoke tests failed, but Cloudflare rollback credentials are not configured."
+            echo "Set CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID in GitHub repository secrets."
+            exit 1
+          fi
+          npx wrangler@4.127.1 rollback --name duel-synapse-kodex --message "Automatic rollback: KodeX production smoke test failed for ${GITHUB_SHA}"
+
+      - name: Verify production after rollback
+        if: steps.smoke.outcome == 'failure'
+        run: |
+          sleep 15
+          curl -fsS --retry 5 --retry-delay 3 "${KODEX_BASE_URL}/" >/dev/null
+          echo "Production root is reachable after rollback."
+
+      - name: Fail the workflow when smoke tests failed
+        if: steps.smoke.outcome == 'failure'
+        run: |
+          echo "::error::KodeX production smoke tests failed. The Worker was rolled back when Cloudflare credentials were available."
+          exit 1
