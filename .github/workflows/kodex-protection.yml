@@ -1,0 +1,28 @@
+name: KodeX Protection
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate KodeX
+        run: node scripts/validate-kodex.mjs
+
+      - name: Verify no obvious credential leaks
+        run: |
+          if grep -RInE 'GITHUB_TOKEN[[:space:]]*[:=]|ghp_[A-Za-z0-9_]+|github_pat_[A-Za-z0-9_]+' index.html scripts server --exclude-dir=.git; then
+            echo "Potential credential material found in tracked application files."
+            exit 1
+          fi
