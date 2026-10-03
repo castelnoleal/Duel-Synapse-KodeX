@@ -23,6 +23,8 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Wait for Cloudflare deployment
+        id: reachability
+        continue-on-error: true
         run: |
           for i in {1..18}; do
             if curl -fsS --retry 2 --retry-delay 2 "${KODEX_BASE_URL}/" >/dev/null; then
@@ -57,7 +59,7 @@ jobs:
           retention-days: 14
 
       - name: Roll back unhealthy Worker
-        if: steps.smoke.outcome == 'failure'
+        if: steps.reachability.outcome == 'failure' || steps.smoke.outcome == 'failure'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -70,18 +72,18 @@ jobs:
           npx wrangler@4.127.1 rollback --name duel-synapse-kodex --message "Automatic rollback: KodeX production smoke test failed for ${GITHUB_SHA}"
 
       - name: Verify production after rollback
-        if: steps.smoke.outcome == 'failure'
+        if: steps.reachability.outcome == 'failure' || steps.smoke.outcome == 'failure'
         run: |
           sleep 15
           curl -fsS --retry 5 --retry-delay 3 "${KODEX_BASE_URL}/" >/dev/null
           echo "Production root is reachable after rollback."
 
       - name: Re-run browser smoke tests after rollback
-        if: steps.smoke.outcome == 'failure'
+        if: steps.reachability.outcome == 'failure' || steps.smoke.outcome == 'failure'
         run: npx playwright test tests/kodex.smoke.spec.mjs
 
-      - name: Fail the workflow when smoke tests failed
-        if: steps.smoke.outcome == 'failure'
+      - name: Fail the workflow when production is unhealthy
+        if: steps.reachability.outcome == 'failure' || steps.smoke.outcome == 'failure'
         run: |
-          echo "::error::KodeX production smoke tests failed. The Worker was rolled back when Cloudflare credentials were available."
+          echo "::error::KodeX production guard detected an unhealthy deployment. Rollback was attempted when Cloudflare credentials were available."
           exit 1
