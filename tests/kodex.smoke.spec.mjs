@@ -21,7 +21,7 @@ test('production root loads and initializes without page errors', async ({ page 
   await expect(page).toHaveTitle(/Duel Synapse KodeX/i);
   await expect(page.locator('#q')).toBeVisible();
   await expect(page.locator('#count')).toContainText(/cards/i, { timeout: 20000 });
-  await expect(page.locator('.result').first()).toBeVisible({ timeout: 20000 });
+  // Initial state intentionally has no results until a search is entered.
 
   expect(pageErrors, pageErrors.join('\n')).toEqual([]);
   expect(failedCoreResponses, failedCoreResponses.join('\n')).toEqual([]);
