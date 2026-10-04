@@ -87,3 +87,5 @@ jobs:
         run: |
           echo "::error::KodeX production guard detected an unhealthy deployment. Rollback was attempted when Cloudflare credentials were available."
           exit 1
+
+# Trigger production guard verification after Cloudflare secrets setup.
