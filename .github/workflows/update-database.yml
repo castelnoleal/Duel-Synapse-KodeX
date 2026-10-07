@@ -61,7 +61,7 @@ jobs:
               if a:archetypes.setdefault(a,[]).append(cid)
               if t:types.setdefault(t,[]).append(cid)
               imgs=c.get("card_images") or [];im=imgs[0] if imgs and isinstance(imgs[0],dict) else {}
-              search.append({"id":cid,"name":name,"konami_id":k,"type":t or "","desc":c.get("desc",""),"race":c.get("race",""),"attribute":c.get("attribute",""),"level":c.get("level"),"rank":c.get("rank"),"linkval":c.get("linkval"),"image":im.get("image_url",""),"image_small":im.get("image_url_small",im.get("image_url","")),"archetype":a or ""})
+              search.append({"id":cid,"name":name,"konami_id":k,"type":t or "","desc":c.get("desc",""),"race":c.get("race",""),"attribute":c.get("attribute",""),"level":c.get("level"),"rank":c.get("rank"),"linkval":c.get("linkval"),"atk":c.get("atk"),"def":c.get("def"),"scale":c.get("scale"),"linkmarkers":c.get("linkmarkers") or [],"frameType":c.get("frameType",""),"image":im.get("image_url",""),"image_small":im.get("image_url_small",im.get("image_url","")),"archetype":a or ""})
           if len(search)<10000:raise SystemExit(f"Search index unexpectedly small: {len(search)}")
           if not any(c.get("name")=="Ash Blossom & Joyous Spring" and c.get("konami_id") for c in search):raise SystemExit("Ash Blossom Konami ID validation failed")
           search.sort(key=lambda x:norm(x["name"]))
