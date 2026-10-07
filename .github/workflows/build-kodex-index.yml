@@ -42,7 +42,7 @@ jobs:
               kid=misc.get('konami_id')
               try: kid=int(kid) if kid not in (None,'') else None
               except: kid=None
-              out.append({'id':c.get('id'),'name':c.get('name',''),'konami_id':kid,'type':c.get('type',''),'archetype':c.get('archetype',''),'desc':c.get('desc',''),'race':c.get('race',''),'attribute':c.get('attribute',''),'level':c.get('level'),'rank':c.get('rank'),'linkval':c.get('linkval'),'image':img.get('image_url',''),'image_small':img.get('image_url_small','')})
+              out.append({'id':c.get('id'),'name':c.get('name',''),'konami_id':kid,'type':c.get('type',''),'archetype':c.get('archetype',''),'desc':c.get('desc',''),'race':c.get('race',''),'attribute':c.get('attribute',''),'level':c.get('level'),'rank':c.get('rank'),'linkval':c.get('linkval'),'atk':c.get('atk'),'def':c.get('def'),'scale':c.get('scale'),'linkmarkers':c.get('linkmarkers') or [],'frameType':c.get('frameType',''),'image':img.get('image_url',''),'image_small':img.get('image_url_small',im.get('image_url',''))})
           out.sort(key=lambda x:(x['name'] or '').casefold())
           p=Path('indexes'); p.mkdir(exist_ok=True)
           (p/'search.json').write_text(json.dumps(out,ensure_ascii=False,separators=(',',':')),encoding='utf-8')
