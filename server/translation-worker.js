@@ -132,28 +132,18 @@ async function fetchLingva(text, source, target) {
       "Accept": "application/json",
       "User-Agent": "MEIOCG-KodeX-Translation/3.0"
     },
-    body: JSON.stringify({
-      query: text
-    })
-  }, 8000);
+    body: JSON.stringify({ query: text })
+  }, 5000);
 
   if (!response.ok) {
-    return {
-      ok: false,
-      status: response.status,
-      error: `Lingva upstream returned HTTP ${response.status}`
-    };
+    return { ok: false, status: response.status, error: `Lingva upstream returned HTTP ${response.status}` };
   }
 
   const data = await response.json();
   const translatedText = String(data?.translation || "").trim();
 
   if (!translatedText) {
-    return {
-      ok: false,
-      status: 502,
-      error: "Lingva returned no translated text"
-    };
+    return { ok: false, status: 502, error: "Lingva returned no translated text" };
   }
 
   return {
@@ -207,66 +197,51 @@ async function fetchMyMemory(text, source, target) {
 }
 
 async function translate(text, source, target) {
-  const googleEndpoints = [
-    "https://translate.googleapis.com/translate_a/single",
-    "https://translate.google.com/translate_a/single"
+  // Race the two best-quality providers so a slow/blocked provider
+  // does not hold up the user. The first successful result wins.
+  const primaryAttempts = [
+    fetchLingva(text, source, target),
+    fetchGoogle(
+      text,
+      source,
+      target,
+      "https://translate.googleapis.com/translate_a/single"
+    )
   ];
 
-  let lastError = null;
-
-  // Try each Google endpoint. A 429/5xx is treated as transient.
-  for (const endpoint of googleEndpoints) {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const result = await fetchGoogle(text, source, target, endpoint);
-        if (result.ok) return result;
-
-        lastError = result;
-        if (![429, 500, 502, 503, 504].includes(result.status)) break;
-
-        if (attempt === 0) await sleep(300);
-      } catch (error) {
-        lastError = {
-          ok: false,
-          status: 502,
-          error: String(error?.message || error)
-        };
-        if (attempt === 0) await sleep(300);
-      }
-    }
-  }
-
-  // Independent fallback providers.
-  // Lingva provides a public REST API without an API key.
   try {
-    const result = await fetchLingva(text, source, target);
-    if (result.ok) return result;
-    lastError = result;
-  } catch (error) {
-    lastError = {
-      ok: false,
-      status: 502,
-      error: String(error?.message || error)
-    };
-  }
+    const winner = await Promise.any(
+      primaryAttempts.map(p =>
+        p.then(result => {
+          if (!result.ok) throw new Error(result.error || "provider_failed");
+          return result;
+        })
+      )
+    );
+    if (winner?.ok) return winner;
+  } catch {}
 
-  // MyMemory remains as a secondary fallback.
+  // If both primary providers fail, use the secondary Google host once.
+  try {
+    const result = await fetchGoogle(
+      text,
+      source,
+      target,
+      "https://translate.google.com/translate_a/single"
+    );
+    if (result.ok) return result;
+  } catch {}
+
+  // Final fallback.
   try {
     const result = await fetchMyMemory(text, source, target);
     if (result.ok) return result;
-    lastError = result;
-  } catch (error) {
-    lastError = {
-      ok: false,
-      status: 502,
-      error: String(error?.message || error)
-    };
-  }
+  } catch {}
 
   return {
     ok: false,
-    status: lastError?.status || 502,
-    error: lastError?.error || "All translation providers failed"
+    status: 502,
+    error: "All translation providers failed"
   };
 }
 
