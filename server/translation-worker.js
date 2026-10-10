@@ -197,42 +197,30 @@ async function fetchMyMemory(text, source, target) {
 }
 
 async function translate(text, source, target) {
-  // Race the two best-quality providers so a slow/blocked provider
-  // does not hold up the user. The first successful result wins.
-  const primaryAttempts = [
-    fetchLingva(text, source, target),
-    fetchGoogle(
-      text,
-      source,
-      target,
-      "https://translate.googleapis.com/translate_a/single"
-    )
-  ];
-
-  try {
-    const winner = await Promise.any(
-      primaryAttempts.map(p =>
-        p.then(result => {
-          if (!result.ok) throw new Error(result.error || "provider_failed");
-          return result;
-        })
-      )
-    );
-    if (winner?.ok) return winner;
-  } catch {}
-
-  // If both primary providers fail, use the secondary Google host once.
+  // Prefer Google for translation quality. Only use Lingva if Google fails.
   try {
     const result = await fetchGoogle(
-      text,
-      source,
-      target,
+      text, source, target,
+      "https://translate.googleapis.com/translate_a/single"
+    );
+    if (result.ok) return result;
+  } catch {}
+
+  // Alternate Google host, in case the primary endpoint is rate-limited.
+  try {
+    const result = await fetchGoogle(
+      text, source, target,
       "https://translate.google.com/translate_a/single"
     );
     if (result.ok) return result;
   } catch {}
 
-  // Final fallback.
+  // Secondary provider; used only when Google is unavailable.
+  try {
+    const result = await fetchLingva(text, source, target);
+    if (result.ok) return result;
+  } catch {}
+
   try {
     const result = await fetchMyMemory(text, source, target);
     if (result.ok) return result;
