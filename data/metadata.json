@@ -2,17 +2,17 @@
   "database": "MEIOCG-Database",
   "schema_version": 3,
   "status": "populated",
-  "last_import_utc": "2026-10-11T21:54:19.543190+00:00",
+  "last_import_utc": "2026-10-12T05:51:07.581664+00:00",
   "source": {
     "name": "YGOPRODeck card data + YGOResources Q&A mirror",
     "api_version": "v7",
     "database_version": [
       {
-        "database_version": "147.23",
-        "last_update": "2026-10-08 12:00:24"
+        "database_version": "147.29",
+        "last_update": "2026-10-12 00:03:27"
       }
     ]
   },
-  "card_count": 14599,
-  "search_count": 14599
+  "card_count": 14606,
+  "search_count": 14606
 }
