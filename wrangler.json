@@ -11,6 +11,14 @@
     {
       "pattern": "kodex.meiocg.org/api/*",
       "zone_name": "meiocg.org"
+    },
+    {
+      "pattern": "kodex.meiocg.org/privacy-policy.html",
+      "zone_name": "meiocg.org"
+    },
+    {
+      "pattern": "kodex.meiocg.org/privacy-policy",
+      "zone_name": "meiocg.org"
     }
   ]
 }
