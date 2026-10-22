@@ -46,7 +46,7 @@ const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=nu
 const k=el('div','k','DUEL SYNAPSE • KODEX'),h=el('h1',0,name),c=el('div','c',total+' cards');po.append(k,h,c);
 const imgs=[];
 for(const [label,list] of secs){const arr=expand(list),s=el('div','sec'),hd=el('div','hd',label);hd.append(el('i',0,arr.length+' cards'));const g=el('div','g');
-  arr.forEach(x=>{const t=el('div','t'),u=url(x[0]);t.append(el('em',0,x[1]||''));if(u){const i=new Image();i.alt='';i.referrerPolicy='no-referrer';i.src=u;i.onload=()=>{t.querySelector('em').remove()};t.append(i);imgs.push([u,i])}g.append(t)});
+  arr.forEach(x=>{const t=el('div','t'),u=url(x[0]);t.append(el('em',0,x[1]||''));if(u){const i=new Image();i.alt='';i.referrerPolicy='no-referrer';i.src=u;i.onload=()=>{const e=t.querySelector('em');e&&e.remove()};i.onerror=()=>{const m=/\/img\/(\d+)\.jpg$/.exec(i.src);if(m&&!i.dataset.f){i.dataset.f=1;i.src=SRC+m[1]+'.jpg'}};t.append(i);imgs.push([u,i])}g.append(t)});
   s.append(hd,g);po.append(s)}
 po.append(el('div','ft','Created with Duel Synapse: KodeX'));
 $('st').hidden=true;po.hidden=false;$('bar').hidden=false;
