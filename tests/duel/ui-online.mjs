@@ -22,7 +22,7 @@ async function open(name, deck, hash = "") {
 }
 const host = await open("Hosty", deckA);
 await host.waitForFunction(() => document.querySelector("#engineStatus").textContent.includes("ready"), null, { timeout: 60000 });
-await host.click("#hostMode summary");
+await host.click('.seg [data-mode="host"]');
 await host.click("#hostOpen");
 await host.waitForFunction(() => /^[A-Z0-9]{6}$/.test(document.querySelector("#roomCode").textContent));
 const code = await host.textContent("#roomCode");
