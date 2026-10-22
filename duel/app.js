@@ -71,7 +71,8 @@ async function boot() {
     const [cards, strings] = await Promise.all([fetch(BASE + "data/cards.json").then((r) => r.json()), fetch(BASE + "data/strings.json").then((r) => r.json())]);
     S.db = new CardDB(cards, strings);
   } catch (e) {
-    status.textContent = "Card data could not be loaded. Check your connection and reload the page.";
+    status.textContent = "Card data could not be loaded. Check your connection and reload.";
+    $("#engineDot").className = "dot fail";
     return;
   }
   S.decks = load("duel:decks", []);
@@ -85,8 +86,8 @@ async function boot() {
   else if (S.decks.length) selectDeck(load("duel:current", 0));
   renderSaved();
 
-  startWorker().then((v) => { status.textContent = `Rules engine ready (ygopro-core ${v}).`; refreshButtons(); })
-    .catch((e) => { status.textContent = "The rules engine failed to start: " + e.message; });
+  startWorker().then((v) => { status.textContent = `Rules engine ready · ygopro-core ${v}`; $("#engineDot").className = "dot ready"; refreshButtons(); })
+    .catch((e) => { status.textContent = "Rules engine failed to start: " + e.message; $("#engineDot").className = "dot fail"; });
 
   applyRoomHash(hash);
   window.addEventListener("hashchange", () => {
@@ -98,7 +99,7 @@ async function boot() {
 }
 function applyRoomHash(hash) {
   if (!$("#table").hidden) return;
-  if (hash.get("join")) { $("#joinMode").open = true; $("#soloMode").open = false; $("#joinCode").value = hash.get("join").toUpperCase(); $("#joinMode").scrollIntoView({ block: "center" }); }
+  if (hash.get("join")) { setMode("join"); $("#joinCode").value = hash.get("join").toUpperCase(); }
   if (hash.get("watch")) watch(hash.get("watch").toUpperCase());
 }
 
@@ -122,7 +123,7 @@ function options() {
   return { rule: Number($("#optRule").value), lp: Math.max(100, Number($("#optLP").value) || 8000),
     start: Math.max(0, Number($("#optHand").value) || 0), draw: Math.max(0, Number($("#optDraw").value) || 0) };
 }
-function rulesSummary() { const o = options(); $("#rulesSummary").textContent = `Master Rule ${o.rule}, ${o.lp} LP, ${o.start} card hand`; }
+function rulesSummary() { const o = options(); $("#rulesSummary").textContent = `MR${o.rule} · ${o.lp} LP`; }
 
 // ---------------------------------------------------------------------------
 // Decks
@@ -163,23 +164,31 @@ function renderDeck() {
   b.replaceChildren();
   const d = S.deck;
   if (!d) return;
-  b.append(el("h3", null, d.name));
-  b.append(el("div", "deck-counts", `Main ${d.main.length} · Extra ${d.extra.length}${d.side && d.side.length ? ` · Side ${d.side.length}` : ""}`));
+  const head = el("div", "deck-title");
+  head.append(el("h3", null, d.name));
+  const stats = el("div", "deck-stats");
+  for (const [k, v] of [["Main", d.main.length], ["Extra", d.extra.length], ["Side", (d.side || []).length]]) {
+    if (k === "Side" && !v) continue;
+    const sp = el("span"); sp.append(el("b", null, String(v)), " " + k); stats.append(sp);
+  }
+  head.append(stats);
+  b.append(head);
   const probs = deckProblems(d, S.db);
   if (d.missing && d.missing.length) probs.unshift(`Not found in the engine's card list (left out): ${d.missing.slice(0, 6).join(", ")}${d.missing.length > 6 ? "…" : ""}`);
   if (probs.length) {
-    const w = el("div", "warn", "This deck isn't tournament-legal. You can still playtest it.");
+    const w = el("div", "warn", "Not tournament-legal — fine for playtesting.");
     const ul = el("ul"); probs.slice(0, 6).forEach((p) => ul.append(el("li", null, p))); w.append(ul); b.append(w);
   }
   for (const [label, list] of [["Main Deck", d.main], ["Extra Deck", d.extra], ["Side Deck", d.side || []]]) {
     if (!list.length) continue;
-    b.append(el("div", "deck-section", label));
+    const sec = el("div", "deck-section"); sec.append(el("span", null, label), el("span", null, String(list.length))); b.append(sec);
     const g = el("div", "deck-grid");
     for (const code of list) { const x = cardImg(code, S.db.name(code)); x.title = S.db.name(code); g.append(x); }
     b.append(g);
   }
   const th = $("#testHand");
   th.replaceChildren();
+  $("#testHandCount").textContent = "";
   [...new Set(d.main)].forEach((code) => {
     const btn = el("button"); btn.type = "button"; btn.title = S.db.name(code);
     btn.setAttribute("aria-pressed", "false"); btn.append(cardImg(code, S.db.name(code)));
@@ -188,6 +197,7 @@ function renderDeck() {
       if (S.testHand.has(code)) S.testHand.delete(code);
       else if (count < 10) S.testHand.add(code);
       btn.setAttribute("aria-pressed", String(S.testHand.has(code)));
+      $("#testHandCount").textContent = S.testHand.size ? `${S.testHand.size} chosen` : "";
     };
     th.append(btn);
   });
@@ -203,7 +213,16 @@ function refreshButtons() {
   $("#joinBtn").disabled = !(S.deck && S.db);
 }
 
+function setMode(m) {
+  document.querySelectorAll(".seg [data-mode]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.mode === m)));
+  document.querySelectorAll(".pane[data-pane]").forEach((p) => { p.hidden = p.dataset.pane !== m; });
+}
 function bindLobby() {
+  document.querySelectorAll(".seg [data-mode]").forEach((b) => b.addEventListener("click", () => setMode(b.dataset.mode)));
+  document.querySelectorAll("#firstChips button").forEach((b) => b.addEventListener("click", () => {
+    document.querySelectorAll("#firstChips button").forEach((x) => x.setAttribute("aria-checked", String(x === b)));
+    $("#soloFirst").value = b.dataset.v;
+  }));
   $("#savedDecks").addEventListener("change", (e) => selectDeck(Number(e.target.value)));
   $("#importBtn").addEventListener("click", () => { $("#importError").textContent = ""; $("#importDlg").showModal(); });
   $("#importFile").addEventListener("change", async (e) => {
@@ -270,7 +289,7 @@ async function startSolo() {
   if (noShuffle) shuffleInPlace(decks[oppTeam].main);
   enterTable();
   S.worker.postMessage({ cmd: "start", decks, names, options: opt, bots });
-  setStatus("Loading card scripts…");
+  
 }
 function shuffleInPlace(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } }
 
@@ -366,7 +385,7 @@ function watch(code) {
   S.room = new Room({ code, role: "spec", name: myName(), onMessage: onGuestMessage, onStatus: (s, err) => { netStatus(s, err); if (s === "error") { toast(err, 5000); S.mode = null; } } });
   S.room.connect();
   enterTable();
-  setStatus("Waiting for the duel to start…");
+  $("#loadingText").textContent = "Waiting for the duel to start…";
 }
 function onGuestMessage(m) {
   if (m.sys === "welcome") { if (S.mode === "guest") $("#joinStatus").textContent = "Joined. Waiting for the host to start the duel…"; return; }
@@ -390,7 +409,7 @@ function netStatus(s, err) {
 // ---------------------------------------------------------------------------
 // Worker events
 function onWorker(m) {
-  if (m.t === "progress") { if (m.done === m.total || m.done % 25 === 0) setStatus(`Loading card scripts… ${m.done}/${m.total}`); return; }
+  if (m.t === "progress") { if (m.done === m.total || m.done % 10 === 0) $("#loadingText").textContent = `Loading card scripts · ${m.done}/${m.total}`; return; }
   if (m.t === "error") {
     if (S.mode === "host" && m.team !== S.hostTeam) { S.room.send({ to: "guest", m: { t: "error", error: m.error } }); return; }
     toast(m.error); return;
@@ -425,6 +444,7 @@ function enterTable() {
   $("#log").replaceChildren();
   buildField();
   closeSheet();
+  $("#loading").hidden = false; $("#loadingText").textContent = "Preparing duel…";
   window.scrollTo(0, 0);
 }
 function leaveTable() {
@@ -545,6 +565,7 @@ function zoneId(team, location, seq) {
 function cardEl(c, team, location, seq, opts = {}) {
   const d = el("div", "card");
   d.dataset.key = key(team, location, seq);
+  if (team !== S.team && S.team !== 2) d.classList.add("op-back");
   const pos = c && c.position;
   const faceDown = !c || c.hidden || (pos && pos & C.POS_FACEDOWN);
   const onField = location === C.LOCATION_MZONE || location === C.LOCATION_SZONE;
@@ -585,8 +606,14 @@ function render(p) {
   if (!p.state) return;
   const st = p.state;
   const me = S.team === 2 ? 0 : S.team, op = 1 - me;
-  $("#meName").textContent = p.names[me] + (S.mode === "spec" ? "" : " (you)");
+  $("#meName").textContent = p.names[me];
   $("#opName").textContent = p.names[op];
+  $("#meAvatar").textContent = (p.names[me] || "?").trim().charAt(0).toUpperCase();
+  $("#opAvatar").textContent = (p.names[op] || "?").trim().charAt(0).toUpperCase();
+  $("#turnNo").textContent = `Turn ${p.turn}`;
+  document.querySelector(".duelist.me").classList.toggle("active", !p.ended && p.turnPlayer === me);
+  document.querySelector(".duelist.op").classList.toggle("active", !p.ended && p.turnPlayer === op);
+  $("#loading").hidden = true;
   const lpMax = Math.max(options().lp, 1);
   for (const [t, id] of [[me, "me"], [op, "op"]]) {
     const z = st.teams[t];
@@ -651,9 +678,9 @@ function render(p) {
   const st2 = $("#status");
   st2.classList.toggle("mine", mine);
   if (p.ended) setStatus("Duel over.");
-  else if (mine) setStatus(`Turn ${p.turn} · Your move`);
-  else if (p.waitingFor >= 0) setStatus(`Turn ${p.turn} · Waiting for ${p.names[p.waitingFor]}…`);
-  else setStatus(`Turn ${p.turn}`);
+  else if (mine) setStatus("Your move");
+  else if (p.waitingFor >= 0) setStatus(`Waiting for ${p.names[p.waitingFor]}…`);
+  else setStatus("");
 }
 function setStatus(t) { $("#status").textContent = t; }
 
@@ -666,14 +693,27 @@ function showInfo(c, team, location) {
   const img = cardImg(c.code, name(c.code)); img.className = "info-img"; img.loading = "eager"; b.append(img);
   b.append(el("div", "info-name", data ? data.name : `#${c.code}`));
   if (data) {
-    b.append(el("div", "info-type", data.type & C.TYPE.MONSTER ? `${attributeName(data.attribute)} · ${data.type & C.TYPE.XYZ ? "Rank" : data.type & C.TYPE.LINK ? "Link" : "Level"} ${data.type & C.TYPE.LINK ? (c.link || countBits(data.link_marker)) : c.rank || c.level || data.level} ${S.db.typeLine(data)}` : S.db.typeLine(data)));
+    const pills = el("div", "pills");
+    const pill = (t, hi) => pills.append(el("span", "pill" + (hi ? " hi" : ""), t));
     if (data.type & C.TYPE.MONSTER) {
-      const stats = el("div", "info-stats");
-      const atk = c.attack ?? data.atk, def = c.defense ?? data.def;
-      const fmt = (v, base) => { const s = el("span", v > base ? "up" : v < base ? "down" : "", v < 0 ? "?" : String(v)); return s; };
-      stats.append("ATK ", fmt(atk, data.atk));
-      if (!(data.type & C.TYPE.LINK)) stats.append(" / DEF ", fmt(def, data.def));
-      if (data.type & C.TYPE.PENDULUM) stats.append(` · Scale ${c.lscale ?? data.lscale}`);
+      pill(attributeName(data.attribute), true);
+      pill(raceName(data.race));
+      const kinds = S.db.typeLine(data).replace(/^\[|\]$/g, "").split(" / ").slice(1);
+      kinds.forEach((k) => pill(k));
+    } else pill(S.db.typeLine(data), true);
+    b.append(pills);
+    if (data.type & C.TYPE.MONSTER) {
+      const stats = el("div", "stats");
+      const stat = (label, v, base) => {
+        const d = el("div", "stat"); d.append(el("b", null, label));
+        d.append(el("span", base == null ? "" : v > base ? "up" : v < base ? "down" : "", v < 0 ? "?" : String(v)));
+        stats.append(d);
+      };
+      const isLink = data.type & C.TYPE.LINK, isXyz = data.type & C.TYPE.XYZ;
+      stat(isLink ? "Link" : isXyz ? "Rank" : "Level", isLink ? (c.link || countBits(data.link_marker)) : (isXyz ? c.rank : c.level) || data.level);
+      stat("ATK", c.attack ?? data.atk, data.atk);
+      if (!isLink) stat("DEF", c.defense ?? data.def, data.def);
+      if (data.type & C.TYPE.PENDULUM) stat("Scale", c.lscale ?? data.lscale);
       b.append(stats);
     }
     b.append(el("div", "info-text", data.desc));
@@ -683,7 +723,7 @@ function showInfo(c, team, location) {
   if (c.counters && c.counters.length) extra.push("Counters: " + c.counters.map(([k, n]) => `${S.db.counter(k)} ×${n}`).join(", "));
   if (c.status & C.STATUS_DISABLED) extra.push("Effects negated");
   for (const x of extra) b.append(el("div", "info-extra", x));
-  const a = el("a", "info-link", "Rulings for this card in KodeX");
+  const a = el("a", "info-link", "Open rulings in KodeX");
   a.href = `/#card=${data && data.alias && Math.abs(data.alias - c.code) < 20 ? data.alias : c.code}`; a.target = "_blank"; a.rel = "noopener";
   b.append(a);
 }
@@ -860,7 +900,7 @@ function idlePrompt(msg) {
   markActions();
   const go = (k, ok) => { const b = document.querySelector(`#phases button[data-k="${k}"]`); if (b && ok) b.classList.add("go"); };
   go("BP", msg.to_bp); go("EP", msg.to_ep);
-  setStatus(`Turn ${S.packet.turn} · Main Phase: choose a card, or ${msg.to_bp ? "go to Battle or " : ""}end your turn`);
+  setStatus(`Your move · select a highlighted card${msg.to_bp ? ", BP to battle" : ""} or EP to end the turn`);
 }
 
 function battlePrompt(msg) {
@@ -871,7 +911,7 @@ function battlePrompt(msg) {
   markActions();
   const go = (k, ok) => { const b = document.querySelector(`#phases button[data-k="${k}"]`); if (b && ok) b.classList.add("go"); };
   go("M2", msg.to_m2); go("EP", msg.to_ep);
-  setStatus(`Turn ${S.packet.turn} · Battle Phase: attack, or move to ${msg.to_m2 ? "Main Phase 2 / " : ""}End Phase`);
+  setStatus(`Battle · select an attacker${msg.to_m2 ? ", M2" : ""} or EP`);
 }
 
 function chainPrompt(msg) {

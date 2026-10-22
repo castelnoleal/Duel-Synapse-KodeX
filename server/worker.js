@@ -153,8 +153,8 @@ function withHeaders(response, headers = {}) {
 // repository; card scripts are proxied from the pinned public Project Ignis commit.
 const DUEL_TYPES = { js: "text/javascript; charset=utf-8", css: "text/css; charset=utf-8", html: "text/html; charset=utf-8",
   json: "application/json; charset=utf-8", wasm: "application/wasm", svg: "image/svg+xml",
-  md: "text/plain; charset=utf-8", cpp: "text/plain; charset=utf-8", sh: "text/plain; charset=utf-8" };
-const DUEL_FILE = /^duel\/(?:[a-z0-9-]+\.(?:js|css|html|svg)|README\.md|engine\/[a-z0-9-]+\.(?:js|wasm)|engine\/build\/(?:kx_shim\.cpp|build\.sh|build-runtimes\.sh)|data\/(?:cards|strings|scripts)\.json)$/;
+  md: "text/plain; charset=utf-8", png: "image/png", webp: "image/webp", cpp: "text/plain; charset=utf-8", sh: "text/plain; charset=utf-8" };
+const DUEL_FILE = /^duel\/(?:[a-z0-9-]+\.(?:js|css|html|svg)|README\.md|assets\/[a-z0-9-]+\.(?:png|webp)|engine\/[a-z0-9-]+\.(?:js|wasm)|engine\/build\/(?:kx_shim\.cpp|build\.sh|build-runtimes\.sh)|data\/(?:cards|strings|scripts)\.json)$/;
 const DUEL_SCRIPT = /^\/duel\/scripts\/([0-9a-f]{40})\/((?:official|pre-release)\/c\d{1,10}\.lua|unofficial\/(?:proc_unofficial|rankup_functions)\.lua|[a-z_]{3,40}\.lua)$/;
 
 async function handleDuel(request, url, env) {
@@ -178,7 +178,7 @@ async function handleDuel(request, url, env) {
     const file = p === "/duel/" ? "duel/index.html" : p.slice(1);
     if (!DUEL_FILE.test(file)) return json({ error: "Not found" }, 404);
     const ext = file.split(".").pop();
-    const big = ext === "wasm" || file.startsWith("duel/data/");
+    const big = ext === "wasm" || file.startsWith("duel/data/") || file.startsWith("duel/assets/");
     const response = await githubFile(file, env, big ? 3600 : 120);
     return withHeaders(response, {
       "Content-Type": DUEL_TYPES[ext],
