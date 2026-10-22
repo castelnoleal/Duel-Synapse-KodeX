@@ -1,0 +1,55 @@
+name: Deploy KodeX Worker
+
+# Deploys server/worker.js with the root wrangler.json (routes, DuelRoom Durable Object).
+# Needs the repository secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID.
+on:
+  push:
+    branches: ["main"]
+    paths: ["server/**", "wrangler.json", ".github/workflows/deploy-worker.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-worker
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: What production serves before deploying
+        run: |
+          for p in /health /duel/ /duel/app.js; do
+            code=$(curl -s -o /tmp/b -w '%{http_code} %{content_type}' "https://kodex.meiocg.org$p")
+            echo "::notice title=before $p::$code $(head -c 160 /tmp/b | tr '\n' ' ')"
+          done
+
+      - name: Deploy with Wrangler
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::error title=Missing Cloudflare secrets::Add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          npx --yes wrangler@4.127.1 deploy > deploy.log 2>&1 && ok=1 || ok=0
+          cat deploy.log
+          if [ "$ok" != 1 ]; then echo "::error title=wrangler deploy failed::$(tail -c 1500 deploy.log | tr '\n' ' ')"; exit 1; fi
+          echo "::notice title=deployed::$(grep -E 'Uploaded|Deployed|Current Version' deploy.log | tr '\n' ' ' | head -c 600)"
+
+      - name: What production serves after deploying
+        run: |
+          sleep 20
+          for p in /health /duel/ /duel/app.js "/api/duel/room/CITEST?role=host"; do
+            code=$(curl -s -o /tmp/b -w '%{http_code} %{content_type}' "https://kodex.meiocg.org$p")
+            echo "::notice title=after $p::$code $(head -c 160 /tmp/b | tr '\n' ' ')"
+          done

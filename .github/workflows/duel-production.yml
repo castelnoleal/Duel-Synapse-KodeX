@@ -32,7 +32,8 @@ jobs:
             if [ "$got" = "$want" ]; then echo "Arena is serving this commit."; exit 0; fi
             echo "Waiting for deployment ($i/30)..."; sleep 20
           done
-          echo "::error::$BASE/duel/app.js does not match this commit after 10 minutes."; exit 1
+          code=$(curl -s -o /tmp/b -w '%{http_code} %{content_type}' "$BASE/duel/app.js")
+          echo "::error::$BASE/duel/app.js does not match this commit after 10 minutes. It returns: $code $(head -c 200 /tmp/b | tr '\n' ' ')"; exit 1
 
       - name: Check Arena endpoints
         run: |
