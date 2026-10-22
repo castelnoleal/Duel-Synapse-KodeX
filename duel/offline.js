@@ -103,7 +103,7 @@ document.head.append(css);
 function mount() {
   document.querySelectorAll("a.brand, a.toplink").forEach((a) => a.addEventListener("click", (e) => { if (inApp()) { e.preventDefault(); exitToApp(); } }));
   const bar = document.createElement("div");
-  bar.className = "off-banner"; bar.hidden = navigator.onLine; bar.textContent = "Offline. Solo playtest only; online duels need a connection.";
+  bar.className = "off-banner"; bar.hidden = navigator.onLine; bar.textContent = "Offline";
   document.body.append(bar);
   addEventListener("online", () => { bar.hidden = true; refresh(); });
   addEventListener("offline", () => { bar.hidden = false; refresh(); });
@@ -112,7 +112,7 @@ function mount() {
   if (!lobby) return;
   const panel = document.createElement("section");
   panel.className = "panel off-panel"; panel.id = "offlinePanel";
-  panel.innerHTML = `<h2>Offline play</h2><div class="off-row"><span class="off-st" id="offSt"></span><span><button class="btn primary" id="offSave" type="button">Save decks for offline</button> <button class="btn ghost" id="offBack" type="button" hidden>Back to KodeX</button></span></div><div class="off-bar" id="offBarWrap" hidden><i id="offBar"></i></div>`;
+  panel.innerHTML = `<h2>Offline</h2><div class="off-row"><span class="off-st" id="offSt"></span><span><button class="btn primary" id="offSave" type="button">Save decks for offline</button> <button class="btn ghost" id="offBack" type="button" hidden>Back to KodeX</button></span></div><div class="off-bar" id="offBarWrap" hidden><i id="offBar"></i></div>`;
   const foot = lobby.querySelector(".foot");
   lobby.insertBefore(panel, foot || null);
   const st = panel.querySelector("#offSt"), btn = panel.querySelector("#offSave"), pb = panel.querySelector("#offBar"), pw = panel.querySelector("#offBarWrap");
@@ -122,10 +122,10 @@ function mount() {
     if (busy) return;
     const info = ls.get("duel:offline", null), eng = await engineSaved(), n = ls.get("duel:decks", []).length;
     btn.disabled = !navigator.onLine || !n;
-    st.textContent = !n ? "No decks saved in the Arena yet."
+    st.textContent = !n ? "No decks"
       : info && eng ? `Ready offline · ${info.decks} deck${info.decks === 1 ? "" : "s"} · ${info.scripts} card scripts` + (info.failed ? ` · ${info.failed} missing` : "") + (n > info.decks ? ` · ${n - info.decks} new` : "")
-      : eng ? "Engine saved. Decks are not saved yet." : "Not saved yet.";
-    if (!navigator.onLine && !(info && eng)) st.textContent = "Connect to the internet to save decks for offline play.";
+      : eng ? "Decks not saved" : "Not saved yet.";
+    if (!navigator.onLine && !(info && eng)) st.textContent = "Connect to save";
   }
   async function run() {
     if (busy) return;
