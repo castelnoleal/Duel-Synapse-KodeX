@@ -191,6 +191,23 @@ export default {
         });
       }
 
+      const art = url.pathname.match(/^\/img\/([0-9]{3,10})\.jpg$/);
+      if (art) {
+        const upstream = await fetch(`https://images.ygoprodeck.com/images/cards_small/${art[1]}.jpg`, {
+          cf: { cacheEverything: true, cacheTtl: 2592000 },
+        });
+        if (!upstream.ok) return json({ error: "Not found" }, 404);
+        return new Response(upstream.body, {
+          status: 200,
+          headers: {
+            "Content-Type": "image/jpeg",
+            "Cache-Control": "public, max-age=2592000, immutable",
+            "X-Content-Type-Options": "nosniff",
+            ...corsHeaders(),
+          },
+        });
+      }
+
       if (url.pathname === "/deck.html" || url.pathname === "/deck") {
         const response = await githubFile("deck.html", env, 600);
         return withHeaders(response, {

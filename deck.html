@@ -35,8 +35,9 @@ button,a.b{font:inherit;font-weight:700;font-size:.92rem;min-height:44px;padding
 <script>
 (function(){
 const $=id=>document.getElementById(id),SRC='https://images.ygoprodeck.com/images/cards_small/';
-let P;try{const h=location.hash.slice(1).replace(/-/g,'+').replace(/_/g,'/');P=JSON.parse(decodeURIComponent(escape(atob(h))))}catch(e){$('st').textContent='Link not valid';return}
-const url=k=>{k=String(k);if(/^\d{3,10}$/.test(k))return SRC+k+'.jpg';return/^https:\/\//.test(k)?k:''};
+let hs=location.hash.slice(1);try{if(hs)localStorage.setItem('kxdeck',hs);else hs=localStorage.getItem('kxdeck')||''}catch(e){}
+let P;try{const h=hs.replace(/-/g,'+').replace(/_/g,'/');P=JSON.parse(decodeURIComponent(escape(atob(h))))}catch(e){$('st').textContent='Link not valid';return}
+const own=location.hostname==='kodex.meiocg.org';const url=k=>{k=String(k);if(/^\d{3,10}$/.test(k))return own?'/img/'+k+'.jpg':SRC+k+'.jpg';return/^https:\/\//.test(k)?k:''};
 const secs=[['MAIN DECK',P.m||[]],['EXTRA DECK',P.e||[]],['SIDE DECK',P.s||[]]];
 const expand=a=>a.flatMap(x=>Array.from({length:Math.max(1,x[2]|0)},()=>x));
 const name=String(P.n||'Deck').slice(0,60);document.title=name;$('ttl').textContent=name;
