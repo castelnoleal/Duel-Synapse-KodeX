@@ -43,7 +43,15 @@ jobs:
           fi
           npx --yes wrangler@4.127.1 deploy > deploy.log 2>&1 && ok=1 || ok=0
           cat deploy.log
-          if [ "$ok" != 1 ]; then echo "::error title=wrangler deploy failed::$(tail -c 1500 deploy.log | tr '\n' ' ')"; exit 1; fi
+          if [ "$ok" != 1 ]; then
+            # The code upload succeeds even when the API token may not edit zone routes; the
+            # existing routes keep serving the new version, so only flag that part.
+            if grep -q "Uploaded duel-synapse-kodex" deploy.log && grep -q "only partially updated" deploy.log; then
+              echo "::warning title=Routes not updated::The Worker code deployed, but this API token cannot edit zone routes. Existing routes keep serving the new code."
+            else
+              echo "::error title=wrangler deploy failed::$(tail -c 1500 deploy.log | tr '\n' ' ')"; exit 1
+            fi
+          fi
           echo "::notice title=deployed::$(grep -E 'Uploaded|Deployed|Current Version' deploy.log | tr '\n' ' ' | head -c 600)"
 
       - name: What production serves after deploying
