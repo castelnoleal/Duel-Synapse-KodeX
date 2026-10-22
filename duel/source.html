@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Arena source code</title>
+<style>
+:root { color-scheme: dark; --ink: #070a12; --text: #eef2fb; --muted: #8c97ad; --line: #263049; --kx: #8be1ff; }
+body { margin: 0; background: var(--ink); color: var(--text); font: 15px/1.6 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 760px; margin: 0 auto; padding: 32px 16px 48px; }
+h1 { font-size: 28px; line-height: 1.15; margin: 0 0 8px; }
+h2 { font-size: 18px; margin: 28px 0 8px; }
+p, li { color: #c9d2e3; }
+a { color: var(--kx); }
+code { background: #ffffff12; padding: 1px 5px; border-radius: 5px; font-size: .9em; word-break: break-all; }
+ul { padding-left: 20px; }
+.back { display: inline-block; margin-bottom: 18px; color: var(--muted); text-decoration: none; }
+</style>
+</head>
+<body>
+<main>
+<a class="back" href="./">Back to the Arena</a>
+<h1>Source code of Duel Synapse Arena</h1>
+<p>The Arena runs the EDOPro rules engine and the Project Ignis card scripts, which are licensed under the
+<a href="https://www.gnu.org/licenses/agpl-3.0.html" rel="noopener">GNU Affero General Public License v3.0 or later</a>.
+As required by that licence, the complete source of the program you are using is available here, free of charge.</p>
+
+<h2>Rules engine</h2>
+<ul>
+  <li><a href="https://github.com/edo9300/ygopro-core/tree/baa3881d0bae48e9994f915f5c931be53c1ba8ef" rel="noopener">edo9300/ygopro-core</a>
+    at commit <code>baa3881d0bae48e9994f915f5c931be53c1ba8ef</code> (version 11.0, unmodified), with
+    <a href="https://github.com/lua/lua/tree/6e22fedb74cf0c9b6656e9fce8b7331db847c605" rel="noopener">Lua</a> at <code>6e22fedb74cf0c9b6656e9fce8b7331db847c605</code>.</li>
+  <li>WebAssembly bridge: <a href="engine/build/kx_shim.cpp">kx_shim.cpp</a></li>
+  <li>Build scripts: <a href="engine/build/build.sh">build.sh</a> (engine) and <a href="engine/build/build-runtimes.sh">build-runtimes.sh</a>
+    (C++ runtimes with exceptions, from <a href="https://github.com/llvm/llvm-project/tree/llvmorg-21.1.4" rel="noopener">llvm-project llvmorg-21.1.4</a>,
+    compiled with <a href="https://github.com/WebAssembly/wasi-sdk/releases/tag/wasi-sdk-30" rel="noopener">wasi-sdk 30</a>).</li>
+  <li>Compiled engine: <a href="engine/ocgcore.wasm">ocgcore.wasm</a></li>
+</ul>
+
+<h2>Card scripts and data</h2>
+<ul>
+  <li><a href="https://github.com/ProjectIgnis/CardScripts" rel="noopener">ProjectIgnis/CardScripts</a>, unmodified, at the commit listed in <a href="data/scripts.json">scripts.json</a> (<code>commit</code> field).</li>
+  <li>Card data from <a href="https://github.com/ProjectIgnis/BabelCDB" rel="noopener">ProjectIgnis/BabelCDB</a> and strings from
+    <a href="https://github.com/ProjectIgnis/Distribution" rel="noopener">ProjectIgnis/Distribution</a>:
+    <a href="data/cards.json">cards.json</a>, <a href="data/strings.json">strings.json</a>.</li>
+</ul>
+
+<h2>Arena client</h2>
+<p>These files are served exactly as written, without minification.</p>
+<ul>
+  <li><a href="index.html">index.html</a>, <a href="arena.css">arena.css</a>, <a href="app.js">app.js</a>, <a href="deck.js">deck.js</a>,
+    <a href="net.js">net.js</a>, <a href="host-worker.js">host-worker.js</a></li>
+  <li><a href="engine/core.js">engine/core.js</a>, <a href="engine/host.js">engine/host.js</a>, <a href="engine/data.js">engine/data.js</a>,
+    <a href="engine/rules.js">engine/rules.js</a>, <a href="engine/bot.js">engine/bot.js</a>, <a href="engine/constants.js">engine/constants.js</a></li>
+  <li>How it fits together, and how to rebuild it: <a href="README.md">README.md</a></li>
+</ul>
+<p>The message layouts in <code>engine/core.js</code> follow <a href="https://github.com/n1xx1/ocgcore-wasm" rel="noopener">n1xx1/ocgcore-wasm</a> (MIT).
+MEIOCG is not affiliated with or endorsed by Konami.</p>
+</main>
+</body>
+</html>
