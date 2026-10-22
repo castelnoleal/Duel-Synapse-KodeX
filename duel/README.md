@@ -1,4 +1,4 @@
-# Duel Synapse Arena
+# Project: Duel Synapse
 
 An EDOPro-compatible duel simulator for the browser, served at `https://kodex.meiocg.org/duel/`.
 It runs the real EDOPro rules engine, so every card effect resolves exactly as it does in EDOPro.

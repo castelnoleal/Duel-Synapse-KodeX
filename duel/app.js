@@ -71,7 +71,7 @@ async function boot() {
     const [cards, strings] = await Promise.all([fetch(BASE + "data/cards.json").then((r) => r.json()), fetch(BASE + "data/strings.json").then((r) => r.json())]);
     S.db = new CardDB(cards, strings);
   } catch (e) {
-    status.textContent = "Card data could not be loaded. Check your connection and reload.";
+    status.textContent = "Card data unavailable";
     $("#engineDot").className = "dot fail";
     return;
   }
@@ -86,8 +86,8 @@ async function boot() {
   else if (S.decks.length) selectDeck(load("duel:current", 0));
   renderSaved();
 
-  startWorker().then((v) => { status.textContent = `Rules engine ready · ygopro-core ${v}`; $("#engineDot").className = "dot ready"; refreshButtons(); })
-    .catch((e) => { status.textContent = "Rules engine failed to start: " + e.message; $("#engineDot").className = "dot fail"; });
+  startWorker().then((v) => { status.textContent = "Duel Synapse Server Ready"; $("#engineDot").className = "dot ready"; refreshButtons(); })
+    .catch((e) => { console.error(e); status.textContent = "Duel Synapse Server unavailable"; $("#engineDot").className = "dot fail"; });
 
   applyRoomHash(hash);
   window.addEventListener("hashchange", () => {
@@ -239,7 +239,7 @@ function bindLobby() {
       $("#importText").value = ""; $("#importName").value = "";
     } catch (err) {
       e.preventDefault();
-      $("#importError").textContent = "That doesn't look like a deck. Paste a ydke:// link, the text of a .ydk file, or a KodeX deck link.";
+      $("#importError").textContent = "Not a valid deck";
     }
   });
   $("#soloStart").addEventListener("click", startSolo);
@@ -369,7 +369,7 @@ async function hostStartDuel(loserFirst) {
 
 // ----- online: guest / spectator -----
 function join(code) {
-  if (!/^[A-Z0-9]{4,12}$/.test(code)) { $("#joinStatus").textContent = "Room codes are 4–12 letters and numbers."; return; }
+  if (!/^[A-Z0-9]{4,12}$/.test(code)) { $("#joinStatus").textContent = "Invalid room code"; return; }
   S.mode = "guest";
   $("#joinStatus").textContent = "Connecting…";
   S.room = new Room({ code, role: "guest", name: myName(), onMessage: onGuestMessage, onStatus: (s, err) => {
@@ -388,7 +388,7 @@ function watch(code) {
   $("#loadingText").textContent = "Waiting for the duel to start…";
 }
 function onGuestMessage(m) {
-  if (m.sys === "welcome") { if (S.mode === "guest") $("#joinStatus").textContent = "Joined. Waiting for the host to start the duel…"; return; }
+  if (m.sys === "welcome") { if (S.mode === "guest") $("#joinStatus").textContent = "Joined. Waiting for host…"; return; }
   if (m.sys === "leave" && m.role === "host") { toast("The host left. The duel can't continue.", 6000); addLog("The host disconnected.", "sys"); return; }
   if (m.sys) return;
   const msg = m.m || {};
@@ -485,6 +485,8 @@ function bindTable() {
   $("#leaveBtn").addEventListener("click", leaveTable);
   $("#pileClose").addEventListener("click", () => $("#pile").close());
   $("#closeInfo").addEventListener("click", () => $("#info").classList.remove("open"));
+  document.addEventListener("click", (e) => { const i = $("#info"); if (i.classList.contains("open") && !i.contains(e.target) && !e.target.closest(".c, .card, .chain-stack li, .menu")) i.classList.remove("open"); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("#info").classList.remove("open"); });
   $("#sheetMin").addEventListener("click", () => { const s = $("#sheet"); s.classList.toggle("min"); $("#sheetMin").textContent = s.classList.contains("min") ? "▴" : "▾"; });
   document.addEventListener("click", (e) => { if (!e.target.closest(".menu") && !e.target.closest(".card")) hideMenu(); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") hideMenu(); });
@@ -586,7 +588,7 @@ function cardEl(c, team, location, seq, opts = {}) {
   if (c && c.counters && c.counters.length) d.append(el("span", "badge ctr", String(c.counters.reduce((t, x) => t + x[1], 0))));
   if (!opts.static) {
     d.addEventListener("click", (e) => { e.stopPropagation(); onCardClick(c, team, location, seq, d); });
-    d.addEventListener("mouseenter", () => { if (c && !c.hidden && c.code) showInfo(c, team, location); });
+    d.addEventListener("mouseenter", () => { if (c && !c.hidden && c.code) showInfo(c, team, location, false); });
   }
   return d;
 }
@@ -685,16 +687,25 @@ function render(p) {
 function setStatus(t) { $("#status").textContent = t; }
 
 // ----- card info -----
-function showInfo(c, team, location) {
+function showInfo(c, team, location, open = true) {
   if (!c || !c.code) return;
+  const panel = $("#info");
+  if (open === false && !panel.classList.contains("open")) return;
+  if (open === true) panel.classList.add("open");
   const data = S.db.get(c.code);
   const b = $("#infoBody");
   b.replaceChildren();
-  const img = cardImg(c.code, name(c.code)); img.className = "info-img"; img.loading = "eager"; b.append(img);
+  const img = cardImg(c.code, name(c.code)); img.className = "info-img"; img.loading = "eager";
+  const def = location === C.LOCATION_MZONE && c.position && (c.position & C.POS_DEFENSE) && !(c.position & C.POS_FACEDOWN);
+  if (def) {
+    const w = el("div", "info-art def" + (team !== S.team && S.team !== 2 ? " op" : "")); w.append(img); b.append(w);
+  } else b.append(img);
   b.append(el("div", "info-name", data ? data.name : `#${c.code}`));
   if (data) {
     const pills = el("div", "pills");
     const pill = (t, hi) => pills.append(el("span", "pill" + (hi ? " hi" : ""), t));
+    if (def) pill("Defense Position", true);
+    else if (location === C.LOCATION_MZONE && c.position && (c.position & C.POS_ATTACK) && data.type & C.TYPE.MONSTER) pill("Attack Position", true);
     if (data.type & C.TYPE.MONSTER) {
       pill(attributeName(data.attribute), true);
       pill(raceName(data.race));
@@ -745,12 +756,13 @@ function onZoneClick(z, e) {
 }
 
 function onCardClick(c, team, location, seq, d) {
-  if (c && !c.hidden && c.code) showInfo(c, team, location);
+  const peek = c && !c.hidden && c.code;
+  if (peek) showInfo(c, team, location, "render");
   const k = key(team, location, seq);
   if (S.sel && S.sel.byKey && S.sel.byKey.has(k)) { S.sel.pickKey(k); return; }
   const acts = S.actions && S.actions.get(k);
   if (acts && acts.length) { showMenu(d, c, acts); return; }
-  if (window.matchMedia("(max-width: 1080px)").matches && c && !c.hidden && c.code) $("#info").classList.add("open");
+  if (peek) $("#info").classList.add("open");
   const pile = { [C.LOCATION_GRAVE]: "grave", [C.LOCATION_REMOVED]: "banished", [C.LOCATION_EXTRA]: "extra" }[location];
   if (pile) openPile(team, pile);
 }
@@ -767,7 +779,7 @@ function showMenu(anchor, c, acts) {
   if (c && c.code) {
     const info = el("button", null, "Card details"); info.type = "button";
     info.addEventListener("click", () => { hideMenu(); $("#info").classList.add("open"); });
-    if (window.matchMedia("(max-width: 1080px)").matches) m.append(info);
+    m.append(info);
   }
   m.hidden = false;
   const r = anchor.getBoundingClientRect();
@@ -919,7 +931,7 @@ function chainPrompt(msg) {
   if (S.chainSkip && !msg.forced) { send({ t: msg.type, index: null }); return; }
   const chain = S.packet.state.chain;
   const last = chain.length ? chain[chain.length - 1] : null;
-  openSheet(msg.forced ? "Activate an effect" : "Chain a card or effect?", last ? `Responding to Chain ${chain.length}: ${name(last.code)}` : "You can activate one of these now.");
+  openSheet(msg.forced ? "Activate an effect" : "Chain a card or effect?", last ? `Chain ${chain.length}: ${name(last.code)}` : "");
   const body = $("#sheetBody");
   msg.selects.forEach((c, i) => {
     const o = optCard(c, activateLabel(c).replace(/^Activate: /, ""));
@@ -949,7 +961,7 @@ function optCard(c, label) {
   const known = lookup(c.controller, c.location, c.sequence);
   const view = c.code ? { ...(known && !known.hidden ? known : {}), code: c.code, position: c.position ?? (known && known.position) } : known || { hidden: true };
   const d = cardEl(view.hidden ? { hidden: true } : { ...view, position: C.POS_FACEUP_ATTACK }, c.controller, -1, c.sequence, { static: true });
-  d.addEventListener("mouseenter", () => { if (view.code) showInfo(view, c.controller, c.location); });
+  d.addEventListener("mouseenter", () => { if (view.code) showInfo(view, c.controller, c.location, false); });
   o.append(d);
   if (label) o.append(el("span", "where", label));
   o.append(el("span", "where", where(c)));
@@ -1026,7 +1038,7 @@ function sumPrompt(msg, title) {
 const sumLabel = (a) => { const lo = a & 0xffff, hi = a >>> 16; return hi && hi !== lo ? `${lo} or ${hi}` : String(lo); };
 
 function unselectPrompt(msg, title) {
-  openSheet(title, msg.can_finish ? "Pick another card, or finish." : `Pick ${msg.min === msg.max ? msg.min : `${msg.min}–${msg.max}`}.`);
+  openSheet(title, msg.can_finish ? "" : `Pick ${msg.min === msg.max ? msg.min : `${msg.min}–${msg.max}`}.`);
   const body = $("#sheetBody");
   const all = [...msg.select_cards.map((c, i) => [c, i, false]), ...msg.unselect_cards.map((c, i) => [c, msg.select_cards.length + i, true])];
   for (const [c, idx, picked] of all) {
@@ -1043,7 +1055,7 @@ function unselectPrompt(msg, title) {
 
 function placePrompt(msg, title) {
   const free = placesFromMask(msg.field_mask, msg.player);
-  openSheet(title || (msg.type === M.SELECT_DISFIELD ? "Choose a zone to make unusable" : "Choose a zone"), `Tap ${msg.count > 1 ? msg.count + " highlighted zones" : "a highlighted zone"} on the field.`);
+  openSheet(title || (msg.type === M.SELECT_DISFIELD ? "Choose a zone to make unusable" : "Choose a zone"), "");
   $("#sheet").classList.add("min"); $("#sheetMin").textContent = "▴";
   const picked = [];
   const byZone = new Map();
@@ -1087,7 +1099,7 @@ function positionPrompt(msg) {
 }
 
 function sortPrompt(msg) {
-  openSheet(msg.type === M.SORT_CHAIN ? "Order your Chain Links" : "Choose the order", "Tap the cards in order. The first one you tap goes first.");
+  openSheet(msg.type === M.SORT_CHAIN ? "Order your Chain Links" : "Choose the order", "");
   const order = [];
   const body = $("#sheetBody");
   const tiles = msg.cards.map((c, i) => {
@@ -1153,7 +1165,7 @@ function bitsPrompt(msg, title, all) {
 }
 
 function announceCard(msg) {
-  openSheet("Declare a card name", "Search for the card to declare.");
+  openSheet("Declare a card name", "");
   const box = el("div", "announce");
   const input = el("input"); input.placeholder = "Card name"; input.setAttribute("aria-label", "Card name");
   const list = el("div", "announce-list");
@@ -1168,7 +1180,7 @@ function announceCard(msg) {
       const b = el("button"); b.type = "button";
       b.append(cardImg(c.code, ""), el("span", null, c.name));
       b.onclick = () => send({ t: msg.type, code: c.code });
-      b.onmouseenter = () => showInfo({ code: c.code });
+      b.onmouseenter = () => showInfo({ code: c.code }, 0, 0, false);
       list.append(b);
     }
     if (!hits.length) list.append(el("p", "empty", "No card matches."));
