@@ -87,8 +87,8 @@ The dev server runs the real `server/duel-room.js` relay on a small built-in Web
 
 ## Licences
 
-The rules engine (`ygopro-core`) and the Project Ignis card scripts are **AGPL-3.0-or-later**. The Arena serves them to visitors over the network, so the source of this duel client must be available to its users.
-That covers the WebAssembly build files in `engine/build/` and the JavaScript in this folder. The lobby footer links to it.
-If this repository stays private, publish the `duel/` folder in a public repository and point that link at it.
+The rules engine (`ygopro-core`) and the Project Ignis card scripts are **AGPL-3.0-or-later**. The Arena serves them to visitors over the network, so their source must be offered to those visitors.
+`duel/source.html`, linked from the lobby footer, does this. It links the exact engine and script commits, and the Worker serves the bridge, the build scripts and every client file in full.
+Keep the commit hashes on that page in step when the engine or the scripts are updated.
 The message and response layouts in `engine/core.js` follow [n1xx1/ocgcore-wasm](https://github.com/n1xx1/ocgcore-wasm) (MIT).
 Card data comes from Project Ignis. MEIOCG is not affiliated with or endorsed by Konami.
