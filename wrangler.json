@@ -31,6 +31,30 @@
     {
       "pattern": "kodex.meiocg.org/img/*",
       "zone_name": "meiocg.org"
+    },
+    {
+      "pattern": "kodex.meiocg.org/duel",
+      "zone_name": "meiocg.org"
+    },
+    {
+      "pattern": "kodex.meiocg.org/duel/*",
+      "zone_name": "meiocg.org"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "DUEL_ROOMS",
+        "class_name": "DuelRoom"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "duel-rooms-v1",
+      "new_sqlite_classes": [
+        "DuelRoom"
+      ]
     }
   ]
 }

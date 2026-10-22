@@ -3,5 +3,21 @@
   "name": "duel-synapse-kodex",
   "main": "worker.js",
   "compatibility_date": "2026-08-31",
-  "workers_dev": true
+  "workers_dev": true,
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "DUEL_ROOMS",
+        "class_name": "DuelRoom"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "duel-rooms-v1",
+      "new_sqlite_classes": [
+        "DuelRoom"
+      ]
+    }
+  ]
 }

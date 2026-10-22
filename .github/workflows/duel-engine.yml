@@ -1,0 +1,31 @@
+name: Duel engine soak test
+
+on:
+  pull_request:
+    paths: ["duel/**", "tests/duel/**", "server/duel-room.js"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  engine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Read pinned CardScripts commit
+        id: pin
+        run: echo "sha=$(node -e "console.log(require('./duel/data/scripts.json').commit)")" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        with:
+          repository: ProjectIgnis/CardScripts
+          ref: ${{ steps.pin.outputs.sha }}
+          path: .cardscripts
+      - name: Bot-vs-bot duels with a fixed deck
+        run: node tests/duel/engine-sim.mjs .cardscripts 5 random
+      - name: Bot-vs-bot duels with random decks from the whole card pool
+        run: node tests/duel/engine-sim.mjs .cardscripts 30 random 1
