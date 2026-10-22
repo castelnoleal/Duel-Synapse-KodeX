@@ -19,6 +19,14 @@
     {
       "pattern": "kodex.meiocg.org/privacy-policy",
       "zone_name": "meiocg.org"
+    },
+    {
+      "pattern": "kodex.meiocg.org/deck.html",
+      "zone_name": "meiocg.org"
+    },
+    {
+      "pattern": "kodex.meiocg.org/deck",
+      "zone_name": "meiocg.org"
     }
   ]
 }
