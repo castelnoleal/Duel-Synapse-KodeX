@@ -50,7 +50,7 @@ jobs:
           check "$BASE/duel/engine/build/kx_shim.cpp" "text/plain"
           check "$BASE/duel/data/cards.json" "application/json"
           check "$BASE/duel/scripts/$commit/utility.lua" "text/plain"
-          check "$BASE/duel/scripts/$commit/official/c46986414.lua" "text/plain"
+          check "$BASE/duel/scripts/$commit/official/c14558127.lua" "text/plain"
           check "$BASE/img/89631139.jpg" "image/jpeg"
           # The room endpoint must demand a WebSocket upgrade (426), proving the Durable Object is bound.
           code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/api/duel/room/CITEST?role=host&name=CI")

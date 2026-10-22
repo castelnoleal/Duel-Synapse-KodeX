@@ -46,7 +46,6 @@ The Arena reads the same deck payload as `deck.html`: base64url of `{"n": name, 
 
 1. Merge to `main`. The Worker gains:
    - the `DuelRoom` Durable Object (binding `DUEL_ROOMS`, SQLite-backed, migration `duel-rooms-v1`)
-   - the routes `kodex.meiocg.org/duel` and `kodex.meiocg.org/duel/*`
    - `/api/duel/room/<CODE>`, which is already covered by the existing `kodex.meiocg.org/api/*` route.
 2. Check `https://kodex.meiocg.org/duel/` and open a room from two devices.
 
