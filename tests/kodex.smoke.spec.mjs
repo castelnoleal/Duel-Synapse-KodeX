@@ -46,8 +46,10 @@ test('search, card opening, ruling Q&A, and filters work', async ({ page }) => {
 
   await page.locator('[data-filter="Monster"]').click();
   await expect(page.locator('[data-filter="Monster"]')).toHaveClass(/active/);
-  await page.locator('[data-filter="all"]').click();
-  await expect(page.locator('[data-filter="all"]')).toHaveClass(/active/);
+  // The "New" chip is the reset filter (it replaced the old "All" chip).
+  await page.locator('[data-filter="new"]').click();
+  await expect(page.locator('[data-filter="new"]')).toHaveClass(/active/);
+  await expect(page.locator('[data-filter="Monster"]')).not.toHaveClass(/active/);
 
   expect(pageErrors, pageErrors.join('\n')).toEqual([]);
 });
@@ -64,6 +66,9 @@ test('settings panel opens and mobile card view works', async ({ browser }) => {
   await page.locator('#settingsFab').click();
   await expect(page.locator('#settingsPanel')).toBeVisible();
   await expect(page.locator('#settingsFab')).toHaveAttribute('aria-expanded', 'true');
+  // Close the panel again: on phones it covers the search results.
+  await page.locator('#settingsFab').click();
+  await expect(page.locator('#settingsFab')).toHaveAttribute('aria-expanded', 'false');
 
   await page.locator('#q').fill('8076');
   await expect(page.locator('.result').first()).toBeVisible({ timeout: 10000 });

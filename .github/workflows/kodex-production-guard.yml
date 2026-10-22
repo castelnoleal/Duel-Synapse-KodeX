@@ -45,7 +45,7 @@ jobs:
       - name: Run production smoke tests
         id: smoke
         continue-on-error: true
-        run: npx playwright test tests/kodex.smoke.spec.mjs
+        run: npx playwright test tests/kodex.smoke.spec.mjs --reporter=list,html,github
 
       - name: Upload Playwright report
         if: always()
@@ -80,7 +80,7 @@ jobs:
 
       - name: Re-run browser smoke tests after rollback
         if: (steps.reachability.outcome == 'failure' || steps.smoke.outcome == 'failure') && vars.KODEX_AUTO_ROLLBACK == 'true'
-        run: npx playwright test tests/kodex.smoke.spec.mjs
+        run: npx playwright test tests/kodex.smoke.spec.mjs --reporter=list,html,github
 
       - name: Fail the workflow when production is unhealthy
         if: steps.reachability.outcome == 'failure' || steps.smoke.outcome == 'failure'
