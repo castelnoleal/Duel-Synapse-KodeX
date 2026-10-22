@@ -64,7 +64,7 @@ jobs:
       - name: Install Playwright
         run: |
           npm install --no-save --no-package-lock playwright@1.56.0
-          npx playwright install --with-deps chromium
+          node node_modules/playwright/cli.js install --with-deps chromium
 
       - name: Live solo playtest in the browser
         run: |
