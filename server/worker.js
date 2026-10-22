@@ -191,6 +191,16 @@ export default {
         });
       }
 
+      if (url.pathname === "/deck.html" || url.pathname === "/deck") {
+        const response = await githubFile("deck.html", env, 600);
+        return withHeaders(response, {
+          "Content-Type": "text/html; charset=utf-8",
+          "Cache-Control": "public, max-age=600, stale-while-revalidate=3600",
+          "X-Content-Type-Options": "nosniff",
+          "Referrer-Policy": "no-referrer",
+        });
+      }
+
       if (url.pathname === "/indexes/search.json") {
         const response = await githubFile("indexes/search.json", env, 300);
         return withHeaders(response, {
