@@ -241,10 +241,24 @@ export default {
 
       const art = url.pathname.match(/^\/img\/([0-9]{3,10})\.jpg$/);
       if (art) {
-        const upstream = await fetch(`https://images.ygoprodeck.com/images/cards_small/${art[1]}.jpg`, {
-          cf: { cacheEverything: true, cacheTtl: 2592000 },
-        });
-        if (!upstream.ok) return json({ error: "Card image unavailable", upstream: upstream.status }, upstream.status === 404 ? 404 : 502);
+        // Card art comes from YGOPRODeck, which throttles bursts: retry a few times and only cache real pictures
+        // (a cached error would keep a card broken for weeks). "v=2" skips error entries cached by the first release.
+        const sources = [`https://images.ygoprodeck.com/images/cards_small/${art[1]}.jpg?v=2`, `https://images.ygoprodeck.com/images/cards/${art[1]}.jpg?v=2`];
+        let upstream = null;
+        for (let attempt = 0; attempt < 3 && !(upstream && upstream.ok); attempt++) {
+          if (attempt) await new Promise((r) => setTimeout(r, 300 * attempt));
+          let gone = 0;
+          for (const src of sources) {
+            upstream = await fetch(src, { cf: { cacheEverything: true, cacheTtlByStatus: { "200-299": 2592000, "300-599": -1 } } }).catch(() => null);
+            if (upstream && upstream.ok) break;
+            if (upstream && upstream.status === 404) gone++;
+          }
+          if (gone === sources.length) break;
+        }
+        if (!upstream || !upstream.ok) {
+          const status = upstream ? upstream.status : 0;
+          return json({ error: "Card image unavailable", upstream: status }, status === 404 ? 404 : 502);
+        }
         return new Response(upstream.body, {
           status: 200,
           headers: {
