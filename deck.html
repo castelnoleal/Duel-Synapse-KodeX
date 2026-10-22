@@ -30,7 +30,7 @@ button,a.b{font:inherit;font-weight:700;font-size:.92rem;min-height:44px;padding
 @page{size:A4 portrait;margin:8mm}
 @media print{.bar{display:none}html,body{background:#05070d}.wrap{padding:0;max-width:none}}
 </style></head><body>
-<div class="bar" id="bar" hidden><b id="ttl">Deck</b><span><a class="b p" id="dl" hidden>Download image</a><button class="p" id="pdf">Save as PDF</button></span></div>
+<div class="bar" id="bar" hidden><b id="ttl">Deck</b><span><a class="b" id="pt" hidden>Playtest</a><a class="b p" id="dl" hidden>Download image</a><button class="p" id="pdf">Save as PDF</button></span></div>
 <div class="wrap"><div id="st">Loading</div><div id="poster" hidden></div></div>
 <script>
 (function(){
@@ -50,6 +50,7 @@ for(const [label,list] of secs){const arr=expand(list),s=el('div','sec'),hd=el('
   s.append(hd,g);po.append(s)}
 po.append(el('div','ft','Created with Duel Synapse: KodeX'));
 $('st').hidden=true;po.hidden=false;$('bar').hidden=false;
+const pt=$('pt');pt.href='/duel/#deck='+hs;pt.title='Open this deck in Duel Synapse Arena to playtest or duel online';pt.hidden=false;
 $('pdf').onclick=()=>{try{window.print()}catch(e){}};
 // image download only when every card picture can be drawn
 (async function(){

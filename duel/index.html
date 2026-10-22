@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#070a12">
+<meta name="description" content="Duel online or playtest your KodeX decks in the browser, powered by the EDOPro rules engine.">
+<title>Duel Synapse Arena</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./arena.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/" title="Back to KodeX"><span class="mark" aria-hidden="true"></span><span><b>Duel Synapse</b> Arena</span></a>
+  <span id="netStatus" class="net" hidden></span>
+  <span class="grow"></span>
+  <a class="toplink" href="/">KodeX rulings</a>
+</header>
+
+<!-- ============================== LOBBY ============================== -->
+<main id="lobby">
+  <section class="lobby-intro">
+    <h1>Test your deck against the real rules engine.</h1>
+    <p>Every card effect is resolved by the same engine and card scripts EDOPro uses. Playtest alone, or open a room and send the link to a friend.</p>
+  </section>
+
+  <div class="lobby-grid">
+    <section class="panel deck-panel" aria-labelledby="deckTitle">
+      <div class="panel-head">
+        <h2 id="deckTitle">Your deck</h2>
+        <div class="row gap">
+          <select id="savedDecks" aria-label="Saved decks"></select>
+          <button class="btn ghost" id="importBtn" type="button">Import</button>
+        </div>
+      </div>
+      <div id="deckBody" class="deck-body">
+        <p class="empty">No deck loaded yet. Open a deck from the KodeX app with <b>Playtest</b>, or import a YDK file, a <code>ydke://</code> link or a KodeX deck link.</p>
+      </div>
+    </section>
+
+    <section class="panel modes" aria-label="Choose how to duel">
+      <label class="field"><span>Your duelist name</span><input id="nameInput" maxlength="24" autocomplete="nickname" placeholder="Duelist"></label>
+
+      <details class="mode" open id="soloMode">
+        <summary><h2>Solo playtest</h2><span>Goldfish your combos or test into a bot.</span></summary>
+        <div class="mode-body">
+          <label class="field"><span>Opponent</span>
+            <select id="soloOpp">
+              <option value="passive">Dummy that never responds</option>
+              <option value="random">Bot that plays random legal moves</option>
+              <option value="both">I control both players</option>
+            </select>
+          </label>
+          <label class="field"><span>Opponent deck</span>
+            <select id="soloOppDeck"><option value="filler">40 vanilla monsters</option><option value="same">Copy of my deck</option></select>
+          </label>
+          <label class="field"><span>Going first</span>
+            <select id="soloFirst"><option value="me">Me</option><option value="opp">Opponent</option><option value="random">Coin toss</option></select>
+          </label>
+          <details class="sub">
+            <summary>Opening hand</summary>
+            <p class="hint">Pick the cards you want to start with. The rest of the deck is shuffled under them.</p>
+            <div id="testHand" class="test-hand"></div>
+          </details>
+          <button class="btn primary wide" id="soloStart" type="button" disabled>Start playtest</button>
+        </div>
+      </details>
+
+      <details class="mode" id="hostMode">
+        <summary><h2>Host an online duel</h2><span>Get a link to send to your opponent.</span></summary>
+        <div class="mode-body">
+          <div id="hostIdle">
+            <button class="btn primary wide" id="hostOpen" type="button" disabled>Open a room</button>
+          </div>
+          <div id="hostRoom" hidden>
+            <div class="room-code"><span>Room code</span><b id="roomCode">------</b></div>
+            <div class="row gap wrap">
+              <button class="btn" id="copyInvite" type="button">Copy invite link</button>
+              <button class="btn ghost" id="copyWatch" type="button">Copy spectator link</button>
+            </div>
+            <p id="hostWaiting" class="hint">Waiting for your opponent to join…</p>
+            <div id="guestInfo" class="guest" hidden></div>
+            <button class="btn primary wide" id="hostStart" type="button" disabled>Start duel</button>
+            <button class="btn ghost wide" id="hostClose" type="button">Close room</button>
+          </div>
+        </div>
+      </details>
+
+      <details class="mode" id="joinMode">
+        <summary><h2>Join a duel</h2><span>Enter the code from the host.</span></summary>
+        <div class="mode-body">
+          <label class="field"><span>Room code</span><input id="joinCode" maxlength="12" autocapitalize="characters" placeholder="e.g. 7KQ2MX"></label>
+          <div class="row gap">
+            <button class="btn primary grow" id="joinBtn" type="button" disabled>Join with my deck</button>
+            <button class="btn ghost" id="watchBtn" type="button">Watch</button>
+          </div>
+          <p id="joinStatus" class="hint" role="status"></p>
+        </div>
+      </details>
+
+      <details class="mode">
+        <summary><h2>Rules</h2><span id="rulesSummary">Master Rule 5, 8000 LP</span></summary>
+        <div class="mode-body two">
+          <label class="field"><span>Master Rule</span><select id="optRule"><option value="5">Master Rule 5 (2020)</option><option value="4">Master Rule 4 (2017)</option></select></label>
+          <label class="field"><span>Life Points</span><input id="optLP" type="number" min="100" max="99999" step="100" value="8000"></label>
+          <label class="field"><span>Starting hand</span><input id="optHand" type="number" min="0" max="20" value="5"></label>
+          <label class="field"><span>Draw per turn</span><input id="optDraw" type="number" min="0" max="10" value="1"></label>
+        </div>
+      </details>
+      <p id="engineStatus" class="hint" role="status">Loading the rules engine…</p>
+    </section>
+  </div>
+  <p class="legal">Rules engine: <a href="https://github.com/edo9300/ygopro-core" rel="noopener">ygopro-core</a> and <a href="https://github.com/ProjectIgnis/CardScripts" rel="noopener">Project Ignis card scripts</a> (AGPL-3.0). <a href="https://github.com/castelnoleal/duel-synapse-kodex/tree/main/duel" rel="noopener" id="srcLink">Source of this duel client</a>. MEIOCG is not affiliated with Konami.</p>
+</main>
+
+<!-- ============================== TABLE ============================== -->
+<main id="table" hidden>
+  <aside id="info" class="info" aria-label="Card details">
+    <button class="icon close-info" id="closeInfo" type="button" aria-label="Close card details">×</button>
+    <div id="infoBody" class="info-body"><p class="empty">Tap a card to read it.</p></div>
+  </aside>
+
+  <section id="arena" class="arena">
+    <div class="duelist op">
+      <div class="who"><b id="opName">Opponent</b><span id="opMeta"></span></div>
+      <div class="lp"><span class="lp-num" id="opLP">8000</span><span class="lp-bar"><i id="opLPBar"></i></span></div>
+    </div>
+    <div id="opHand" class="hand op-hand"></div>
+    <div class="mat-wrap"><div id="field" class="mat"></div><ol id="chain" class="chain-stack" aria-label="Chain"></ol></div>
+    <div id="myHand" class="hand my-hand"></div>
+    <div class="duelist me">
+      <div class="who"><b id="meName">You</b><span id="meMeta"></span></div>
+      <div class="lp"><span class="lp-num" id="meLP">8000</span><span class="lp-bar"><i id="meLPBar"></i></span></div>
+    </div>
+    <nav class="phases" id="phases" aria-label="Phases"></nav>
+    <div id="status" class="status" role="status"></div>
+  </section>
+
+  <aside class="side">
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-tab="log" type="button">Duel log</button>
+      <button role="tab" aria-selected="false" data-tab="chat" type="button">Chat</button>
+    </div>
+    <ol id="log" class="log" data-pane="log"></ol>
+    <div class="chat" data-pane="chat" hidden>
+      <ol id="chatList" class="log"></ol>
+      <form id="chatForm" class="row gap"><input id="chatInput" maxlength="200" placeholder="Message" aria-label="Chat message"><button class="btn" type="submit">Send</button></form>
+    </div>
+    <div class="side-actions">
+      <label class="toggle"><input type="checkbox" id="skipChains"> Skip chain prompts</label>
+      <div class="row gap">
+        <button class="btn ghost" id="exportBtn" type="button">Save replay log</button>
+        <button class="btn danger" id="surrenderBtn" type="button">Surrender</button>
+      </div>
+    </div>
+  </aside>
+
+  <div id="sheet" class="sheet" hidden role="dialog" aria-modal="false" aria-labelledby="sheetTitle">
+    <div class="sheet-head"><h3 id="sheetTitle"></h3><button class="icon" id="sheetMin" type="button" aria-label="Show the field">▾</button></div>
+    <p id="sheetText" class="sheet-text"></p>
+    <div id="sheetBody" class="sheet-body"></div>
+    <div id="sheetActions" class="sheet-actions"></div>
+  </div>
+  <div id="menu" class="menu" hidden role="menu"></div>
+  <div id="result" class="result" hidden>
+    <div class="result-card"><h2 id="resultTitle"></h2><p id="resultText"></p>
+      <div class="row gap center"><button class="btn primary" id="rematchBtn" type="button">Rematch</button><button class="btn ghost" id="leaveBtn" type="button">Back to lobby</button></div>
+    </div>
+  </div>
+</main>
+
+<dialog id="pile" class="dlg"><div class="pile-head"><h3 id="pileTitle"></h3><button class="icon" id="pileClose" type="button" aria-label="Close">×</button></div><div id="pileBody" class="pile-body"></div></dialog>
+<dialog id="importDlg" class="dlg"><form method="dialog" id="importForm">
+  <div class="pile-head"><h3>Import a deck</h3><button class="icon" value="cancel" type="submit" aria-label="Close">×</button></div>
+  <div class="import-body">
+    <label class="field"><span>Paste a ydke:// link, a YDK file's text or a KodeX deck link</span><textarea id="importText" rows="7"></textarea></label>
+    <label class="field"><span>Or choose a .ydk file</span><input type="file" id="importFile" accept=".ydk,.txt"></label>
+    <label class="field"><span>Deck name</span><input id="importName" maxlength="60" placeholder="My deck"></label>
+    <p id="importError" class="error" role="alert"></p>
+    <div class="row gap end"><button class="btn primary" id="importGo" value="default" type="submit">Use this deck</button></div>
+  </div>
+</form></dialog>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

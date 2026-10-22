@@ -1,3 +1,6 @@
+import { DuelRoom, handleDuelRoom } from "./duel-room.js";
+export { DuelRoom };
+
 const REPO = "castelnoleal/Duel-Synapse-KodeX";
 const BRANCH = "main";
 const CACHE_NAME = "kodex-private-origin-v11";
@@ -145,10 +148,54 @@ function withHeaders(response, headers = {}) {
   return result;
 }
 
+// ---------------------------------------------------------------------------
+// Duel Synapse online duels (/duel). Static files come from the duel/ folder of this
+// repository; card scripts are proxied from the pinned public Project Ignis commit.
+const DUEL_TYPES = { js: "text/javascript; charset=utf-8", css: "text/css; charset=utf-8", html: "text/html; charset=utf-8",
+  json: "application/json; charset=utf-8", wasm: "application/wasm", svg: "image/svg+xml" };
+const DUEL_FILE = /^duel\/(?:[a-z0-9-]+\.(?:js|css|html|svg)|engine\/[a-z0-9-]+\.(?:js|wasm)|data\/(?:cards|strings|scripts)\.json)$/;
+const DUEL_SCRIPT = /^\/duel\/scripts\/([0-9a-f]{40})\/((?:official|pre-release)\/c\d{1,10}\.lua|unofficial\/(?:proc_unofficial|rankup_functions)\.lua|[a-z_]{3,40}\.lua)$/;
+
+async function handleDuel(request, url, env) {
+  const p = url.pathname;
+  const room = p.match(/^\/api\/duel\/room\/([A-Z0-9]{4,12})$/);
+  if (room) return handleDuelRoom(request, env, room[1]);
+  if (!p.startsWith("/duel")) return null;
+  if (request.method !== "GET" && request.method !== "HEAD") return json({ error: "Method not allowed" }, 405);
+  if (p === "/duel") return Response.redirect(new URL("/duel/" + url.search + url.hash, url).toString(), 301);
+  try {
+    const script = p.match(DUEL_SCRIPT);
+    if (script) {
+      const upstream = await fetch(`https://raw.githubusercontent.com/ProjectIgnis/CardScripts/${script[1]}/${script[2]}`, {
+        cf: { cacheEverything: true, cacheTtl: 31536000 },
+      });
+      if (!upstream.ok) return json({ error: "Script unavailable" }, upstream.status === 404 ? 404 : 502);
+      return new Response(upstream.body, { headers: {
+        "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "public, max-age=31536000, immutable",
+        "X-Content-Type-Options": "nosniff", ...corsHeaders() } });
+    }
+    const file = p === "/duel/" ? "duel/index.html" : p.slice(1);
+    if (!DUEL_FILE.test(file)) return json({ error: "Not found" }, 404);
+    const ext = file.split(".").pop();
+    const big = ext === "wasm" || file.startsWith("duel/data/");
+    const response = await githubFile(file, env, big ? 3600 : 120);
+    return withHeaders(response, {
+      "Content-Type": DUEL_TYPES[ext],
+      "Cache-Control": big ? "public, max-age=3600, stale-while-revalidate=86400" : "public, max-age=120, stale-while-revalidate=600",
+      "X-Content-Type-Options": "nosniff",
+    });
+  } catch (error) {
+    console.error(error);
+    return json({ error: "Duel service unavailable" }, 503);
+  }
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders() });
+    const duel = await handleDuel(request, url, env);
+    if (duel) return duel;
     if (url.pathname === "/translate") {
       if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
       try {
