@@ -49,6 +49,8 @@ jobs:
           check "$BASE/duel/engine/ocgcore.wasm" "application/wasm"
           check "$BASE/duel/engine/build/kx_shim.cpp" "text/plain"
           check "$BASE/duel/data/cards.json" "application/json"
+          check "$BASE/duel/sw.js" "text/javascript"
+          check "$BASE/duel/offline.js" "text/javascript"
           check "$BASE/duel/scripts/$commit/utility.lua" "text/plain"
           check "$BASE/duel/scripts/$commit/official/c14558127.lua" "text/plain"
           check "$BASE/img/89631139.jpg" "image/jpeg"

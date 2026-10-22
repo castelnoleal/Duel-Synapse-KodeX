@@ -42,6 +42,14 @@ The Arena reads the same deck payload as `deck.html`: base64url of `{"n": name, 
 - `#join=<CODE>` opens the join screen. `#watch=<CODE>` opens the room as a spectator.
 - Card ids are YGOPRODeck passcodes. Cards the engine knows by a different id, such as pre-release cards, are matched by name. Cards it can't find are listed in the lobby.
 
+## Offline play
+
+`sw.js` (scope `/duel/`) keeps the engine, card data, UI files, card scripts and card art on the device, so solo playtests, the dummy and the random bot work without a connection. Online rooms always need the network.
+`offline.js` registers it and adds the **Offline play** panel to the lobby: **Save decks for offline** stores the scripts and art for every deck saved in the Arena.
+Scripts are pinned to a commit and never change. Bump `VERSION` in `sw.js` when the engine or data files change.
+
+From the KodeX app, `https://kodex.meiocg.org/duel/?app=1` opens the Arena (the `KodeX` links then return to the app) and `#prepare=<payload>` (`{"d":[<deck payload>, ...]}`, base64url) stores all of the app's decks and saves them for offline play.
+
 ## Deploying
 
 1. Merge to `main`. The Worker gains:
