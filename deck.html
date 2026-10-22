@@ -6,19 +6,22 @@
 <style>
 :root{color-scheme:dark}
 *{box-sizing:border-box}
-html,body{margin:0;background:#05070d;color:#eef2ff;font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+html,body{margin:0;background:#05070d;color:#eef2ff;font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif}
 .bar{position:sticky;top:0;z-index:5;display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 14px;background:#0d1220;border-bottom:1px solid #272d40}
-.bar b{font-size:.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar b{font-size:.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .bar span{display:flex;gap:8px;flex:none}
-button,a.b{font:inherit;font-weight:700;font-size:.92rem;min-height:44px;padding:0 18px;border-radius:12px;border:1px solid #39415a;background:#171b2a;color:#eef2ff;text-decoration:none;display:inline-flex;align-items:center;cursor:pointer}
+button{font:inherit;font-weight:700;font-size:.92rem;min-height:44px;padding:0 16px;border-radius:12px;border:1px solid #39415a;background:#171b2a;color:#eef2ff;display:inline-flex;align-items:center;cursor:pointer}
+button:disabled{opacity:.45;cursor:default}
 .p{background:#67a8ff;border-color:#67a8ff;color:#06101f}
 [hidden]{display:none!important}
 .wrap{padding:14px;max-width:1200px;margin:0 auto}
+#msg{display:flex;gap:10px;align-items:center;justify-content:space-between;margin:0 0 12px;padding:10px 14px;border:1px solid #272d40;border-radius:12px;background:#0d1220;color:#cfd7f0;font-size:.9rem}
+#msg i{display:block;height:4px;border-radius:2px;background:#67a8ff;width:0;transition:width .2s}
 #poster{border:6px solid #9c252b;background:linear-gradient(135deg,#0b1226,#060912);padding:3.2%}
 #poster h1{margin:0;font-size:clamp(1.1rem,4.2vw,2.6rem)}
 #poster .k{font-weight:800;letter-spacing:.02em;font-size:clamp(.6rem,2vw,1.4rem)}
 #poster .c{color:#cfd7f0;font-size:clamp(.6rem,1.7vw,1.2rem);margin:.2em 0 2.2%}
-.sec{margin-bottom:2.4%;break-inside:avoid;page-break-inside:avoid}
+.sec{margin-bottom:2.4%}
 .hd{display:flex;justify-content:space-between;background:rgba(10,16,31,.85);padding:.5em .9em;font-weight:800;font-size:clamp(.6rem,1.9vw,1.3rem)}
 .hd i{font-style:normal;font-weight:500;font-size:.85em}
 .g{display:grid;grid-template-columns:repeat(13,1fr);gap:.8%;margin-top:1.2%}
@@ -27,46 +30,84 @@ button,a.b{font:inherit;font-weight:700;font-size:.92rem;min-height:44px;padding
 .t em{position:absolute;inset:0;padding:3px;font:normal 600 clamp(4px,1.1vw,10px)/1.15 Arial,sans-serif;color:#dbe4ff;overflow:hidden}
 .ft{margin-top:2%;font-size:clamp(.5rem,1.4vw,.95rem);color:#cfd7f0}
 #st{padding:40px;text-align:center;color:#9aa4bd}
-@page{size:A4 portrait;margin:8mm}
-@media print{.bar{display:none}html,body{background:#05070d}.wrap{padding:0;max-width:none}}
+#sv{position:fixed;inset:0;z-index:20;background:rgba(3,5,10,.96);display:flex;flex-direction:column}
+#sv div{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 14px;font-size:.9rem;color:#cfd7f0}
+#sv img{flex:1;min-height:0;width:100%;object-fit:contain}
 </style></head><body>
-<div class="bar" id="bar" hidden><b id="ttl">Deck</b><span><a class="b" id="pt" hidden>Playtest</a><a class="b p" id="dl" hidden>Download image</a><button class="p" id="pdf">Save as PDF</button></span></div>
-<div class="wrap"><div id="st">Loading</div><div id="poster" hidden></div></div>
+<div class="bar" id="bar" hidden><b id="ttl">Deck</b><span><button class="p" id="png" disabled>PNG</button><button class="p" id="jpg" disabled>JPG</button></span></div>
+<div class="wrap"><div id="st">Loading</div><div id="msg" hidden><span id="mt"></span><button id="retry" hidden>Retry</button></div><div id="poster" hidden></div></div>
+<div id="sv" hidden><div><span>Press and hold the image, then choose Save image</span><button id="svx">Close</button></div><img id="svi" alt=""></div>
 <script>
 (function(){
-const $=id=>document.getElementById(id),SRC='https://images.ygoprodeck.com/images/cards_small/';
+const $=id=>document.getElementById(id),DIRECT='https://images.ygoprodeck.com/images/cards_small/';
 let hs=location.hash.slice(1);try{if(hs)localStorage.setItem('kxdeck',hs);else hs=localStorage.getItem('kxdeck')||''}catch(e){}
 let P;try{const h=hs.replace(/-/g,'+').replace(/_/g,'/');P=JSON.parse(decodeURIComponent(escape(atob(h))))}catch(e){$('st').textContent='Link not valid';return}
-const own=location.hostname==='kodex.meiocg.org';const url=k=>{k=String(k);if(/^\d{3,10}$/.test(k))return own?'/img/'+k+'.jpg':SRC+k+'.jpg';return/^https:\/\//.test(k)?k:''};
+const own=location.hostname==='kodex.meiocg.org',sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const idOf=k=>{k=String(k);return/^\d{3,10}$/.test(k)?k:''};
+const urlOf=k=>{k=String(k);if(idOf(k))return own?'/img/'+k+'.jpg':DIRECT+k+'.jpg';return/^https:\/\//.test(k)?k:''};
 const secs=[['MAIN DECK',P.m||[]],['EXTRA DECK',P.e||[]],['SIDE DECK',P.s||[]]];
 const expand=a=>a.flatMap(x=>Array.from({length:Math.max(1,x[2]|0)},()=>x));
 const name=String(P.n||'Deck').slice(0,60);document.title=name;$('ttl').textContent=name;
-const total=secs.reduce((t,s)=>t+expand(s[1]).length,0),po=$('poster');
+const all=secs.map(s=>expand(s[1])),total=all.reduce((t,a)=>t+a.length,0),po=$('poster');
 const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e};
-const k=el('div','k','DUEL SYNAPSE • KODEX'),h=el('h1',0,name),c=el('div','c',total+' cards');po.append(k,h,c);
-const imgs=[];
-for(const [label,list] of secs){const arr=expand(list),s=el('div','sec'),hd=el('div','hd',label);hd.append(el('i',0,arr.length+' cards'));const g=el('div','g');
-  arr.forEach(x=>{const t=el('div','t'),u=url(x[0]);t.append(el('em',0,x[1]||''));if(u){const i=new Image();i.alt='';i.referrerPolicy='no-referrer';i.src=u;i.onload=()=>{const e=t.querySelector('em');e&&e.remove()};i.onerror=()=>{const m=/\/img\/(\d+)\.jpg$/.exec(i.src);if(m&&!i.dataset.f){i.dataset.f=1;i.src=SRC+m[1]+'.jpg'}};t.append(i);imgs.push([u,i])}g.append(t)});
-  s.append(hd,g);po.append(s)}
+po.append(el('div','k','DUEL SYNAPSE • KODEX'),el('h1',0,name),el('div','c',total+' cards'));
+const tiles=new Map(); // source key -> [tile elements]
+secs.forEach(([label],si)=>{const arr=all[si],s=el('div','sec'),hd=el('div','hd',label);hd.append(el('i',0,arr.length+' cards'));const g=el('div','g');
+  arr.forEach(x=>{const t=el('div','t');t.append(el('em',0,x[1]||''));g.append(t);const key=String(x[0]);if(!tiles.has(key))tiles.set(key,[]);tiles.get(key).push(t)});
+  s.append(hd,g);po.append(s)});
 po.append(el('div','ft','Created with Duel Synapse: KodeX'));
-$('st').hidden=true;po.hidden=false;$('bar').hidden=false;
-const pt=$('pt');pt.href='/duel/#deck='+hs;pt.title='Open this deck in Duel Synapse Arena to playtest or duel online';pt.hidden=false;
-$('pdf').onclick=()=>{try{window.print()}catch(e){}};
-// image download only when every card picture can be drawn
-(async function(){
-  try{
-    const W=1200,cols=13,cw=72,ch=105,gap=8,head=42,rows=n=>Math.max(1,Math.ceil(n/cols)),all=secs.map(s=>expand(s[1]));
-    const H=166+all.reduce((t,a)=>t+head+8+rows(a.length)*(ch+gap)+18,0)+40,S=1.5;
-    const loaded={};await Promise.all([...new Set(all.flat().map(x=>url(x[0])).filter(Boolean))].map(u=>new Promise((ok,no)=>{const i=new Image();i.crossOrigin='anonymous';i.onload=()=>{loaded[u]=i;ok()};i.onerror=()=>no(new Error('cors'));i.src=u})));
-    const cv=document.createElement('canvas');cv.width=W*S;cv.height=H*S;const x=cv.getContext('2d');x.scale(S,S);
-    const g=x.createLinearGradient(0,0,W,H);g.addColorStop(0,'#0b1226');g.addColorStop(1,'#060912');x.fillStyle=g;x.fillRect(0,0,W,H);
-    x.strokeStyle='#9c252b';x.lineWidth=8;x.strokeRect(12,12,W-24,H-24);x.fillStyle='#fff';x.font='bold 23px Arial,sans-serif';x.fillText('DUEL SYNAPSE • KODEX',42,55);
-    x.font='bold 42px Arial,sans-serif';x.fillText(name.slice(0,36),42,105);x.font='20px Arial,sans-serif';x.fillText(total+' cards',42,139);
-    let y=166;secs.forEach((s,si)=>{const a=all[si];x.fillStyle='rgba(10,16,31,.85)';x.fillRect(30,y,W-60,head);x.fillStyle='#fff';x.font='bold 22px Arial,sans-serif';x.fillText(s[0],44,y+28);x.font='18px Arial,sans-serif';x.textAlign='right';x.fillText(a.length+' cards',W-44,y+27);x.textAlign='left';y+=head+8;
-      a.forEach((it,i)=>{const px=34+(i%cols)*(cw+gap),py=y+Math.floor(i/cols)*(ch+gap);x.fillStyle='#05080f';x.fillRect(px-2,py-2,cw+4,ch+4);const im=loaded[url(it[0])];if(im)x.drawImage(im,px,py,cw,ch)});y+=rows(a.length)*(ch+gap)+18});
-    x.fillStyle='#fff';x.font='16px Arial,sans-serif';x.fillText('Created with Duel Synapse: KodeX',42,H-26);
-    cv.toBlob(b=>{if(!b)return;const d=$('dl');d.href=URL.createObjectURL(b);d.download=(name.replace(/[^\w -]/g,'').trim()||'deck')+'.png';d.hidden=false},'image/png')
-  }catch(e){}
-})();
+$('st').hidden=true;po.hidden=false;$('bar').hidden=false;$('msg').hidden=false;
+
+// ---- card pictures: a few at a time, retried, kept as blobs so they can be drawn into the saved image
+const pics=new Map(),shown=new Set();let done=0;
+const keys=[...tiles.keys()].filter(k=>urlOf(k));
+function paint(key,src){tiles.get(key).forEach(t=>{let i=t.querySelector('img');if(!i){i=new Image();i.alt='';i.referrerPolicy='no-referrer';t.append(i)}i.onload=()=>{const e=t.querySelector('em');e&&e.remove()};i.src=src})}
+async function grab(key){
+  const u=urlOf(key),srcs=u.startsWith('/')?[[u,3],[DIRECT+idOf(key)+'.jpg',1]]:[[u,/ygoprodeck/.test(u)?2:1]];
+  for(const [s,tries] of srcs)for(let a=0;a<tries;a++){
+    try{const r=await fetch(s,{mode:s.startsWith('/')?'same-origin':'cors',cache:'default'});if(r.ok){const b=await r.blob();if(b.size>400){const url=URL.createObjectURL(b),im=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=()=>no();i.src=url});pics.set(key,im);paint(key,url);return true}}}catch(e){}
+    await sleep(350*(a+1)*(a+1));
+  }
+  // last resort: show it on the page (cannot be copied into the saved image)
+  if(idOf(key)){paint(key,DIRECT+idOf(key)+'.jpg');shown.add(key)}else paint(key,u);
+  return false;
+}
+function status(){const miss=keys.length-pics.size,fin=done>=keys.length;
+  $('mt').textContent=fin?(miss?miss+' of '+keys.length+' card pictures did not load. The saved image will show their names.':'All card pictures loaded'):'Loading card pictures '+done+' / '+keys.length;
+  $('retry').hidden=!(fin&&miss);$('png').disabled=$('jpg').disabled=!fin}
+async function run(list){
+  let n=0;const worker=async()=>{while(n<list.length){const k=list[n++];if(!pics.has(k))await grab(k);done++;status()}};
+  await Promise.all(Array.from({length:Math.min(4,list.length||1)},worker))}
+async function start(){done=keys.filter(k=>pics.has(k)).length;status();await run(keys.filter(k=>!pics.has(k)));status()}
+$('retry').onclick=async()=>{$('retry').hidden=true;$('png').disabled=$('jpg').disabled=true;done=pics.size;status();await run(keys.filter(k=>!pics.has(k)));status()};
+start();
+
+// ---- save as PNG / JPG
+function render(){
+  const W=1200,cols=13,cw=72,ch=105,gap=8,head=42,S=1.5,rows=n=>Math.max(1,Math.ceil(n/cols));
+  const H=166+all.reduce((t,a)=>t+head+8+rows(a.length)*(ch+gap)+18,0)+40;
+  const cv=document.createElement('canvas');cv.width=W*S;cv.height=H*S;const x=cv.getContext('2d');x.scale(S,S);
+  const g=x.createLinearGradient(0,0,W,H);g.addColorStop(0,'#0b1226');g.addColorStop(1,'#060912');x.fillStyle=g;x.fillRect(0,0,W,H);
+  x.strokeStyle='#9c252b';x.lineWidth=8;x.strokeRect(12,12,W-24,H-24);x.fillStyle='#fff';x.font='bold 23px Arial,sans-serif';x.fillText('DUEL SYNAPSE • KODEX',42,55);
+  x.font='bold 42px Arial,sans-serif';x.fillText(name.slice(0,36),42,105);x.font='20px Arial,sans-serif';x.fillText(total+' cards',42,139);
+  let y=166;
+  secs.forEach((s,si)=>{const a=all[si];x.fillStyle='rgba(10,16,31,.85)';x.fillRect(30,y,W-60,head);x.fillStyle='#fff';x.font='bold 22px Arial,sans-serif';x.fillText(s[0],44,y+28);x.font='18px Arial,sans-serif';x.textAlign='right';x.fillText(a.length+' cards',W-44,y+27);x.textAlign='left';y+=head+8;
+    a.forEach((it,i)=>{const px=34+(i%cols)*(cw+gap),py=y+Math.floor(i/cols)*(ch+gap);x.fillStyle='#18213a';x.fillRect(px-2,py-2,cw+4,ch+4);const im=pics.get(String(it[0]));
+      if(im)x.drawImage(im,px,py,cw,ch);else{x.fillStyle='#dbe4ff';x.font='bold 9px Arial,sans-serif';const w=String(it[1]||'').split(' ');let line='',ly=py+14;for(const t of w){if(x.measureText(line+t).width>cw-6&&line){x.fillText(line,px+3,ly);ly+=11;line=''}line+=t+' '}x.fillText(line,px+3,ly)}});
+    y+=rows(a.length)*(ch+gap)+18});
+  x.fillStyle='#fff';x.font='16px Arial,sans-serif';x.fillText('Created with Duel Synapse: KodeX',42,H-26);
+  return cv}
+function save(type,ext){
+  let cv;try{cv=render()}catch(e){$('mt').textContent='Could not build the image';return}
+  cv.toBlob(b=>{if(!b){$('mt').textContent='Could not build the image';return}
+    const fn=(name.replace(/[^\w -]/g,'').trim()||'deck')+'.'+ext,url=URL.createObjectURL(b),a=document.createElement('a');a.href=url;a.download=fn;a.style.display='none';document.body.appendChild(a);a.click();
+    setTimeout(()=>{a.remove()},500);
+    $('mt').textContent='Saving '+fn;
+    // some in-app browsers ignore downloads: offer the image to press-and-hold
+    setTimeout(()=>{if(/^Saving/.test($('mt').textContent))$('mt').textContent='If nothing was saved, tap here to open the image'},2500);
+  },type,type==='image/jpeg'?0.93:undefined)}
+$('png').onclick=()=>save('image/png','png');$('jpg').onclick=()=>save('image/jpeg','jpg');
+$('mt').onclick=()=>{if(!/open the image/.test($('mt').textContent))return;try{const cv=render();$('svi').src=cv.toDataURL('image/png');$('sv').hidden=false}catch(e){}};
+$('svx').onclick=()=>{$('sv').hidden=true};
 })();
 </script></body></html>
