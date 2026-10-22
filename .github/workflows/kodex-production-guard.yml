@@ -59,7 +59,7 @@ jobs:
           retention-days: 14
 
       - name: Roll back unhealthy Worker
-        if: steps.reachability.outcome == 'failure' || steps.smoke.outcome == 'failure'
+        if: (steps.reachability.outcome == 'failure' || steps.smoke.outcome == 'failure') && vars.KODEX_AUTO_ROLLBACK == 'true'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -72,20 +72,20 @@ jobs:
           npx wrangler@4.127.1 rollback --name duel-synapse-kodex --message "Automatic rollback: KodeX production smoke test failed for ${GITHUB_SHA}"
 
       - name: Verify production after rollback
-        if: steps.reachability.outcome == 'failure' || steps.smoke.outcome == 'failure'
+        if: (steps.reachability.outcome == 'failure' || steps.smoke.outcome == 'failure') && vars.KODEX_AUTO_ROLLBACK == 'true'
         run: |
           sleep 15
           curl -fsS --retry 5 --retry-delay 3 "${KODEX_BASE_URL}/" >/dev/null
           echo "Production root is reachable after rollback."
 
       - name: Re-run browser smoke tests after rollback
-        if: steps.reachability.outcome == 'failure' || steps.smoke.outcome == 'failure'
+        if: (steps.reachability.outcome == 'failure' || steps.smoke.outcome == 'failure') && vars.KODEX_AUTO_ROLLBACK == 'true'
         run: npx playwright test tests/kodex.smoke.spec.mjs
 
       - name: Fail the workflow when production is unhealthy
         if: steps.reachability.outcome == 'failure' || steps.smoke.outcome == 'failure'
         run: |
-          echo "::error::KodeX production guard detected an unhealthy deployment. Rollback was attempted when Cloudflare credentials were available."
+          echo "::error::KodeX production guard detected an unhealthy deployment. Automatic rollback is off; set the repository variable KODEX_AUTO_ROLLBACK to true to enable it."
           exit 1
 
 # Trigger production guard verification after Cloudflare secrets setup.
