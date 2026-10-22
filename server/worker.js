@@ -196,7 +196,7 @@ export default {
         const upstream = await fetch(`https://images.ygoprodeck.com/images/cards_small/${art[1]}.jpg`, {
           cf: { cacheEverything: true, cacheTtl: 2592000 },
         });
-        if (!upstream.ok) return json({ error: "Not found" }, 404);
+        if (!upstream.ok) return json({ error: "Card image unavailable", upstream: upstream.status }, upstream.status === 404 ? 404 : 502);
         return new Response(upstream.body, {
           status: 200,
           headers: {
