@@ -283,6 +283,10 @@ input[type=file] { padding: 8px; font-size: 13px; }
 .opt { display: grid; justify-items: center; gap: 4px; width: calc(var(--cw) * 1.25 + 10px); min-width: 66px; font-size: 11px; color: var(--muted); text-align: center; }
 .opt .card { width: max(var(--cw), 58px); height: max(var(--ch), 85px); }
 .opt .card.def { transform: none; }
+.opt.rot .card.def { transform: rotate(-90deg); }
+.card .vw { position: absolute; top: -7px; left: -7px; z-index: 4; width: 22px; height: 22px; padding: 0; border-radius: 50%; border: 1px solid var(--a); background: var(--panel); color: var(--a2); font: italic 800 12px/20px Georgia, serif; cursor: pointer; }
+.card .vw:hover { background: var(--soft); }
+.card.def .vw { }
 .opt .where { line-height: 1.25; }
 .opt .amt { font-size: 12px; font-weight: 800; color: var(--gold); }
 .opt .btn { white-space: normal; width: 100%; font-size: 11px; line-height: 1.2; padding: 6px; height: auto; min-height: 30px; }
