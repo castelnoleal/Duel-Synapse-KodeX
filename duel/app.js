@@ -484,6 +484,15 @@ function bindTable() {
   $("#rematchBtn").addEventListener("click", rematch);
   $("#leaveBtn").addEventListener("click", leaveTable);
   $("#pileClose").addEventListener("click", () => $("#pile").close());
+  // every card offered in a prompt gets an info button, so its text can be read before choosing
+  new MutationObserver(() => {
+    for (const d of document.querySelectorAll("#sheetBody .opt .card[data-code]:not([data-vw])")) {
+      d.dataset.vw = 1;
+      const b = el("button", "vw", "i"); b.type = "button"; b.setAttribute("aria-label", "Card details");
+      b.addEventListener("click", (e) => { e.stopPropagation(); showInfo({ code: Number(d.dataset.code), position: Number(d.dataset.pos) }, Number(d.dataset.team), Number(d.dataset.loc)); });
+      d.append(b);
+    }
+  }).observe($("#sheetBody"), { childList: true, subtree: true });
   $("#closeInfo").addEventListener("click", () => $("#info").classList.remove("open"));
   document.addEventListener("click", (e) => { const i = $("#info"); if (i.classList.contains("open") && !i.contains(e.target) && !e.target.closest(".c, .card, .chain-stack li, .menu")) i.classList.remove("open"); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("#info").classList.remove("open"); });
@@ -567,6 +576,7 @@ function zoneId(team, location, seq) {
 function cardEl(c, team, location, seq, opts = {}) {
   const d = el("div", "card");
   d.dataset.key = key(team, location, seq);
+  if (c && !c.hidden && c.code) { d.dataset.code = c.code; d.dataset.pos = c.position || 0; d.dataset.loc = location; d.dataset.team = team; }
   if (team !== S.team && S.team !== 2) d.classList.add("op-back");
   const pos = c && c.position;
   const faceDown = !c || c.hidden || (pos && pos & C.POS_FACEDOWN);
@@ -1089,10 +1099,11 @@ function positionPrompt(msg) {
   const body = $("#sheetBody");
   for (const [bit, label] of [[C.POS_FACEUP_ATTACK, "Face-up Attack"], [C.POS_FACEDOWN_ATTACK, "Face-down Attack"], [C.POS_FACEUP_DEFENSE, "Face-up Defense"], [C.POS_FACEDOWN_DEFENSE, "Face-down Defense"]]) {
     if (!(msg.positions & bit)) continue;
-    const o = el("div", "opt");
+    const o = el("div", "opt rot");
+    if (bit & C.POS_DEFENSE) { o.style.width = "calc(max(var(--ch), 85px) + 10px)"; }
     const d = cardEl({ code: msg.code, position: bit }, S.team, C.LOCATION_MZONE, -1, { static: true });
     if (bit & C.POS_FACEDOWN) { d.replaceChildren(); d.className = "card back" + (bit & C.POS_DEFENSE ? " def" : ""); }
-    d.style.margin = "14px 0"; d.addEventListener("click", () => send({ t: msg.type, position: bit }));
+    d.style.margin = bit & C.POS_DEFENSE ? "calc(14px - (max(var(--ch), 85px) - max(var(--cw), 58px)) / 2) 0" : "14px 0"; d.addEventListener("click", () => send({ t: msg.type, position: bit }));
     o.append(d, el("span", "where", label));
     body.append(o);
   }
