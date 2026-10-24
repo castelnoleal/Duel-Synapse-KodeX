@@ -1,4 +1,4 @@
-// End-to-end: the card scanner inside the KodeX app (app/Kodex_Mei_Production_v42.html).
+// End-to-end: the card scanner inside the KodeX app (app/Kodex_Mei_Production_v43.html).
 // Run from the repository root: node tests/app/app-scan.e2e.mjs (needs playwright and the tesseract CLI).
 import { chromium } from "playwright";
 import { createServer } from "node:http";
@@ -7,7 +7,7 @@ import { spawn } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const APP = process.argv[2] || "app/Kodex_Mei_Production_v42.html";
+const APP = process.argv[2] || "app/Kodex_Mei_Production_v43.html";
 const REPO = process.cwd();
 const results = [];
 const assert = (ok, msg) => { if (!ok) throw new Error("FAIL: " + msg); results.push("PASS: " + msg); };
@@ -132,6 +132,24 @@ print(json.dumps({"v":1,"bits":64,"count":len(ids),"ids":ids,"h":"".join(h)}))`,
   await p3.waitForFunction(() => document.querySelector("#scSheet")?.classList.contains("on"), null, { timeout: 60000 });
   assert((await p3.locator("#scB").innerText()).includes("Ash Blossom"), "and the card is still recognised");
   assert(errors.length === 0, "no page errors with a stuck video (" + errors.join(" | ") + ")");
+
+  // Choosing a photo turns the camera off while it's searched, shows the photo, and "Scan another" turns it back on.
+  await page.evaluate(() => history.back()); await page.waitForTimeout(400);
+  await page.click("#bScan");
+  await page.waitForFunction(() => document.querySelector("#scVideo")?.videoWidth > 0, null, { timeout: 20000 });
+  await page.evaluate(() => { window.__tracks = []; const g = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices); });
+  const liveBefore = await page.evaluate(() => { const s = document.querySelector("#scVideo").srcObject; return s ? s.getVideoTracks().filter((t) => t.readyState === "live").length : 0; });
+  const trackRef = await page.evaluateHandle(() => document.querySelector("#scVideo").srcObject.getVideoTracks()[0]);
+  await page.setInputFiles("#scPhoto", cardPng);
+  await page.waitForFunction(() => !document.querySelector("#scStill").hidden, null, { timeout: 5000 });
+  const off = await trackRef.evaluate((t) => t.readyState);
+  assert(liveBefore === 1 && off === "ended", "choosing a photo turns the camera off");
+  assert(await page.locator("#scStill").isVisible(), "the chosen photo is shown while it's searched");
+  await page.waitForFunction(() => document.querySelector("#scSheet")?.classList.contains("on"), null, { timeout: 60000 });
+  assert((await page.locator("#scB").innerText()).includes("Ash Blossom"), "the photo is recognised");
+  await page.getByRole("button", { name: "Scan another" }).click();
+  await page.waitForFunction(() => document.querySelector("#scStill").hidden && document.querySelector("#scVideo").srcObject?.getVideoTracks()[0]?.readyState === "live", null, { timeout: 20000 });
+  assert(true, "Scan another turns the camera back on");
 
   // Japanese card: recognised by its artwork alone
   await page.bringToFront();
