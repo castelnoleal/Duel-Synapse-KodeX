@@ -40,7 +40,7 @@ const requiredStrings = [
   'function openCard(',
   'function renderQAs(',
   'function translateText(',
-  "navigator.serviceWorker.register('sw.js?v=9')"
+  "navigator.serviceWorker.register('sw.js?v=10')"
 ];
 
 for (const needle of requiredStrings) {

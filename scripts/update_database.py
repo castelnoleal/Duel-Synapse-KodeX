@@ -21,7 +21,8 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
-API = "https://db.ygoprodeck.com/api/v7/cardinfo.php"
+# misc=yes includes misc_info (Konami IDs, release dates); KodeX needs it to find rulings.
+API = "https://db.ygoprodeck.com/api/v7/cardinfo.php?misc=yes"
 VERSION_API = "https://db.ygoprodeck.com/api/v7/checkDBVer.php"
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data"

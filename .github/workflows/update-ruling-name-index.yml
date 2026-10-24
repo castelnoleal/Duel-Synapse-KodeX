@@ -49,5 +49,11 @@ jobs:
             echo 'No name-index changes.'
           else
             git commit -m 'Update Q&A card name index'
-            git push
+            # Other data jobs may have pushed meanwhile: rebase onto them and retry.
+            for i in 1 2 3 4 5; do
+              if git push; then break; fi
+              [ "$i" = 5 ] && exit 1
+              sleep $((i * 5))
+              git pull --rebase origin "${GITHUB_REF_NAME:-main}"
+            done
           fi
