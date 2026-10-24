@@ -1,4 +1,4 @@
-// End-to-end: the card scanner inside the KodeX app (app/Kodex_Mei_Production_v41.html).
+// End-to-end: the card scanner inside the KodeX app (app/Kodex_Mei_Production_v42.html).
 // Run from the repository root: node tests/app/app-scan.e2e.mjs (needs playwright and the tesseract CLI).
 import { chromium } from "playwright";
 import { createServer } from "node:http";
@@ -7,7 +7,7 @@ import { spawn } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const APP = process.argv[2] || "app/Kodex_Mei_Production_v41.html";
+const APP = process.argv[2] || "app/Kodex_Mei_Production_v42.html";
 const REPO = process.cwd();
 const results = [];
 const assert = (ok, msg) => { if (!ok) throw new Error("FAIL: " + msg); results.push("PASS: " + msg); };
@@ -22,13 +22,22 @@ await new Promise((r) => server.listen(4192, "127.0.0.1", r));
 const tmp = await mkdtemp(join(tmpdir(), "kodex-app-"));
 const b0 = await chromium.launch();
 const r = await b0.newPage({ viewport: { width: 700, height: 900 } });
+const ART = (seed) => `<div id="art" style="width:450px;height:450px;position:relative;overflow:hidden;background:hsl(${seed * 47 % 360},55%,45%)">${Array.from({ length: 9 }, (_, i) => `<div style="position:absolute;left:${(seed * 37 + i * 53) % 380}px;top:${(seed * 61 + i * 97) % 380}px;width:${60 + ((seed + i) * 29) % 120}px;height:${60 + ((seed * 3 + i) * 41) % 120}px;border-radius:${(i % 3) * 40}px;background:hsl(${(seed * 47 + i * 70) % 360},70%,${30 + (i * 13) % 50}%)"></div>`).join("")}</div>`;
+const artPngs = {};
+for (const [id, seed] of [[14558127, 3], [89631139, 11], [84013237, 19]]) { await r.setContent(ART(seed)); artPngs[id] = join(tmp, `art-${id}.png`); await r.locator("#art").screenshot({ path: artPngs[id] }); }
 await r.setContent(`<div id="card" style="width:590px;height:860px;background:#c9794a;position:relative;font-family:'DejaVu Serif',serif;border-radius:10px">
  <div style="position:absolute;left:36px;top:34px;width:518px;height:60px;background:#f3eee2;border:3px solid #5a4a2a;display:flex;align-items:center;padding-left:14px;font-weight:700;font-size:37px;white-space:nowrap;overflow:hidden">Ash Blossom &amp; Joyous Spring</div>
- <div style="position:absolute;left:70px;top:156px;width:450px;height:440px;background:linear-gradient(135deg,#3a6,#a36,#36a)"></div>
+ <div style="position:absolute;left:70px;top:156px;width:450px;height:450px;overflow:hidden">${ART(3)}</div>
  <div style="position:absolute;right:62px;top:604px;font-family:'DejaVu Sans',sans-serif;font-size:24px;font-weight:600">MACR-EN036</div>
  <div style="position:absolute;left:36px;top:640px;width:518px;height:160px;background:#f3eee2;border:3px solid #5a4a2a"></div>
  <div style="position:absolute;left:30px;top:813px;font-family:'DejaVu Sans',sans-serif;font-size:24px">14558127</div></div>`);
 const cardPng = join(tmp, "ash.png"); await r.locator("#card").screenshot({ path: cardPng });
+await r.setContent(`<div id="card" style="width:590px;height:860px;background:#c8a24a;position:relative;font-family:'Noto Sans CJK JP','DejaVu Sans',sans-serif;border-radius:10px">
+ <div style="position:absolute;left:36px;top:34px;width:518px;height:60px;background:#f3eee2;border:3px solid #5a4a2a;display:flex;align-items:center;padding-left:14px;font-weight:700;font-size:34px">青眼の白龍</div>
+ <div style="position:absolute;left:70px;top:156px;width:450px;height:450px;overflow:hidden">${ART(11)}</div>
+ <div style="position:absolute;left:36px;top:640px;width:518px;height:160px;background:#f3eee2;border:3px solid #5a4a2a"></div>
+ <div style="position:absolute;left:0;top:780px;width:300px;height:80px;background:radial-gradient(#fff,#fff0 70%)"></div></div>`);
+const jpPng = join(tmp, "blue-eyes-jp.png"); await r.locator("#card").screenshot({ path: jpPng });
 // Camera frame: the guide on a 412×900 phone is 62vh tall → 558px; video 1280×720 shown with cover (scale 1.25).
 const gh = Math.min(0.62 * 900, 0.84 * 412 * 86 / 59), gw = gh * 59 / 86, scale = 1.25;
 await r.setViewportSize({ width: 1280, height: 720 });
@@ -42,9 +51,20 @@ const browser = await chromium.launch({ args: ["--use-fake-ui-for-media-stream",
 const errors = [], cspViolations = [];
 try {
   const ctx = await browser.newContext({ viewport: { width: 412, height: 900 }, isMobile: true, hasTouch: true, permissions: ["camera"] });
+  const { execFileSync } = await import("node:child_process");
+  const artJson = execFileSync("python3", ["-c", `
+import sys,json,random
+sys.path.insert(0,'scripts')
+from PIL import Image
+import build_art_index as B
+pairs=json.loads(sys.argv[1]);random.seed(5)
+ids=[int(k) for k in pairs];h=[B.phash_image(Image.open(v)) for v in pairs.values()]
+for i in range(3000):ids.append(90000000+i);h.append('%016x'%random.getrandbits(64))
+print(json.dumps({"v":1,"bits":64,"count":len(ids),"ids":ids,"h":"".join(h)}))`, JSON.stringify(artPngs)], { encoding: "utf8" });
   // kodex.meiocg.org data comes from the repository checkout
   await ctx.route("https://kodex.meiocg.org/**", async (route) => {
     const p = new URL(route.request().url()).pathname;
+    if (p === "/scan/art.json") return route.fulfill({ status: 200, body: artJson, headers: { "access-control-allow-origin": "*", "content-type": "application/json" } });
     try { const body = await readFile(join(REPO, p)); return route.fulfill({ status: 200, body, headers: { "access-control-allow-origin": "*", "content-type": p.endsWith(".json") ? "application/json" : "application/octet-stream" } }); }
     catch { return route.fulfill({ status: 404, body: "", headers: { "access-control-allow-origin": "*" } }); }
   });
@@ -112,6 +132,18 @@ try {
   await p3.waitForFunction(() => document.querySelector("#scSheet")?.classList.contains("on"), null, { timeout: 60000 });
   assert((await p3.locator("#scB").innerText()).includes("Ash Blossom"), "and the card is still recognised");
   assert(errors.length === 0, "no page errors with a stuck video (" + errors.join(" | ") + ")");
+
+  // Japanese card: recognised by its artwork alone
+  await page.bringToFront();
+  await page.evaluate(() => history.back()); await page.waitForTimeout(400);
+  await page.click("#bScan"); await page.waitForSelector("#scPhoto", { state: "attached" });
+  await page.evaluate(() => { const s = document.querySelector("#scAuto"); if (s.getAttribute("aria-pressed") === "true") s.click(); });
+  const t0 = Date.now();
+  await page.setInputFiles("#scPhoto", jpPng);
+  await page.waitForFunction(() => document.querySelector("#scSheet")?.classList.contains("on"), null, { timeout: 60000 });
+  const jpText = await page.locator("#scSheet").innerText();
+  assert(jpText.includes("Blue-Eyes White Dragon") && /Matched by artwork/.test(jpText), "a Japanese card with its passcode hidden is recognised by its artwork");
+  console.log("   Japanese photo recognised in " + (Date.now() - t0) + " ms");
 
   // Camera permission denied
   const ctx2 = await browser.newContext({ viewport: { width: 412, height: 900 }, isMobile: true });

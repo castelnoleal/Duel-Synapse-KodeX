@@ -1,0 +1,33 @@
+name: Scanner accuracy
+
+# Checks how well the KodeX app's card scanner recognises cards by their artwork,
+# on real card images made to look like phone photos.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'scan/art.json'
+      - 'scan/arthash.js'
+      - 'tests/scan/art-accuracy.mjs'
+      - '.github/workflows/scanner-accuracy.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  accuracy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright
+        run: |
+          npm install --no-save --no-package-lock playwright@1.63.0
+          npx playwright install --with-deps chromium
+      - name: Measure artwork recognition
+        run: |
+          if [ ! -f scan/art.json ]; then echo "No art index yet"; exit 0; fi
+          node tests/scan/art-accuracy.mjs 150

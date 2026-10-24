@@ -26,3 +26,4 @@ logs/
 # Local editor files
 .vscode/
 .idea/
+.art-cache/
