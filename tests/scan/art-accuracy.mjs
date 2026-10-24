@@ -82,4 +82,4 @@ console.log(`::notice title=Distance/gap when top match is wrong::${wrongTop || 
 console.log(`::notice title=Scanner accuracy::${line}`);
 if (n < COUNT * 0.8) { console.log("::error::Too few card images downloaded"); process.exit(1); }
 if (result.wrong / n > 0.02) { console.log("::error title=Scanner accuracy::Too many confident wrong matches"); process.exit(1); }
-if (result.correct / n < 0.75) { console.log("::error title=Scanner accuracy::Too few cards recognised by artwork"); process.exit(1); }
+if (result.correct / n < 0.85) { console.log("::error title=Scanner accuracy::Too few cards recognised by artwork"); process.exit(1); }

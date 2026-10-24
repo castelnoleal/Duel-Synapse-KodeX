@@ -1263,7 +1263,9 @@ applySat();applySab();applyUI();wpApply();boot();
     if (!matches.length) return false;
     const [a] = matches, b = matches.find((m) => !sameCard(m.id, a.id));
     const gap = b ? b.d - a.d : 64;
-    return (a.d <= 6 && gap >= 3) || (a.d <= 10 && gap >= 6) || (a.d <= 13 && gap >= 9);
+    // Tuned on real card images made to look like phone photos (tests/scan/art-accuracy.mjs):
+    // wrong top matches there had distance 10-14 with a gap of 0-2.
+    return (a.d <= 6 && gap >= 2) || (a.d <= 10 && gap >= 4) || (a.d <= 14 && gap >= 8);
   }
 
   // Where the artwork sits on a card (fractions of the card's width/height): normal and Pendulum frames.
@@ -1412,8 +1414,13 @@ applySat();applySab();applyUI();wpApply();boot();
       if(!artIndex)return {sure:false,list:[]};
       const m=KodexArt.nearest(artIndex,KodexArt.queriesFromCard(card),10),list=[];
       for(const x of m){const c=index.byId.get(x.id);if(c&&!list.some(y=>y.card===c))list.push({card:c,score:Math.max(0,1-x.d/32),d:x.d})}
-      return {sure:KodexArt.confident(m,sameCard)&&!!list[0],list};
+      const top=list[0],next=list[1],gap=top&&next?next.d-top.d:64;
+      // Live camera: the same card on top in two frames in a row is enough.
+      let agree=false;
+      if(top&&top.d<=12&&gap>=2){agree=lastTop===top.card;lastTop=top.card}else lastTop=null;
+      return {sure:(KodexArt.confident(m,sameCard)||agree)&&!!top,list};
     }
+    let lastTop=null;
     let textAt=0;
     async function scanOnce(card,fromPhoto){
       if(busy||!card||closed)return;busy=true;$s("scShut").classList.add("busy");$s("scGuide").classList.add("reading");

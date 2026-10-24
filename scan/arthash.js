@@ -84,7 +84,9 @@
     if (!matches.length) return false;
     const [a] = matches, b = matches.find((m) => !sameCard(m.id, a.id));
     const gap = b ? b.d - a.d : 64;
-    return (a.d <= 6 && gap >= 3) || (a.d <= 10 && gap >= 6) || (a.d <= 13 && gap >= 9);
+    // Tuned on real card images made to look like phone photos (tests/scan/art-accuracy.mjs):
+    // wrong top matches there had distance 10-14 with a gap of 0-2.
+    return (a.d <= 6 && gap >= 2) || (a.d <= 10 && gap >= 4) || (a.d <= 14 && gap >= 8);
   }
 
   // Where the artwork sits on a card (fractions of the card's width/height): normal and Pendulum frames.
