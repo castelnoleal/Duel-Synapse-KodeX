@@ -63,3 +63,15 @@ Source: https://ygoprodeck.com/api-guide/
 Do not treat the database as complete until `metadata.json` reports a populated dataset. Changes to the schema or indexes should preserve compatibility with existing Duel Synapse consumers unless deliberately versioned.
 
 MEIOCG is an independent project and is not affiliated with or endorsed by Konami or YGOPRODeck.
+
+## Card scanner
+
+`/scan/` scans a Yu-Gi-Oh! card with the phone camera (or a photo) and opens it in KodeX. The **Scan** button next to the search box opens it.
+
+- Text recognition runs on the device with [Tesseract.js](https://github.com/naptha/tesseract.js) 5.1.1, loaded from jsDelivr the first time it's used.
+- It reads the passcode (bottom-left), the set code (under the artwork) and the name (top banner), and matches them against `scan/cards.json` in `scan/match.js`. The passcode or set code identifies a card exactly. A name alone needs a close match, otherwise the scanner offers the closest cards to choose from.
+- `scan/cards.json` is built from `data/cards.min.json` by `scripts/build_scan_index.py`, and rebuilt by the *Build Kodex Search Index* workflow.
+- Other apps can open `/scan/?pick=1` to get the card back instead of opening it. The scanner calls `window.KodexScanResult.onCard(json)` if the app provides it, and posts `{type:"kodex-scan", id, name}` to the opener or parent window. `/scan/?return=/deck.html` opens `/deck.html#card=<passcode>` instead of the KodeX page.
+- In an Android app built with instApped, turn on **Camera** under Permissions so the scanner can use the camera.
+
+Tests: `node --test tests/scan/match.test.cjs` covers matching. `node tests/scan/scanner.e2e.mjs` scans rendered test cards through a fake camera and photo upload, using the native `tesseract` CLI.
