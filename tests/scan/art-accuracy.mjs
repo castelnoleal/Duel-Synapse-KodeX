@@ -31,7 +31,7 @@ const result = await page.evaluate(async ({ art, rows, images }) => {
   const same = (a, b) => (owner.get(a) ?? a) === (owner.get(b) ?? b);
   let seed = 7; const rnd = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
   const load = (u) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = u; });
-  const out = { correct: 0, wrong: 0, unsure: 0, top5: 0, ms: 0, fails: [] };
+  const out = { correct: 0, wrong: 0, unsure: 0, top5: 0, ms: 0, fails: [], cases: [] };
   for (const im of images) {
     const img = await load(im.url);
     // A phone photo: card slightly tilted, lit unevenly, blurred, noisy, with a glare spot.
@@ -56,6 +56,7 @@ const result = await page.evaluate(async ({ art, rows, images }) => {
     const m = KodexArt.nearest(index, KodexArt.queriesFromCard(card), 8);
     out.ms += performance.now() - t0;
     const ok = m[0] && same(m[0].id, im.id), sure = KodexArt.confident(m, same);
+    if (m[0]) { const b = m.find((z) => !same(z.id, m[0].id)); out.cases.push([m[0].d, b ? b.d - m[0].d : 64, ok ? 1 : 0]); }
     if (m.slice(0, 5).some((z) => same(z.id, im.id))) out.top5++;
     if (sure && ok) out.correct++; else if (sure) { out.wrong++; out.fails.push(`WRONG ${im.name} -> ${m[0].id} d=${m[0].d}`); } else { out.unsure++; if (out.fails.length < 40) out.fails.push(`unsure ${im.name}: best ${m[0] ? m[0].id + " d=" + m[0].d : "none"}${ok ? " (right card)" : ""}`); }
   }
@@ -67,6 +68,17 @@ const n = images.length, pct = (k) => ((100 * k) / Math.max(1, n)).toFixed(1) + 
 console.log(result.fails.join("\n"));
 const line = `Artwork recognition: ${pct(result.correct)} recognised with confidence, ${pct(result.wrong)} confidently wrong, ${pct(result.unsure)} unsure (right card in top 5: ${pct(result.top5)}), ${result.ms.toFixed(0)} ms per photo`;
 console.log("\n" + line);
+// Which "sure" rule would recognise the most photos without a single wrong card?
+const rules = [];
+for (const dMax of [8, 10, 12, 14, 16, 18, 20]) for (const gMin of [2, 3, 4, 5, 6, 8]) {
+  let ok = 0, bad = 0; for (const [d, g, c] of result.cases) if (d <= dMax && g >= gMin) { if (c) ok++; else bad++; }
+  rules.push({ dMax, gMin, ok, bad });
+}
+const safe = rules.filter((r) => r.bad === 0).sort((a, b) => b.ok - a.ok).slice(0, 4).map((r) => `d<=${r.dMax}&gap>=${r.gMin}: ${pct(r.ok)}`).join(", ");
+const right = result.cases.filter((c) => c[2]).map((c) => c[0] + "/" + c[1]).join(" "), wrongTop = result.cases.filter((c) => !c[2]).map((c) => c[0] + "/" + c[1]).join(" ");
+console.log(`::notice title=Safest rules (no wrong cards)::${safe}`);
+console.log(`::notice title=Distance/gap when top match is right::${right.slice(0, 3000)}`);
+console.log(`::notice title=Distance/gap when top match is wrong::${wrongTop || "none"}`);
 console.log(`::notice title=Scanner accuracy::${line}`);
 if (n < COUNT * 0.8) { console.log("::error::Too few card images downloaded"); process.exit(1); }
 if (result.wrong / n > 0.02) { console.log("::error title=Scanner accuracy::Too many confident wrong matches"); process.exit(1); }
