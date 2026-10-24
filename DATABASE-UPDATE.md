@@ -2,6 +2,8 @@
 
 The repository can refresh its card data automatically from YGOPRODeck API v7.
 
+The **Update MEIOCG Database** workflow (`.github/workflows/update-database.yml`) does this every 6 hours: it rebuilds `data/cards.json`, `data/cards.min.json`, the indexes in `indexes/` (including `search.json`) and the card scanner's `scan/cards.json`. The manual script below is only for local use.
+
 ## Manual update
 
 From the repository root:
