@@ -288,6 +288,15 @@ export default {
         });
       }
 
+      const scan = url.pathname.match(/^\/scan\/(art|cards)\.json$/);
+      if (scan) {
+        const response = await githubFile(`scan/${scan[1]}.json`, env, 3600);
+        return withHeaders(response, {
+          "Content-Type": "application/json; charset=utf-8",
+          "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400",
+        });
+      }
+
       const ruling = url.pathname.match(/^\/data\/rulings\/cards\/([0-9]{1,12})\.json$/);
       if (ruling) {
         const response = await githubFile(`data/rulings/cards/${ruling[1]}.json`, env, 300);

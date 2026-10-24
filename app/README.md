@@ -1,6 +1,6 @@
 # Duel Synapse: KodeX app
 
-`Kodex_Mei_Production_v43.html` is the current source (older versions are kept alongside it) of the **Meiocg KodeX** Android app (`com.duelsynapse.kodex`). It's built with instApped: upload this file as the project's HTML source.
+`Kodex_Mei_Production_v44.html` is the current source (older versions are kept alongside it) of the **Meiocg KodeX** Android app (`com.duelsynapse.kodex`). It's built with instApped: upload this file as the project's HTML source.
 
 It loads cards and rulings from https://kodex.meiocg.org.
 
@@ -23,3 +23,6 @@ The live camera also accepts a card when the same card leads two frames in a row
 The app's Content-Security-Policy allows jsDelivr (script, worker and WebAssembly) and kodex.meiocg.org / YGOPRODeck (data). Build the app with **Camera** on under Permissions in instApped.
 
 Test: `node tests/app/app-scan.e2e.mjs` runs the app (artwork, text, Japanese card, stuck video) with a fake camera and real text recognition, using the `tesseract` CLI.
+
+
+**v44:** the scanner's data is read from the site, then from the public repository (raw.githubusercontent.com), and a copy is kept on the device. A photo is searched at several zoom levels and positions, so a card that does not fill the picture is still found. If the data cannot be loaded the scanner says so instead of "No card recognised". The site serves `/scan/art.json` and `/scan/cards.json` from the Worker.
