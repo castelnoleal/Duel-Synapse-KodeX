@@ -1,4 +1,4 @@
-// End-to-end: the card scanner inside the KodeX app (app/Kodex_Mei_Production_v40.html).
+// End-to-end: the card scanner inside the KodeX app (app/Kodex_Mei_Production_v41.html).
 // Run from the repository root: node tests/app/app-scan.e2e.mjs (needs playwright and the tesseract CLI).
 import { chromium } from "playwright";
 import { createServer } from "node:http";
@@ -7,7 +7,7 @@ import { spawn } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const APP = process.argv[2] || "app/Kodex_Mei_Production_v40.html";
+const APP = process.argv[2] || "app/Kodex_Mei_Production_v41.html";
 const REPO = process.cwd();
 const results = [];
 const assert = (ok, msg) => { if (!ok) throw new Error("FAIL: " + msg); results.push("PASS: " + msg); };
@@ -90,6 +90,29 @@ try {
   cspViolations.push(...((await page.evaluate(() => window.__csp)) || []));
   assert(cspViolations.length === 0, "the app's security rules allow the scanner (" + cspViolations.join(" | ") + ")");
   assert(errors.length === 0, "no page errors (" + errors.join(" | ") + ")");
+  // A WebView that hands over the camera but never plays the <video> (seen on a real phone):
+  // the scanner must show frames another way and still read the card.
+  const ctx3 = await browser.newContext({ viewport: { width: 412, height: 900 }, isMobile: true, hasTouch: true, permissions: ["camera"] });
+  await ctx3.route("https://kodex.meiocg.org/**", async (route) => { const p = new URL(route.request().url()).pathname; try { return route.fulfill({ status: 200, body: await readFile(join(REPO, p)), headers: { "access-control-allow-origin": "*" } }); } catch { return route.fulfill({ status: 404, body: "" }); } });
+  await ctx3.route("https://images.ygoprodeck.com/**", (route) => route.fulfill({ status: 404, body: "" }));
+  await ctx3.addInitScript(() => {
+    window.KodexScanOCR = { p: {}, async setParameters(p) { this.p = p; }, async recognize(c) { const r = await fetch("http://127.0.0.1:4192/__ocr", { method: "POST", body: JSON.stringify({ png: c.toDataURL("image/png"), psm: this.p.tessedit_pageseg_mode, whitelist: this.p.tessedit_char_whitelist }) }); return { data: { text: (await r.json()).text } }; } };
+    HTMLMediaElement.prototype.play = function () { return new Promise(() => {}); }; // never starts
+    Object.defineProperty(HTMLMediaElement.prototype, "readyState", { get: () => 0 });
+    Object.defineProperty(HTMLVideoElement.prototype, "videoWidth", { get: () => 0 });
+  });
+  const p3 = await ctx3.newPage();
+  p3.on("pageerror", (e) => errors.push("stuck-video: " + e.message));
+  await p3.goto("http://127.0.0.1:4192/");
+  await p3.waitForFunction(() => typeof M !== "undefined" && M.size > 10000, null, { timeout: 60000 });
+  await p3.click("#bScan");
+  await p3.waitForFunction(() => { const c = document.querySelector("#scPrev"); return c && !c.hidden && c.width > 0; }, null, { timeout: 20000 });
+  const shown = await p3.waitForFunction(() => { const c = document.querySelector("#scPrev"), d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data; let mn = 255, mx = 0; for (let i = 0; i < d.length; i += 4) { mn = Math.min(mn, d[i]); mx = Math.max(mx, d[i]); } return mx - mn > 10; }, null, { timeout: 10000 }).then(() => true, () => false);
+  assert(shown, "when the video won't play, the camera picture is still shown");
+  await p3.waitForFunction(() => document.querySelector("#scSheet")?.classList.contains("on"), null, { timeout: 60000 });
+  assert((await p3.locator("#scB").innerText()).includes("Ash Blossom"), "and the card is still recognised");
+  assert(errors.length === 0, "no page errors with a stuck video (" + errors.join(" | ") + ")");
+
   // Camera permission denied
   const ctx2 = await browser.newContext({ viewport: { width: 412, height: 900 }, isMobile: true });
   await ctx2.route("https://kodex.meiocg.org/**", async (route) => { const p = new URL(route.request().url()).pathname; try { return route.fulfill({ status: 200, body: await readFile(join(REPO, p)), headers: { "access-control-allow-origin": "*" } }); } catch { return route.fulfill({ status: 404, body: "" }); } });
