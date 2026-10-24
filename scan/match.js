@@ -46,7 +46,7 @@
 
   /** Builds lookup tables from scan/cards.json rows: [id, name, setCodes, altIds]. */
   function buildIndex(rows) {
-    const cards = [], byId = new Map(), bySet = new Map(), grams = new Map();
+    const cards = [], byId = new Map(), bySet = new Map();
     for (const [id, name, sets, alts] of rows) {
       const card = { id, name, n: normName(name), sets: sets || [], alts: alts || [] };
       card.i = cards.length;
@@ -59,12 +59,16 @@
         if (!bySet.has(k)) bySet.set(k, new Set());
         bySet.get(k).add(card);
       }
-      for (const g of trigrams(card.n)) {
-        if (!grams.has(g)) grams.set(g, []);
-        grams.get(g).push(card.i);
-      }
     }
-    return { cards, byId, bySet, grams };
+    return { cards, byId, bySet, grams: null };
+  }
+
+  /** The name search table (trigram → cards), built the first time a name is matched: it takes a moment. */
+  function nameGrams(index) {
+    if (index.grams) return index.grams;
+    const grams = new Map();
+    for (const card of index.cards) for (const g of trigrams(card.n)) { if (!grams.has(g)) grams.set(g, []); grams.get(g).push(card.i); }
+    return (index.grams = grams);
   }
 
   /** Similarity in [0,1] between an OCR'd name and a card name (both normalised). */
@@ -89,8 +93,9 @@
     const read = normName(text);
     if (read.length < 3 || !looksLikeName(read)) return [];
     const counts = new Map();
+    const grams = nameGrams(index);
     for (const g of trigrams(read)) {
-      const list = index.grams.get(g);
+      const list = grams.get(g);
       if (!list || list.length > 4000) continue; // very common trigrams don't help
       for (const i of list) counts.set(i, (counts.get(i) || 0) + 1);
     }

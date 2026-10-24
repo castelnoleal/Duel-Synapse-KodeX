@@ -1,6 +1,6 @@
 # Duel Synapse: KodeX app
 
-`Kodex_Mei_Production_v42.html` is the current source (older versions are kept alongside it) of the **Meiocg KodeX** Android app (`com.duelsynapse.kodex`). It's built with instApped: upload this file as the project's HTML source.
+`Kodex_Mei_Production_v43.html` is the current source (older versions are kept alongside it) of the **Meiocg KodeX** Android app (`com.duelsynapse.kodex`). It's built with instApped: upload this file as the project's HTML source.
 
 It loads cards and rulings from https://kodex.meiocg.org.
 
@@ -18,7 +18,7 @@ On real card images made to look like phone photos, the *Scanner accuracy* workf
 - no wrong cards
 - the right card among the top 5 suggestions for 98.7% of photos
 
-The live camera also accepts a card when the same card leads two frames in a row.
+The live camera also accepts a card when the same card leads two frames in a row. Text is read in the background, so it never holds up the picture checks, which run about every 60 ms. Choosing a photo turns the camera off while that photo is searched.
 
 The app's Content-Security-Policy allows jsDelivr (script, worker and WebAssembly) and kodex.meiocg.org / YGOPRODeck (data). Build the app with **Camera** on under Permissions in instApped.
 
