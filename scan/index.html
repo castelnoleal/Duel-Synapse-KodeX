@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07090d">
+<title>Scan a card — Duel Synapse KodeX</title>
+<meta name="description" content="Point your camera at a Yu-Gi-Oh! card to open it in Duel Synapse KodeX.">
+<style>
+:root{--bg:#07090d;--panel:#10141b;--panel2:#171d27;--text:#f5f7fb;--muted:#8d98aa;--line:#27303c;--a:#61a8ff;--ok:#4ade80;--warn:#fbbf24;--bad:#ff6b6b}
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:#000;color:var(--text);font:15px/1.45 Inter,system-ui,-apple-system,Segoe UI,sans-serif;overflow:hidden;overscroll-behavior:none}
+button{font:inherit;color:inherit;cursor:pointer}
+.stage{position:fixed;inset:0;background:#000}
+video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+/* Dark mask with a card-shaped window (59 × 86 mm) */
+.guide{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);height:min(64vh,calc(84vw * 86 / 59));aspect-ratio:59/86;border-radius:14px;box-shadow:0 0 0 200vmax rgba(0,0,0,.55);outline:2px solid rgba(255,255,255,.85);transition:outline-color .2s}
+.guide.found{outline-color:var(--ok)}.guide.reading{outline-color:var(--a)}
+.guide i{position:absolute;border:solid var(--a);width:26px;height:26px}
+.guide i:nth-child(1){left:-4px;top:-4px;border-width:4px 0 0 4px;border-top-left-radius:16px}.guide i:nth-child(2){right:-4px;top:-4px;border-width:4px 4px 0 0;border-top-right-radius:16px}
+.guide i:nth-child(3){left:-4px;bottom:-4px;border-width:0 0 4px 4px;border-bottom-left-radius:16px}.guide i:nth-child(4){right:-4px;bottom:-4px;border-width:0 4px 4px 0;border-bottom-right-radius:16px}
+.zone{position:absolute;border:1px dashed rgba(97,168,255,.7);border-radius:4px}
+.top{position:absolute;left:0;right:0;top:0;padding:calc(10px + env(safe-area-inset-top,0px)) 12px 10px;display:flex;align-items:center;gap:10px;background:linear-gradient(#000c,transparent)}
+.top h1{flex:1;margin:0;font-size:16px;font-weight:800;letter-spacing:.01em}
+.ibtn{min-width:44px;height:44px;border-radius:22px;border:1px solid #ffffff33;background:#0008;display:grid;place-items:center;padding:0 14px;font-weight:700}
+.ibtn svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#torch[aria-pressed=true]{background:var(--warn);color:#1a1405;border-color:var(--warn)}#auto[aria-pressed=true]{background:var(--a);color:#06101f;border-color:var(--a)}
+.hint{position:absolute;left:12px;right:12px;bottom:calc(112px + env(safe-area-inset-bottom,0px));text-align:center;font-weight:700;text-shadow:0 1px 6px #000}
+.hint small{display:block;font-weight:500;color:#d6dbe5;margin-top:3px;overflow-wrap:anywhere}
+.bar{position:absolute;left:0;right:0;bottom:0;padding:14px 16px calc(16px + env(safe-area-inset-bottom,0px));display:flex;gap:12px;justify-content:center;align-items:center;background:linear-gradient(transparent,#000d)}
+.shutter{width:72px;height:72px;border-radius:50%;border:4px solid #fff;background:#ffffff22;display:grid;place-items:center}
+.shutter b{width:54px;height:54px;border-radius:50%;background:#fff}
+.shutter.busy b{background:var(--a);animation:pulse 1s infinite}
+@keyframes pulse{50%{transform:scale(.82)}}
+.side{width:96px;display:flex;justify-content:center}
+/* Result sheet */
+.sheet{position:fixed;left:0;right:0;bottom:0;max-height:86vh;overflow:auto;background:var(--panel);border-top:1px solid var(--line);border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));transform:translateY(105%);transition:transform .25s ease;box-shadow:0 -20px 60px #000a}
+.sheet.on{transform:none}
+.sheet h2{margin:0 0 4px;font-size:18px}.sheet .sub{color:var(--muted);font-size:13.5px;margin:0 0 12px}
+.hit{display:flex;gap:14px;align-items:flex-start}
+.hit img{width:112px;aspect-ratio:59/86;object-fit:cover;border-radius:8px;background:#080a0e;flex:none}
+.hit b{font-size:17px;display:block;line-height:1.25}.hit small{color:var(--muted)}
+.tag{display:inline-block;margin-top:8px;font-size:12px;font-weight:700;border-radius:999px;padding:3px 9px;background:#17263a;color:var(--a)}
+.acts{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+.btn{flex:1;min-width:140px;border-radius:12px;padding:13px 14px;border:1px solid var(--line);background:var(--panel2);font-weight:800}
+.btn.pri{background:var(--a);border-color:var(--a);color:#06101f}
+.cands{display:grid;gap:8px;margin-top:6px}
+.cand{display:flex;gap:12px;align-items:center;text-align:left;padding:8px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);width:100%}
+.cand img{width:44px;aspect-ratio:59/86;object-fit:cover;border-radius:5px;background:#080a0e;flex:none}
+.cand span{flex:1;min-width:0;overflow-wrap:anywhere;font-weight:700}.cand small{display:block;color:var(--muted);font-weight:500}
+.msg{position:fixed;inset:0;display:none;place-items:center;padding:24px;text-align:center;background:var(--bg)}
+.msg.on{display:grid}.msg div{max-width:420px}.msg h2{margin:0 0 8px}.msg p{color:var(--muted)}
+.load{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);text-align:center;color:#d6dbe5;font-weight:700;pointer-events:none}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <video id="video" playsinline muted autoplay></video>
+  <div class="guide" id="guide" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+  <p class="load" id="load">Starting camera…</p>
+  <div class="top">
+    <button class="ibtn" id="close" aria-label="Back to KodeX"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <h1>Scan a card</h1>
+    <button class="ibtn" id="torch" aria-label="Flashlight" aria-pressed="false" hidden><svg viewBox="0 0 24 24"><path d="M7 2h10l-2 6v12a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2V8z"/><path d="M12 12v3"/></svg></button>
+  </div>
+  <p class="hint" id="hint" aria-live="polite">Fit the whole card inside the frame<small>Hold it flat, in good light, without glare</small></p>
+  <div class="bar">
+    <div class="side"><label class="ibtn" for="photo" title="Choose a photo">Photo</label><input type="file" id="photo" accept="image/*" class="sr"></div>
+    <button class="shutter" id="shutter" aria-label="Scan now"><b></b></button>
+    <div class="side"><button class="ibtn" id="auto" aria-pressed="true" title="Keep scanning automatically">Auto</button></div>
+  </div>
+</div>
+<section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+  <h2 id="sheetTitle">Card found</h2><p class="sub" id="sheetSub"></p>
+  <div id="sheetBody"></div>
+  <div class="acts" id="sheetActs"></div>
+</section>
+<div class="msg" id="msg" role="alert"><div><h2 id="msgTitle"></h2><p id="msgBody"></p><div class="acts" id="msgActs"></div></div></div>
+<script src="match.js"></script>
+<script src="scan.js"></script>
+</body>
+</html>
