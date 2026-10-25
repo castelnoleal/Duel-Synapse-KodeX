@@ -11,7 +11,7 @@ permissions:
 jobs:
   engine:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -29,3 +29,9 @@ jobs:
         run: node tests/duel/engine-sim.mjs .cardscripts 5 random
       - name: Bot-vs-bot duels with random decks from the whole card pool
         run: node tests/duel/engine-sim.mjs .cardscripts 30 random 1
+      - name: Synapse AI beats the random bot (fixed deck)
+        run: node tests/duel/ai-match.mjs .cardscripts 20 smart random classic 0.9
+      - name: Synapse AI plays clean duels with random decks (no stuck prompts)
+        run: node tests/duel/ai-match.mjs .cardscripts 30 smart random random 0.6
+      - name: Synapse AI mirror match finishes
+        run: node tests/duel/ai-match.mjs .cardscripts 6 smart smart classic
