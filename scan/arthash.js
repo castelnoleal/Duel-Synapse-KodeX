@@ -97,15 +97,15 @@
    * Hashes of a card photo's artwork (browser only). The card is the whole canvas; framing is never
    * exact, so it hashes slightly shifted and zoomed crops and keeps the best match of any of them.
    */
-  function queriesFromCard(card, { quick = false } = {}) {
+  function queriesFromCard(card, { quick = false, rect = null } = {}) {
     const c = document.createElement("canvas"); c.width = c.height = 128;
     const x = c.getContext("2d", { willReadFrequently: true });
     x.imageSmoothingQuality = "high";
-    const W = card.width, H = card.height, out = [];
+    const R = rect || { x: 0, y: 0, w: card.width, h: card.height }, out = [];
     for (const crop of ART_CROPS) {
       for (const dx of quick ? [0] : SHIFTS) for (const dy of quick ? [0] : SHIFTS) for (const s of quick ? [1] : [1, 0.95]) {
         const w = crop.w * s, h = crop.h * s, cx = crop.x + crop.w / 2 + dx, cy = crop.y + crop.h / 2 + dy;
-        x.drawImage(card, (cx - w / 2) * W, (cy - h / 2) * H, w * W, h * H, 0, 0, 128, 128);
+        x.drawImage(card, R.x + (cx - w / 2) * R.w, R.y + (cy - h / 2) * R.h, w * R.w, h * R.h, 0, 0, 128, 128);
         out.push(phashRGBA(x.getImageData(0, 0, 128, 128).data, 128, 128));
       }
     }
