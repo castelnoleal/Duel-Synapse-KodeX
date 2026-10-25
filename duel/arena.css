@@ -386,3 +386,10 @@ input[type=file] { padding: 8px; font-size: 13px; }
 .embed { --z: clamp(40px, min(calc((100vw - 410px) / 7.6), calc((100vh - 255px) / 7.6)), 104px); }
 @media (max-width: 1120px) { .embed { --z: clamp(36px, min(calc((100vw - 350px) / 7.6), calc((100vh - 255px) / 7.6)), 96px); } }
 @media (max-width: 780px) { .embed { --z: min(calc((100vw - 22px) / 7.75), calc((100vh - 215px) / 8.1)); } }
+
+/* Synapse AI learning */
+.check { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: #c9d2e3; margin: 8px 0 0; cursor: pointer; }
+.check input { margin: 2px 0 0; accent-color: #67a8ff; width: 16px; height: 16px; min-height: 0; min-width: 0; flex: none; padding: 0; border: 0; box-shadow: none; background: none; }
+.ai-info, .ai-progress { font-size: 12.5px; color: var(--muted); margin: 0 0 6px; line-height: 1.45; }
+.ai-progress { margin-top: 10px; color: #a9c9ff; }
+.ai-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }

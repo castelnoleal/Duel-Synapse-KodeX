@@ -34,6 +34,17 @@ It runs the real EDOPro rules engine, so every card effect resolves exactly as i
   The trade-off is that the host's browser holds both decks, which is fine for playtesting and friendly matches.
   `DuelHost` doesn't depend on the browser, so it can later run inside the Durable Object for fully server-authoritative ranked play.
 
+
+## Synapse AI learning
+
+Synapse AI keeps a **playbook** for each deck and gets better at the decks people play:
+
+- **From players.** In solo and online duels, the Arena records each human seat's main-phase lines (the order of summons and activations in a turn, with the hand it started from and how much the board improved), the cards they pick for searches, summons and costs, and what they chain against which opponent plays (`engine/learn.js`, `Recorder`). Lines from won duels count double.
+- **From the deck itself.** `engine/explore.js` practises a deck's opening turns: it replays the same opening hand from a fixed seed with different orders of summons and activations (a beam search, about 25 ms per practice duel) and keeps the lines that leave the strongest board. The Arena runs this in a background worker (`learn-worker.js`) the first time Synapse AI plays a deck, and on demand with **Practise the opponent deck**.
+- **Online.** Playbooks are shared through `/api/duel/book` (`server/duel-book.js`): one SQLite Durable Object per main archetype, one row per deck. Uploads are sanitized, size-capped, rate-limited and can only add small counts, so no single player can dominate a playbook. Only card codes, action types and counts are stored.
+
+When Synapse AI plays a deck, it merges the playbooks of matching or similar decks (shared cards, plus the same main archetype) from this device and online (`ai-book.js`), follows the best line whose first card is available (skipping steps that no longer fit), uses players' picks and responses where it has them, and falls back to its own judgement everywhere else. Players can turn learning and sharing off, or clear the playbooks on their device, under **Synapse AI learning** in the solo panel.
+
 ## KodeX app integration
 
 The Arena reads the same deck payload as `deck.html`: base64url of `{"n": name, "m": [[id, name, count]], "e": [...], "s": [...]}`.
@@ -87,6 +98,8 @@ node scripts/duel-dev-server.mjs --scripts /path/to/CardScripts      # http://lo
 node tests/duel/engine-sim.mjs /path/to/CardScripts 30 random 1        # headless bot-vs-bot soak test
 node tests/duel/ai-match.mjs /path/to/CardScripts 20 smart random classic 0.9   # Synapse AI must beat the random bot
 TRACE=3 node tests/duel/ai-match.mjs /path/to/CardScripts 3 smart random classic # print every decision of duel 3
+node tests/duel/ai-learn.mjs /path/to/CardScripts Swordsoul 8                  # combo search + learning by watching
+node tests/duel/book-store.mjs                                                  # shared playbook store
 node tests/duel/ui-solo.mjs http://localhost:8787 .                    # browser smoke test (Playwright)
 node tests/duel/ui-online.mjs http://localhost:8787 .                  # host + guest + spectator through the relay
 node tests/duel/ui-fuzz.mjs http://localhost:8787 600 7 .              # random clicks through every prompt type
