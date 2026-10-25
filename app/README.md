@@ -1,12 +1,18 @@
 # Duel Synapse: KodeX app
 
-`Kodex_Mei_Production_v45.html` is the current source (older versions are kept alongside it) of the **Meiocg KodeX** Android app (`com.duelsynapse.kodex`). It's built with instApped: upload this file as the project's HTML source.
+`Kodex_Mei_Production_v46.html` is the current source (older versions are kept alongside it) of the **Meiocg KodeX** Android app (`com.duelsynapse.kodex`). It's built with instApped: upload this file as the project's HTML source.
 
 It loads cards and rulings from https://kodex.meiocg.org.
 
 ## Card scanner
 
 The search box has a scan button. It reads the card from the camera, or from a photo.
+
+**Online first (v46).** The picture (a steady camera frame, or the whole gallery photo) is sent to `POST https://kodex.meiocg.org/api/lens`. A vision model on the server reads what is printed on the card, in any language: name, passcode, set code, ATK and DEF. The app then pulls the card from its own list by that name. The model's answer is never trusted on its own: the name has to be a real card name (or an exact match on YGOPRODeck), and the passcode, set code and ATK/DEF must not contradict the card. A name that is only half-confirmed has to come back twice in a row on the live camera. When the server can't be reached or has no key, the offline scanner below runs instead.
+
+The server needs one secret on the Worker (Cloudflare dashboard > Workers > duel-synapse-kodex > Settings > Variables and Secrets): `ANTHROPIC_API_KEY` (model `LENS_MODEL`, default `claude-haiku-5-5`) or `GEMINI_API_KEY` (model `LENS_GEMINI_MODEL`, default `gemini-2.5-flash`, has a free tier). With neither set, `/api/lens` answers 503 and the app uses the offline scanner. The Worker caches repeat pictures for a day, accepts pictures up to 900 KB and limits each address to 30 reads a minute and 600 a day; add a Cloudflare rate-limiting rule on `/api/lens` as well. Tests: `node tests/server/lens.test.mjs`.
+
+Offline scanner (used when the online read isn't available):
 
 1. **Artwork first:** each camera frame's artwork is fingerprinted and compared with every card in about 20 ms. This works for any language, including Japanese cards, and needs no text reading. The fingerprints are in https://kodex.meiocg.org/scan/art.json, about 350 KB, built weekly by the *Build card art index* workflow from `scripts/build_art_index.py`. The app uses the same code as `scan/arthash.js`.
 2. **Text if needed:** if the picture isn't conclusive, the app loads Tesseract.js 5.1.1 from jsDelivr and reads the passcode, then the set code and name. It matches them with `scan/match.js` against https://kodex.meiocg.org/scan/cards.json. If text and picture agree on a card, that card is accepted.
@@ -28,3 +34,5 @@ Test: `node tests/app/app-scan.e2e.mjs` runs the app (artwork, text, Japanese ca
 **v44:** the scanner's data is read from the site, then from the public repository (raw.githubusercontent.com), and a copy is kept on the device. A photo is searched at several zoom levels and positions, so a card that does not fill the picture is still found. If the data cannot be loaded the scanner says so instead of "No card recognised". The site serves `/scan/art.json` and `/scan/cards.json` from the Worker.
 
 **v45:** the live camera no longer trusts a single crop. Each frame is searched in and around the guide frame (three sizes, positions within about 6%), and a card is only accepted when it is clearly closer than every other card or the same card leads two frames in a row. Weak guesses are no longer listed or named.
+
+**v46:** online lookup (see *Card scanner*). The offline photo search now needs a much closer picture match before it names a card, and no longer lists weak guesses.

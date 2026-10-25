@@ -1,4 +1,5 @@
 import { DuelRoom, handleDuelRoom } from "./duel-room.js";
+import { handleLens } from "./lens.js";
 export { DuelRoom };
 
 const REPO = "castelnoleal/Duel-Synapse-KodeX";
@@ -197,6 +198,7 @@ export default {
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders() });
     const duel = await handleDuel(request, url, env);
     if (duel) return duel;
+    if (url.pathname === "/api/lens") return handleLens(request, env, ctx);
     if (url.pathname === "/translate") {
       if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
       try {
