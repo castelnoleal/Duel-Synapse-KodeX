@@ -3,7 +3,7 @@
 An EDOPro-compatible duel simulator for the browser, served at `https://kodex.meiocg.org/duel/`.
 It runs the real EDOPro rules engine, so every card effect resolves exactly as it does in EDOPro.
 
-- **Solo playtest:** play against a dummy that never responds (goldfish testing), against a bot that plays random legal moves, or control both players. You can choose your opening hand.
+- **Solo playtest:** play against **Synapse AI**, an opponent that plays to win (it develops its board, attacks when the numbers work, sets walls when it's behind, saves traps and hand traps for your turn and answers your plays), against a dummy that never responds (goldfish testing), against a bot that plays random legal moves, or control both players. You can choose your opening hand.
 - **Online duel:** open a room and send the invite link. Spectators can watch through a separate link. Chat, rematch (the loser goes first) and surrender are included.
 - **KodeX integration:** decks from the KodeX app open straight into the Arena (see below). Each card in the duel links to its KodeX rulings page.
 - **Deck formats:** KodeX deck links, EDOPro `.ydk` files and `ydke://` links.
@@ -27,7 +27,7 @@ It runs the real EDOPro rules engine, so every card effect resolves exactly as i
 - `engine/core.js` loads the module and parses every core message. It also encodes answers and reads card queries.
 - `engine/host.js` drives a duel and builds a separate view for each player and for spectators. Hidden cards are masked, the same way EDOPro's server masks them.
   The guest and spectators never receive the host's hand, deck or face-down cards.
-- `engine/bot.js` contains the dummy and the random bot. `engine/rules.js` holds the shared rule helpers: card declaration filters, zone masks and sum checks.
+- `engine/smart.js` is Synapse AI. It sees exactly what a player in its seat would see (its own hand and field, public cards, life points, the chain) and decides with board-evaluation heuristics; anything it can't judge falls back to safe defaults. `engine/bot.js` contains the dummy and the random bot and routes the "smart" mode to Synapse AI. `engine/rules.js` holds the shared rule helpers: card declaration filters, zone masks and sum checks.
 - `data/` holds `cards.json` (card data from Project Ignis BabelCDB) and `strings.json` (EDOPro's system strings). It also holds `scripts.json`, which records which card scripts exist, where they live and what they depend on.
   Before a duel the host downloads only the scripts its two decks need, from the CardScripts commit pinned in `scripts.json`.
 - The duel runs in the **host's** browser and the Durable Object only relays messages. This works like EDOPro's LAN hosting and keeps server cost near zero.
@@ -44,7 +44,7 @@ The Arena reads the same deck payload as `deck.html`: base64url of `{"n": name, 
 
 ## Offline play
 
-`sw.js` (scope `/duel/`) keeps the engine, card data, UI files, card scripts and card art on the device, so solo playtests, the dummy and the random bot work without a connection. Online rooms always need the network.
+`sw.js` (scope `/duel/`) keeps the engine, card data, UI files, card scripts and card art on the device, so solo playtests against Synapse AI, the dummy and the random bot work without a connection. Online rooms always need the network.
 `offline.js` registers it and adds the **Offline play** panel to the lobby: **Save decks for offline** stores the scripts and art for every deck saved in the Arena.
 Scripts are pinned to a commit and never change. Bump `VERSION` in `sw.js` when the engine or data files change.
 
@@ -85,6 +85,8 @@ WASI_SDK=... SYSROOT=$PWD/eh/sysroot EH_PREFIX=$PWD/eh CORE_DIR=$PWD/ygopro-core
 ```bash
 node scripts/duel-dev-server.mjs --scripts /path/to/CardScripts      # http://localhost:8787/duel/
 node tests/duel/engine-sim.mjs /path/to/CardScripts 30 random 1        # headless bot-vs-bot soak test
+node tests/duel/ai-match.mjs /path/to/CardScripts 20 smart random classic 0.9   # Synapse AI must beat the random bot
+TRACE=3 node tests/duel/ai-match.mjs /path/to/CardScripts 3 smart random classic # print every decision of duel 3
 node tests/duel/ui-solo.mjs http://localhost:8787 .                    # browser smoke test (Playwright)
 node tests/duel/ui-online.mjs http://localhost:8787 .                  # host + guest + spectator through the relay
 node tests/duel/ui-fuzz.mjs http://localhost:8787 600 7 .              # random clicks through every prompt type

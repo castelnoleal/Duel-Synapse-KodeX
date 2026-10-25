@@ -281,7 +281,7 @@ async function startSolo() {
   S.team = first === "me" ? 0 : 1;
   const oppTeam = 1 - S.team;
   const decks = []; decks[S.team] = me; decks[oppTeam] = opp;
-  const names = []; names[S.team] = myName(); names[oppTeam] = oppMode === "both" ? "Player 2" : oppMode === "passive" ? "Dummy" : "Bot";
+  const names = []; names[S.team] = myName(); names[oppTeam] = oppMode === "both" ? "Player 2" : oppMode === "passive" ? "Dummy" : oppMode === "smart" ? "Synapse AI" : "Bot";
   const bots = oppMode === "both" ? {} : { [oppTeam]: oppMode };
   S.lastSolo = { decks, names, bots };
   const opt = { ...options(), noShuffle };

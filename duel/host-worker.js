@@ -4,8 +4,9 @@ import { OcgCore } from "./engine/core.js";
 import { CardDB, ScriptStore } from "./engine/data.js";
 import { DuelHost } from "./engine/host.js";
 import { botAnswer } from "./engine/bot.js";
+import { observe } from "./engine/smart.js";
 
-let core, db, store, host, bots = {};
+let core, db, store, host, bots = {}, mems = {}, retries = {};
 const post = (m) => self.postMessage(m);
 
 async function getJSON(url) {
@@ -41,14 +42,19 @@ async function init(base) {
 function emit(viewer, packet) {
   post({ t: "packet", viewer, packet });
   const bot = bots[viewer];
+  if (bot) {
+    const mem = mems[viewer] || (mems[viewer] = {});
+    observe(packet, mem);
+    retries[viewer] = packet.events.some((e) => e.type === 1) ? (retries[viewer] || 0) + 1 : 0; // MSG_RETRY: last answer was rejected
+  }
   if (bot && packet.prompt && !packet.ended) {
     // Let the UI paint before the bot answers.
     setTimeout(() => {
       if (!host || !host.pending || host.pending.player !== viewer) return;
-      const ans = botAnswer(host.pending.msg, { mode: bot, db });
+      const ans = botAnswer(host.pending.msg, { mode: bot, db, view: packet, hint: packet.prompt.hint, mem: mems[viewer], retry: retries[viewer] || 0 });
       const err = ans ? host.respond(viewer, ans) : "bot could not answer";
       if (err) post({ t: "error", team: viewer, error: "Bot: " + err });
-    }, bot === "passive" ? 30 : 120);
+    }, bot === "passive" ? 30 : bot === "smart" ? 260 : 120);
   }
 }
 
@@ -58,7 +64,7 @@ self.onmessage = async (ev) => {
     if (m.cmd === "init") await init(m.base);
     else if (m.cmd === "start") {
       if (host) { host.destroy(); host = null; }
-      bots = m.bots || {};
+      bots = m.bots || {}; mems = {}; retries = {};
       const codes = m.decks.flatMap((d) => [...d.main, ...d.extra]);
       core.missing.clear();
       await store.preload(codes, (done, total) => post({ t: "progress", done, total }));

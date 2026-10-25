@@ -1,12 +1,19 @@
 // Simple automatic opponents for solo playtesting.
 //  - "passive": never acts unless forced (goldfish testing; you see your combos uninterrupted)
 //  - "random":  plays legal moves at random (useful for stress-testing decks and the engine)
+//  - "smart":   Synapse AI (smart.js) plays to win; anything it can't judge falls back to safe defaults
+import { smartAnswer } from "./smart.js";
 import { MSG, IDLE, BATTLE_ACT, POS_FACEUP_ATTACK, POS_FACEUP_DEFENSE, POS_FACEDOWN_DEFENSE, POS_FACEDOWN_ATTACK } from "./constants.js";
 import { isDeclarable, placesFromMask, findSum } from "./rules.js";
 
 const pick = (a, rnd) => a[Math.floor(rnd() * a.length)];
 
-export function botAnswer(msg, { mode = "passive", db, rnd = Math.random } = {}) {
+export function botAnswer(msg, { mode = "passive", db, rnd = Math.random, view = null, hint = null, mem = null, retry = 0 } = {}) {
+  if (mode === "smart") {
+    // After a rejected answer, try the random player once so the duel can never get stuck.
+    if (!retry) { try { const a = smartAnswer(msg, { db, view, hint, mem: mem || {} }); if (a) return a; } catch (e) { /* fall through */ } }
+    mode = retry > 2 ? "passive" : "random";
+  }
   const passive = mode === "passive";
   switch (msg.type) {
     case MSG.SELECT_IDLECMD: {

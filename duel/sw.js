@@ -1,12 +1,12 @@
 // Duel Synapse Arena: keeps the rules engine, card data, card scripts and card art on the device
 // so solo playtests work without a connection. Online rooms always need the network.
-const VERSION = "v4";                       // bump when engine/UI files change so the new files are saved
+const VERSION = "v5";                       // bump when engine/UI files change so the new files are saved
 const SHELL = "arena-shell-" + VERSION;
 const SCRIPTS = "arena-scripts";            // card scripts are pinned to a commit, so they never change
 const ART = "arena-art";
 const FILES = [
   "./", "./index.html", "./app.js", "./offline.js", "./deck.js", "./net.js", "./host-worker.js", "./arena.css",
-  "./engine/bot.js", "./engine/constants.js", "./engine/core.js", "./engine/data.js", "./engine/host.js", "./engine/rules.js",
+  "./engine/bot.js", "./engine/smart.js", "./engine/constants.js", "./engine/core.js", "./engine/data.js", "./engine/host.js", "./engine/rules.js",
   "./engine/ocgcore.wasm", "./data/cards.json", "./data/strings.json", "./data/scripts.json",
   "./assets/meiocg-64.png", "./assets/meiocg-64.webp", "./assets/meiocg-192.png", "./assets/meiocg-192.webp", "./assets/meiocg-512.webp",
 ];
