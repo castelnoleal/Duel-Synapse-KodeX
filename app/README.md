@@ -1,6 +1,6 @@
 # Duel Synapse: KodeX app
 
-`Kodex_Mei_Production_v46.html` is the current source (older versions are kept alongside it) of the **Meiocg KodeX** Android app (`com.duelsynapse.kodex`). It's built with instApped: upload this file as the project's HTML source.
+`Kodex_Mei_Production_v47.html` is the current source (older versions are kept alongside it) of the **Meiocg KodeX** Android app (`com.duelsynapse.kodex`). It's built with instApped: upload this file as the project's HTML source.
 
 It loads cards and rulings from https://kodex.meiocg.org.
 
@@ -36,3 +36,5 @@ Test: `node tests/app/app-scan.e2e.mjs` runs the app (artwork, text, Japanese ca
 **v45:** the live camera no longer trusts a single crop. Each frame is searched in and around the guide frame (three sizes, positions within about 6%), and a card is only accepted when it is clearly closer than every other card or the same card leads two frames in a row. Weak guesses are no longer listed or named.
 
 **v46:** online lookup (see *Card scanner*). The offline photo search now needs a much closer picture match before it names a card, and no longer lists weak guesses.
+
+**v47:** the sponsor strip stays visible on every screen: panels, pop-ups, the scanner and the Arena all open below it (`--adh` follows the strip's real height). Filters are a small bubble at the lower right (hidden while a panel is open); the bottom tab that held them is now **Test**, which opens the Duel Arena. Settings: *Persistent storage* is gone from the System Check, and a **Premium** row opens *Remove ads* / *Premium* (both marked Coming soon).

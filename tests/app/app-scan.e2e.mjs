@@ -1,4 +1,4 @@
-// End-to-end: the card scanner inside the KodeX app (app/Kodex_Mei_Production_v46.html).
+// End-to-end: the card scanner inside the KodeX app (app/Kodex_Mei_Production_v47.html).
 // Run from the repository root: node tests/app/app-scan.e2e.mjs (needs playwright and the tesseract CLI).
 import { chromium } from "playwright";
 import { createServer } from "node:http";
@@ -7,7 +7,7 @@ import { spawn } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const APP = process.argv[2] || "app/Kodex_Mei_Production_v46.html";
+const APP = process.argv[2] || "app/Kodex_Mei_Production_v47.html";
 const REPO = process.cwd();
 const results = [];
 const assert = (ok, msg) => { if (!ok) throw new Error("FAIL: " + msg); results.push("PASS: " + msg); };
