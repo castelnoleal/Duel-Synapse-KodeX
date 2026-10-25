@@ -25,7 +25,7 @@ page.setDefaultTimeout(4000);
 page.on("pageerror", (e) => errors.push("pageerror: " + e));
 page.on("console", (m) => { if (m.type() === "error" && !m.text().startsWith("Failed to load resource")) errors.push(m.text()); });
 await page.goto(`${base}/duel/#deck=${payload}`);
-await page.waitForFunction(() => document.querySelector("#engineStatus").textContent.includes("ready"), null, { timeout: 60000 });
+await page.waitForFunction(() => document.querySelector("#engineDot")?.classList.contains("ready"), null, { timeout: 60000 });
 await page.selectOption("#soloOpp", "random");
 await page.selectOption("#soloOppDeck", "same");
 await page.click("#soloStart");
