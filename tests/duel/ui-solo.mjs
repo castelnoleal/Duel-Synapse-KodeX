@@ -15,7 +15,7 @@ page.on("pageerror", (e) => errors.push(String(e)));
 page.on("console", (m) => { if (m.type() === "error" && !m.text().startsWith("Failed to load resource")) errors.push(m.text()); });
 page.route(/(ygoprodeck|fonts\.g)/, (r) => r.abort());
 await page.goto(`${base}/duel/#deck=${payload}`);
-await page.waitForFunction(() => document.querySelector("#engineStatus").textContent.includes("ready"), null, { timeout: 60000 });
+await page.waitForFunction(() => document.querySelector("#engineDot")?.classList.contains("ready"), null, { timeout: 60000 });
 await page.screenshot({ path: `${out}/lobby.png` });
 await page.click("#soloStart");
 await page.waitForFunction(() => document.querySelectorAll("#myHand .card").length >= 5, null, { timeout: 60000 });

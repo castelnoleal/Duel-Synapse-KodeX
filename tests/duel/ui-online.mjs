@@ -21,7 +21,7 @@ async function open(name, deck, hash = "") {
   return page;
 }
 const host = await open("Hosty", deckA);
-await host.waitForFunction(() => document.querySelector("#engineStatus").textContent.includes("ready"), null, { timeout: 60000 });
+await host.waitForFunction(() => document.querySelector("#engineDot")?.classList.contains("ready"), null, { timeout: 60000 });
 await host.click('.seg [data-mode="host"]');
 await host.click("#hostOpen");
 await host.waitForFunction(() => /^[A-Z0-9]{6}$/.test(document.querySelector("#roomCode").textContent));
