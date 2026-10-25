@@ -9,6 +9,10 @@
       {
         "name": "DUEL_ROOMS",
         "class_name": "DuelRoom"
+      },
+      {
+        "name": "PLAYBOOK",
+        "class_name": "PlayBook"
       }
     ]
   },
@@ -17,6 +21,12 @@
       "tag": "duel-rooms-v1",
       "new_sqlite_classes": [
         "DuelRoom"
+      ]
+    },
+    {
+      "tag": "playbook-v1",
+      "new_sqlite_classes": [
+        "PlayBook"
       ]
     }
   ]

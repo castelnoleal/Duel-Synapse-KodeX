@@ -35,3 +35,5 @@ jobs:
         run: node tests/duel/ai-match.mjs .cardscripts 30 smart random random 0.6
       - name: Synapse AI mirror match finishes
         run: node tests/duel/ai-match.mjs .cardscripts 6 smart smart classic
+      - name: Synapse AI learns from play (imitation, practice games, card-text links)
+        run: node tests/duel/ai-learn.mjs .cardscripts

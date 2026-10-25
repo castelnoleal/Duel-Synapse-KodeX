@@ -6,6 +6,7 @@ import * as C from "./engine/constants.js";
 import { isDeclarable, placesFromMask, sumValid } from "./engine/rules.js";
 import { parseAny, resolveDeck, deckProblems, decodeKodex, encodeKodex, toYdk } from "./deck.js";
 import { Room, newRoomCode } from "./net.js";
+import { Learning } from "./learning.js";
 
 const M = C.MSG;
 const $ = (s) => document.querySelector(s);
@@ -56,6 +57,8 @@ function load(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.p
 async function boot() {
   $("#nameInput").value = load("duel:name", "") || "";
   $("#nameInput").addEventListener("change", () => save("duel:name", $("#nameInput").value.trim()));
+  $("#aiShare").checked = Learning.share;
+  $("#aiShare").addEventListener("change", (e) => { Learning.share = e.target.checked; if (e.target.checked) Learning.flush(); });
   const opts = load("duel:opts", null);
   if (opts) { $("#optRule").value = opts.rule; $("#optLP").value = opts.lp; $("#optHand").value = opts.start; $("#optDraw").value = opts.draw; }
   for (const id of ["#optRule", "#optLP", "#optHand", "#optDraw"]) $(id).addEventListener("change", () => { save("duel:opts", options()); rulesSummary(); });
@@ -143,6 +146,7 @@ function useDeck(raw, remember) {
   S.testHand.clear();
   renderDeck();
   refreshButtons();
+  deckLearning();
 }
 function selectDeck(i) {
   const d = S.decks[i] || S.decks[0];
@@ -152,6 +156,24 @@ function selectDeck(i) {
   S.testHand.clear();
   renderDeck();
   refreshButtons();
+  deckLearning();
+}
+// Synapse AI learning for the current deck: shared lines from other players, practice games, and a status line.
+function deckCodes(d) { return d ? [...d.main, ...d.extra] : []; }
+function aiNote() {
+  const n = S.deck ? Learning.linesFor(deckCodes(S.deck)) : 0;
+  $("#aiNote").textContent = !S.deck ? "" : Learning.trainer ? `Synapse AI is practicing with this deck… it already knows ${n} line${n === 1 ? "" : "s"} for it.`
+    : n ? `Synapse AI knows ${n} line${n === 1 ? "" : "s"} for this deck from your games, other players and practice.` : "Synapse AI learns this deck as you play it.";
+}
+async function deckLearning() {
+  if (!S.deck) return;
+  const d = S.deck;
+  aiNote();
+  await Learning.fetchShared(deckCodes(d));
+  if (S.deck !== d) return;
+  aiNote();
+  // Practice once the engine is up (it may still be loading when a deck arrives from a link).
+  (S.workerReady || startWorker()).then(() => setTimeout(() => { if (S.deck === d && $("#table").hidden) { Learning.practice(d, BASE, () => aiNote()); aiNote(); } }, 3000)).catch(() => {});
 }
 function renderSaved() {
   const s = $("#savedDecks");
@@ -288,8 +310,13 @@ async function startSolo() {
   // Shuffled test hands only apply to my deck: the opponent's deck is shuffled here.
   if (noShuffle) shuffleInPlace(decks[oppTeam].main);
   enterTable();
-  S.worker.postMessage({ cmd: "start", decks, names, options: opt, bots });
+  Learning.stopPractice();
+  S.worker.postMessage({ cmd: "start", decks, names, options: opt, bots, ...learningFor(decks) });
   
+}
+function learningFor(decks) {
+  const codes = decks.flatMap((d) => deckCodes(d));
+  return { book: Learning.rowsFor(codes), learn: true };
 }
 function shuffleInPlace(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } }
 
@@ -364,7 +391,8 @@ async function hostStartDuel(loserFirst) {
   enterTable();
   addLog(`${names[0]} goes first.`, "sys");
   S.room.send({ to: "others", m: { t: "start", first: names[0] } });
-  S.worker.postMessage({ cmd: "start", decks, names, options: options(), bots: {} });
+  Learning.stopPractice();
+  S.worker.postMessage({ cmd: "start", decks, names, options: options(), bots: {}, ...learningFor(decks) });
 }
 
 // ----- online: guest / spectator -----
@@ -409,6 +437,7 @@ function netStatus(s, err) {
 // ---------------------------------------------------------------------------
 // Worker events
 function onWorker(m) {
+  if (m.t === "learn") { Learning.add(m.rows, m.source); return; }
   if (m.t === "progress") { if (m.done === m.total || m.done % 10 === 0) $("#loadingText").textContent = `Loading card scripts · ${m.done}/${m.total}`; return; }
   if (m.t === "error") {
     if (S.mode === "host" && m.team !== S.hostTeam) { S.room.send({ to: "guest", m: { t: "error", error: m.error } }); return; }
@@ -509,7 +538,7 @@ function rematch() {
     const { me, opp, noShuffle } = soloDecks();
     const decks = []; decks[S.team] = me; decks[1 - S.team] = opp;
     if (S.control === "both") { /* keep seats */ }
-    S.worker.postMessage({ cmd: "start", decks, names: S.lastSolo.names, options: { ...options(), noShuffle }, bots: S.lastSolo.bots });
+    S.worker.postMessage({ cmd: "start", decks, names: S.lastSolo.names, options: { ...options(), noShuffle }, bots: S.lastSolo.bots, ...learningFor(decks) });
   } else if (S.mode === "host") {
     // The loser of the previous duel goes first.
     const loserHost = ended && ended.winner >= 0 ? (ended.winner === S.hostTeam ? 1 : 0) : undefined;
@@ -1310,6 +1339,7 @@ function logEvent(e, p) {
 }
 
 function showResult(p) {
+  setTimeout(() => Learning.flush(), 1500); // send what this duel taught
   const me = S.team;
   const w = p.ended.winner;
   const title = w === 2 || w < 0 ? "Draw" : S.mode === "spec" ? `${p.names[w]} wins` : w === me ? "You win" : "You lose";

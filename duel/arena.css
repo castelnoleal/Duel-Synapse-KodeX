@@ -270,6 +270,8 @@ input[type=file] { padding: 8px; font-size: 13px; }
 .side-actions { border-top: 1px solid var(--line); padding: 12px; display: grid; gap: 10px; background: #0c1016; }
 .toggle { display: flex; align-items: center; gap: 10px; font-size: 13px; color: #c9d2e3; cursor: pointer; }
 .toggle input { width: 18px; height: 18px; min-height: 0; accent-color: var(--a); }
+.ai-share { margin-top: 8px; }
+#aiNote:empty { display: none; }
 
 /* ---------- prompt sheet ---------- */
 .sheet { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); width: min(780px, calc(100vw - 24px)); max-height: min(62vh, 580px); display: flex; flex-direction: column;

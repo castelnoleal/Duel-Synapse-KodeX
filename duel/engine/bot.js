@@ -8,10 +8,10 @@ import { isDeclarable, placesFromMask, findSum } from "./rules.js";
 
 const pick = (a, rnd) => a[Math.floor(rnd() * a.length)];
 
-export function botAnswer(msg, { mode = "passive", db, rnd = Math.random, view = null, hint = null, mem = null, retry = 0 } = {}) {
+export function botAnswer(msg, { mode = "passive", db, rnd = Math.random, view = null, hint = null, mem = null, retry = 0, book = null, hints = null, explore = 0 } = {}) {
   if (mode === "smart") {
     // After a rejected answer, try the random player once so the duel can never get stuck.
-    if (!retry) { try { const a = smartAnswer(msg, { db, view, hint, mem: mem || {} }); if (a) return a; } catch (e) { /* fall through */ } }
+    if (!retry) { try { const a = smartAnswer(msg, { db, view, hint, mem: mem || {}, book, hints, explore, rnd }); if (a) return a; } catch (e) { if (globalThis.process && process.env && process.env.DEBUG_AI) console.error("smart error", e); } }
     mode = retry > 2 ? "passive" : "random";
   }
   const passive = mode === "passive";
