@@ -86,6 +86,17 @@
             </span>
             <select id="soloFirst" hidden><option value="me">Me</option><option value="opp">Opponent</option><option value="random">Coin toss</option></select>
           </label>
+          <details class="disclose" id="aiPanel">
+            <summary>Synapse AI learning <span id="aiCount" class="count"></span></summary>
+            <p class="ai-info" id="aiInfo">Synapse AI learns the lines you play, the cards you pick and what you chain, for each deck. It also practises decks on its own. When it plays a deck like one it has learned, it uses those plays.</p>
+            <label class="check"><input type="checkbox" id="aiLearn" checked> Learn from my duels</label>
+            <label class="check"><input type="checkbox" id="aiShare" checked> Share and use playbooks online (card plays only, nothing personal)</label>
+            <div class="ai-actions">
+              <button class="btn small" id="aiTeach" type="button" disabled>Practise the opponent deck</button>
+              <button class="btn small ghost" id="aiForget" type="button">Forget on this device</button>
+            </div>
+            <p class="ai-progress" id="aiProgress" role="status" hidden></p>
+          </details>
           <details class="disclose">
             <summary>Opening hand <span id="testHandCount" class="count"></span></summary>
             <div id="testHand" class="test-hand"></div>

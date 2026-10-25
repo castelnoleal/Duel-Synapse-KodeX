@@ -2,7 +2,7 @@ name: Duel engine soak test
 
 on:
   pull_request:
-    paths: ["duel/**", "tests/duel/**", "server/duel-room.js"]
+    paths: ["duel/**", "tests/duel/**", "server/duel-room.js", "server/duel-book.js"]
   workflow_dispatch:
 
 permissions:
@@ -11,7 +11,7 @@ permissions:
 jobs:
   engine:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -35,3 +35,7 @@ jobs:
         run: node tests/duel/ai-match.mjs .cardscripts 30 smart random random 0.6
       - name: Synapse AI mirror match finishes
         run: node tests/duel/ai-match.mjs .cardscripts 6 smart smart classic
+      - name: Synapse AI learns a deck (combo search, and by watching a player)
+        run: node tests/duel/ai-learn.mjs .cardscripts Swordsoul 8
+      - name: Shared playbook store
+        run: node tests/duel/book-store.mjs

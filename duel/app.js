@@ -84,6 +84,7 @@ async function boot() {
   } catch (e) { toast("That deck link could not be read."); }
   if (fromLink) useDeck(fromLink, true);
   else if (S.decks.length) selectDeck(load("duel:current", 0));
+  initAI();
   renderSaved();
 
   startWorker().then((v) => { status.textContent = "Duel Synapse Server Ready"; $("#engineDot").className = "dot ready"; refreshButtons(); })
@@ -153,11 +154,87 @@ function selectDeck(i) {
   renderDeck();
   refreshButtons();
 }
+/** The deck the solo opponent plays: filler, a mirror of mine, or one of my saved decks. */
+// ----- Synapse AI learning -----
+function learnOptions() { return { learn: $("#aiLearn").checked, share: $("#aiShare").checked }; }
+let learnWorker = null;
+function practise(deck, { quiet = false, team = null, hands = 6, budget = 110 } = {}) {
+  if (learnWorker) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    learnWorker = new Worker(new URL("./learn-worker.js", import.meta.url), { type: "module" });
+    const prog = $("#aiProgress");
+    if (!quiet) { prog.hidden = false; prog.textContent = "Synapse AI is practising this deck…"; $("#aiTeach").disabled = true; }
+    learnWorker.onmessage = (ev) => {
+      const m = ev.data;
+      if (m.t === "progress" && !quiet) prog.textContent = `Practising opening hands · ${m.hand}/${m.hands} (${m.sims} practice duels)`;
+      if (m.t === "done" || m.t === "fail") {
+        learnWorker.terminate(); learnWorker = null;
+        if (m.t === "done" && m.book && team != null && S.worker) S.worker.postMessage({ cmd: "playbook", team, book: m.book });
+        if (!quiet) {
+          prog.textContent = m.t === "fail" ? "Practice stopped: " + m.error : m.lines ? `Synapse AI found ${m.lines} strong opening line${m.lines === 1 ? "" : "s"} in ${m.sims} practice duels.` : `No new lines found in ${m.sims} practice duels.`;
+          aiPanel();
+        } else if (m.lines) toast(`Synapse AI practised this deck and found ${m.lines} opening line${m.lines === 1 ? "" : "s"}.`, 4000);
+        resolve(m);
+      }
+    };
+    learnWorker.postMessage({ cmd: "explore", base: BASE, deck, hands, budget, share: $("#aiShare").checked });
+  });
+}
+/** First time Synapse AI plays a deck, it practises it in the background and uses what it finds from its next turn. */
+async function autoPractise(deck, team) {
+  try {
+    const { localBooks } = await import("./ai-book.js");
+    const { deckProfile } = await import("./engine/learn.js");
+    const key = deckProfile(deck, S.db).key;
+    const have = (await localBooks()).find((b) => b.key === key);
+    if (have && have.lines.some((l) => l.src === "search")) return;
+    practise(deck, { quiet: true, team, hands: 4, budget: 80 });
+  } catch (e) { /* learning is optional */ }
+}
+async function aiPanel() {
+  try {
+    const { localBooks } = await import("./ai-book.js");
+    const books = await localBooks();
+    const lines = books.reduce((s, b) => s + (b.lines || []).length, 0);
+    $("#aiCount").textContent = books.length ? `${lines} line${lines === 1 ? "" : "s"} · ${books.length} deck${books.length === 1 ? "" : "s"}` : "";
+  } catch (e) { $("#aiCount").textContent = ""; }
+  $("#aiTeach").disabled = !!learnWorker || !S.deck || $("#soloOppDeck").value === "filler";
+}
+function initAI() {
+  $("#aiLearn").checked = load("duel:aiLearn", true);
+  $("#aiShare").checked = load("duel:aiShare", true);
+  $("#aiLearn").addEventListener("change", (e) => save("duel:aiLearn", e.target.checked));
+  $("#aiShare").addEventListener("change", (e) => save("duel:aiShare", e.target.checked));
+  $("#soloOppDeck").addEventListener("change", (e) => { save("duel:oppDeck", e.target.value); aiPanel(); });
+  $("#aiTeach").addEventListener("click", () => { const d = oppDeck(); if (d.main.length) practise(d); });
+  $("#aiForget").addEventListener("click", async () => {
+    const { forgetLocal } = await import("./ai-book.js");
+    await forgetLocal(); toast("Synapse AI forgot what it learned on this device."); aiPanel();
+  });
+  aiPanel();
+}
+function oppDeck() {
+  const k = $("#soloOppDeck").value;
+  if (k === "same") return { main: [...S.deck.main], extra: [...S.deck.extra] };
+  if (k.startsWith("saved:")) { const d = S.decks[Number(k.slice(6))]; if (d && d.main.length) return { main: [...d.main], extra: [...(d.extra || [])] }; }
+  return { main: Array(40).fill(FILLER), extra: [] };
+}
+function renderOppDecks() {
+  const s = $("#soloOppDeck"), cur = s.value;
+  s.replaceChildren();
+  for (const [v, t] of [["filler", "Vanilla filler"], ["same", "Mirror of my deck"]]) { const o = el("option", null, t); o.value = v; s.append(o); }
+  S.decks.forEach((d, i) => { const o = el("option", null, "Saved: " + d.name); o.value = "saved:" + i; s.append(o); });
+  const want = renderOppDecks.done ? cur : load("duel:oppDeck", "same"); // first render: the saved choice (mirror by default)
+  renderOppDecks.done = true;
+  s.value = [...s.options].some((o) => o.value === want) ? want : "same";
+  aiPanel();
+}
 function renderSaved() {
   const s = $("#savedDecks");
   s.replaceChildren();
   s.hidden = !S.decks.length;
   S.decks.forEach((d, i) => { const o = el("option", null, d.name); o.value = i; if (S.deck && d.name === S.deck.name) o.selected = true; s.append(o); });
+  renderOppDecks();
 }
 function renderDeck() {
   const b = $("#deckBody");
@@ -266,8 +343,7 @@ function soloDecks() {
     for (let i = rest.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [rest[i], rest[j]] = [rest[j], rest[i]]; }
     me.main = [...top, ...rest];
   }
-  const oppKind = $("#soloOppDeck").value;
-  const opp = oppKind === "same" ? { main: [...S.deck.main], extra: [...S.deck.extra] } : { main: Array(40).fill(FILLER), extra: [] };
+  const opp = oppDeck();
   return { me, opp, noShuffle };
 }
 
@@ -288,7 +364,8 @@ async function startSolo() {
   // Shuffled test hands only apply to my deck: the opponent's deck is shuffled here.
   if (noShuffle) shuffleInPlace(decks[oppTeam].main);
   enterTable();
-  S.worker.postMessage({ cmd: "start", decks, names, options: opt, bots });
+  S.worker.postMessage({ cmd: "start", decks, names, options: opt, bots, learn: learnOptions() });
+  if (bots[oppTeam] === "smart" && $("#soloOppDeck").value !== "filler") autoPractise(decks[oppTeam], oppTeam);
   
 }
 function shuffleInPlace(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } }
@@ -364,7 +441,7 @@ async function hostStartDuel(loserFirst) {
   enterTable();
   addLog(`${names[0]} goes first.`, "sys");
   S.room.send({ to: "others", m: { t: "start", first: names[0] } });
-  S.worker.postMessage({ cmd: "start", decks, names, options: options(), bots: {} });
+  S.worker.postMessage({ cmd: "start", decks, names, options: options(), bots: {}, learn: learnOptions() });
 }
 
 // ----- online: guest / spectator -----
@@ -410,6 +487,16 @@ function netStatus(s, err) {
 // Worker events
 function onWorker(m) {
   if (m.t === "progress") { if (m.done === m.total || m.done % 10 === 0) $("#loadingText").textContent = `Loading card scripts · ${m.done}/${m.total}`; return; }
+  if (m.t === "playbook") {
+    if (m.lines) toast(`Synapse AI knows ${m.lines} line${m.lines === 1 ? "" : "s"} for this deck${m.fromYou ? ` (${m.fromYou} from you)` : ""}${m.similarity < 1 ? ", learned on similar decks" : ""}.`, 4200);
+    return;
+  }
+  if (m.t === "learned") {
+    const n = m.learned.reduce((s, x) => s + x.lines, 0), p = m.learned.reduce((s, x) => s + x.picks + x.chains, 0);
+    if (n || p) toast(`Synapse AI learned ${n ? `${n} line${n === 1 ? "" : "s"}` : ""}${n && p ? " and " : ""}${p ? `${p} choice${p === 1 ? "" : "s"}` : ""} from this duel.`, 4200);
+    aiPanel();
+    return;
+  }
   if (m.t === "error") {
     if (S.mode === "host" && m.team !== S.hostTeam) { S.room.send({ to: "guest", m: { t: "error", error: m.error } }); return; }
     toast(m.error); return;
@@ -509,7 +596,7 @@ function rematch() {
     const { me, opp, noShuffle } = soloDecks();
     const decks = []; decks[S.team] = me; decks[1 - S.team] = opp;
     if (S.control === "both") { /* keep seats */ }
-    S.worker.postMessage({ cmd: "start", decks, names: S.lastSolo.names, options: { ...options(), noShuffle }, bots: S.lastSolo.bots });
+    S.worker.postMessage({ cmd: "start", decks, names: S.lastSolo.names, options: { ...options(), noShuffle }, bots: S.lastSolo.bots, learn: learnOptions() });
   } else if (S.mode === "host") {
     // The loser of the previous duel goes first.
     const loserHost = ended && ended.winner >= 0 ? (ended.winner === S.hostTeam ? 1 : 0) : undefined;

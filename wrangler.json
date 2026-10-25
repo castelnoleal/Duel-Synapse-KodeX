@@ -38,6 +38,10 @@
       {
         "name": "DUEL_ROOMS",
         "class_name": "DuelRoom"
+      },
+      {
+        "name": "DUEL_BOOKS",
+        "class_name": "DuelBook"
       }
     ]
   },
@@ -46,6 +50,12 @@
       "tag": "duel-rooms-v1",
       "new_sqlite_classes": [
         "DuelRoom"
+      ]
+    },
+    {
+      "tag": "duel-books-v1",
+      "new_sqlite_classes": [
+        "DuelBook"
       ]
     }
   ]

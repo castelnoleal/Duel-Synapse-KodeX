@@ -9,6 +9,7 @@
 //     view: the packet DuelHost.broadcast() built for this seat ({ state, turn, turnPlayer, phase, events })
 //     hint: the selection hint for this prompt (HINTMSG_* number as a string), if any
 //     mem:  a plain object kept for the whole duel (the bot's memory)
+//     advisor: optional learn.js Advisor with the playbook for this deck (lines, picks, responses)
 import { MSG, IDLE, BATTLE_ACT, TYPE, PHASE, LOCATION_HAND, LOCATION_MZONE, LOCATION_SZONE, LOCATION_GRAVE, LOCATION_REMOVED,
   LOCATION_EXTRA, LOCATION_DECK, POS_FACEUP_ATTACK, POS_FACEUP_DEFENSE, POS_FACEDOWN_DEFENSE, POS_FACEDOWN_ATTACK, POS_FACEUP,
   POS_FACEDOWN, POS_DEFENSE } from "./constants.js";
@@ -120,7 +121,13 @@ function idle(msg, ctx) {
   const threat = oppThreat(theirs);
   const oppField = theirMons.length + (theirs.szone || []).filter(Boolean).length;
   if (++m.idle > 80) return { action: msg.to_ep ? IDLE.TO_EP : IDLE.TO_BP };
-  const pick = (action, index) => ({ action, index });
+  const pick = (action, index) => { const l = [msg.summons, msg.special_summons, msg.pos_changes, msg.monster_sets, msg.spell_sets, msg.activates][action]; ctx.mem.lastCode = l && l[index] ? l[index].code : 0; return { action, index }; };
+
+  // 0) A learned line for this deck (from players' duels, online playbooks or the combo search).
+  if (ctx.advisor && m.idle <= 60) {
+    const adv = ctx.advisor.idle(msg, ctx.mem, ctx.view);
+    if (adv) { ctx.mem.lastCode = adv.code; ctx.mem.followed = (ctx.mem.followed || 0) + 1; return { action: adv.action, index: adv.index }; }
+  }
 
   // 1) Useful activations (searches, draws, field spells, removal when there is something to remove).
   const acts = msg.activates.map((a, index) => ({ a, index, c: db.get(a.code) })).filter(({ a, c }) => c && worthActivating(a, c, { me, mine, theirs, myMons, theirMons, oppField, myBest, deck: mine.deck || 0 }));
@@ -271,13 +278,17 @@ function chain(msg, ctx) {
     if (RX.search.test(t) || RX.spsummon.test(t)) v += 15;
     return v;
   };
+  if (ctx.advisor && (oppActing || attacked || (ctx.mem.trigger && !myTurn))) {
+    const i = ctx.advisor.chain(msg.selects, ctx.mem.trigger);
+    if (i >= 0 && once(m, "learned:" + keyOf(msg.selects[i]) + ":" + ch.length)) { ctx.mem.lastCode = msg.selects[i].code; return { index: i }; }
+  }
   opts.sort((x, y) => score(y) - score(x));
   const best = opts[0];
   if (!best) return { index: null };
   const s = score(best);
   // Don't chain to our own chain links with responses, and don't fire free traps into nothing.
   if (last && last.controller === me && !(isMonster(best.c) && best.s.location !== LOCATION_HAND)) return { index: null };
-  if (s >= 20 && once(m, "chain:" + keyOf(best.s) + ":" + ch.length, 1)) return { index: best.index };
+  if (s >= 20 && once(m, "chain:" + keyOf(best.s) + ":" + ch.length, 1)) { ctx.mem.lastCode = best.s.code; return { index: best.index }; }
   // Our own optional monster triggers in our turn.
   if (myTurn && isMonster(best.c) && best.s.location !== LOCATION_HAND && once(m, "trig:" + keyOf(best.s), 2)) return { index: best.index };
   // End of the opponent's turn: use free-chain draw/search effects rather than wasting them.
@@ -308,10 +319,15 @@ function rank(sels, mode, me, ctx) {
     return { i, score };
   }).sort((a, b) => b.score - a.score).map((x) => x.i);
 }
+function learnedFirst(order, options, ctx, me) {
+  if (!ctx.advisor) return order;
+  const pref = ctx.advisor.pick(options, ctx.hint, ctx.mem.lastCode, me);
+  return pref ? [...pref, ...order.filter((i) => !pref.includes(i))] : order;
+}
 function selectCard(msg, ctx) {
   const me = msg.player;
   const mode = polarity(ctx.hint, msg.selects, me);
-  const order = rank(msg.selects, mode, me, ctx);
+  const order = mode === "harm" ? rank(msg.selects, mode, me, ctx) : learnedFirst(rank(msg.selects, mode, me, ctx), msg.selects, ctx, me);
   let n = Math.max(1, msg.min);
   if (mode === "harm" && msg.selects.filter((s) => s.controller !== me).length >= msg.max) n = Math.max(n, msg.max);
   else if (mode === "gain") n = Math.max(n, Math.min(msg.max, order.length));
@@ -323,7 +339,7 @@ function unselect(msg, ctx) {
   const mode = polarity(ctx.hint, msg.select_cards.length ? msg.select_cards : msg.unselect_cards, me);
   if (msg.can_finish && (chosen >= Math.max(1, msg.min)) && (mode === "cost" || chosen >= msg.max || !msg.select_cards.length)) return { index: -1 };
   if (!msg.select_cards.length) return msg.can_finish ? { index: -1 } : null;
-  const order = rank(msg.select_cards, mode, me, ctx);
+  const order = mode === "harm" ? rank(msg.select_cards, mode, me, ctx) : learnedFirst(rank(msg.select_cards, mode, me, ctx), msg.select_cards, ctx, me);
   return { index: order[0] };
 }
 function tribute(msg, ctx) {
@@ -356,8 +372,12 @@ function place(msg, ctx) {
 /** Keep track of what just happened (attacks), from every update the bot's seat receives. */
 export function observe(packet, mem) {
   if (!packet || !packet.events) return;
+  const me = packet.viewer;
   for (const e of packet.events) {
-    if (e.type === MSG.ATTACK) mem.attack = { by: e.card ? e.card.controller : -1, turn: packet.turn };
+    if (e.type === MSG.CHAINING && e.controller !== me) mem.trigger = "c:" + e.code;
+    else if ((e.type === MSG.SUMMONING || e.type === MSG.SPSUMMONING) && e.controller !== me) mem.trigger = "s:" + (e.code || 0);
+    else if (e.type === MSG.CHAIN_END) mem.trigger = null;
+    if (e.type === MSG.ATTACK) { mem.attack = { by: e.card ? e.card.controller : -1, turn: packet.turn }; if (e.card && e.card.controller !== me) mem.trigger = "a"; }
     else if (e.type === MSG.ATTACK_DISABLED || e.type === MSG.DAMAGE_STEP_END || e.type === MSG.NEW_PHASE || e.type === MSG.NEW_TURN) mem.attack = null;
   }
 }
