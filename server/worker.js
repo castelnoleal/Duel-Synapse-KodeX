@@ -1,6 +1,7 @@
 import { DuelRoom, handleDuelRoom } from "./duel-room.js";
+import { PlayBook, handlePlayBook } from "./playbook.js";
 import { handleLens } from "./lens.js";
-export { DuelRoom };
+export { DuelRoom, PlayBook };
 
 const REPO = "castelnoleal/Duel-Synapse-KodeX";
 const BRANCH = "main";
@@ -162,6 +163,7 @@ async function handleDuel(request, url, env) {
   const p = url.pathname;
   const room = p.match(/^\/api\/duel\/room\/([A-Z0-9]{4,12})$/);
   if (room) return handleDuelRoom(request, env, room[1]);
+  if (p === "/api/duel/book" || p === "/api/duel/book/learn") return handlePlayBook(request, env);
   if (!p.startsWith("/duel")) return null;
   if (request.method !== "GET" && request.method !== "HEAD") return json({ error: "Method not allowed" }, 405);
   if (p === "/duel") return Response.redirect(new URL("/duel/" + url.search + url.hash, url).toString(), 301);

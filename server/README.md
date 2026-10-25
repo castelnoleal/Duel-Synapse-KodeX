@@ -11,6 +11,7 @@ The Worker retrieves KodeX files with a GitHub token stored as a Cloudflare Work
 - `GET /api/search?q=...&limit=...&type=...`
 - `GET /api/ruling/<Konami-ID>`
 - `GET /health`
+- `GET /api/duel/book?cards=...` and `POST /api/duel/book/learn`: Synapse AI's shared play book (`playbook.js`, a SQLite Durable Object bound as `PLAYBOOK`). It stores only anonymous counts keyed by card codes and action letters: combo lines, card-pick rates and responses. Reads return only rows whose cards are all in the requested list; writes are validated, capped at 600 rows and weight 3 per row.
 
 The complete search index and complete database remain on the private GitHub side. The Worker caches origin responses server-side and returns only search results or the requested ruling record.
 

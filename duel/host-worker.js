@@ -5,8 +5,13 @@ import { CardDB, ScriptStore } from "./engine/data.js";
 import { DuelHost } from "./engine/host.js";
 import { botAnswer } from "./engine/bot.js";
 import { observe } from "./engine/smart.js";
+import { Book, Recorder, comboHints } from "./engine/learn.js";
+import { practice } from "./engine/trainer.js";
 
 let core, db, store, host, bots = {}, mems = {}, retries = {};
+// Synapse AI learning: the play book for this duel's decks, card-text combo links, and a recorder for people's plays.
+let book = new Book(), hints = new Map(), rec = null, training = false;
+const hasRows = (r) => r && (r.seq.length || r.pick.length || r.resp.length);
 const post = (m) => self.postMessage(m);
 
 async function getJSON(url) {
@@ -42,6 +47,12 @@ async function init(base) {
 function emit(viewer, packet) {
   post({ t: "packet", viewer, packet });
   const bot = bots[viewer];
+  if (rec && viewer < 2 && !bot) rec.observe(viewer, packet);          // a person's seat (solo player, or either player online)
+  if (rec && viewer === 2) {                                           // once per update: hand finished turns to the page
+    const rows = packet.ended ? rec.flush() : rec.take();
+    if (hasRows(rows)) { book.mergeRows(rows); post({ t: "learn", rows, source: "play" }); }
+    if (packet.ended) rec = null;
+  }
   if (bot) {
     const mem = mems[viewer] || (mems[viewer] = {});
     observe(packet, mem);
@@ -51,7 +62,7 @@ function emit(viewer, packet) {
     // Let the UI paint before the bot answers.
     setTimeout(() => {
       if (!host || !host.pending || host.pending.player !== viewer) return;
-      const ans = botAnswer(host.pending.msg, { mode: bot, db, view: packet, hint: packet.prompt.hint, mem: mems[viewer], retry: retries[viewer] || 0 });
+      const ans = botAnswer(host.pending.msg, { mode: bot, db, view: packet, hint: packet.prompt.hint, mem: mems[viewer], retry: retries[viewer] || 0, book, hints });
       const err = ans ? host.respond(viewer, ans) : "bot could not answer";
       if (err) post({ t: "error", team: viewer, error: "Bot: " + err });
     }, bot === "passive" ? 30 : bot === "smart" ? 260 : 120);
@@ -66,17 +77,34 @@ self.onmessage = async (ev) => {
       if (host) { host.destroy(); host = null; }
       bots = m.bots || {}; mems = {}; retries = {};
       const codes = m.decks.flatMap((d) => [...d.main, ...d.extra]);
+      book = new Book().mergeRows(m.book || null);
+      hints = comboHints(db, codes);
+      rec = m.learn === false ? null : new Recorder();
       core.missing.clear();
       await store.preload(codes, (done, total) => post({ t: "progress", done, total }));
       host = new DuelHost({ core, db, scripts: store, decks: m.decks, names: m.names, options: m.options, emit });
       host.start();
     } else if (m.cmd === "respond") {
       if (!host) return;
+      // Record a person's choice against the board it was made on.
+      if (rec && !bots[m.team] && host.pending && host.pending.player === m.team && m.resp && m.resp.t === host.pending.msg.type)
+        rec.answer(m.team, host.pending.msg, m.resp, host.pending.hint);
       const err = host.respond(m.team, m.resp);
       if (err) post({ t: "error", team: m.team, error: err });
     } else if (m.cmd === "surrender") {
       if (host) host.surrender(m.team);
+    } else if (m.cmd === "train") {
+      // Practice games for a deck (run in a separate worker so they never slow down a real duel).
+      if (training) return;
+      training = true;
+      const pbook = new Book().mergeRows(m.book || null);
+      const rows = await practice({ core, db, scripts: store, deck: m.deck, book: pbook, duels: m.duels || 3,
+        onDuel: (n, all) => post({ t: "progress", done: n, total: m.duels || 3 }) });
+      if (hasRows(rows)) post({ t: "learn", rows, source: "practice" });
+      post({ t: "trained", lines: rows.seq.length + rows.pick.length + rows.resp.length });
+      training = false;
     } else if (m.cmd === "stop") {
+      if (rec) { const rows = rec.flush(); if (hasRows(rows)) post({ t: "learn", rows, source: "play" }); rec = null; }
       if (host) host.destroy();
       host = null;
     }

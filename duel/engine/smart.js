@@ -9,10 +9,14 @@
 //     view: the packet DuelHost.broadcast() built for this seat ({ state, turn, turnPlayer, phase, events })
 //     hint: the selection hint for this prompt (HINTMSG_* number as a string), if any
 //     mem:  a plain object kept for the whole duel (the bot's memory)
+//     book: optional play book (learn.js) with lines learned from people and practice games
+//     hints: optional Map(srcCode -> Set(codes)) of combo links read from card text
+//     explore: optional chance (0..1) of trying a different play, used in practice games
 import { MSG, IDLE, BATTLE_ACT, TYPE, PHASE, LOCATION_HAND, LOCATION_MZONE, LOCATION_SZONE, LOCATION_GRAVE, LOCATION_REMOVED,
   LOCATION_EXTRA, LOCATION_DECK, POS_FACEUP_ATTACK, POS_FACEUP_DEFENSE, POS_FACEDOWN_DEFENSE, POS_FACEDOWN_ATTACK, POS_FACEUP,
   POS_FACEDOWN, POS_DEFENSE } from "./constants.js";
 import { placesFromMask, findSum } from "./rules.js";
+import { idleToken, chainToken, codeOf } from "./learn.js";
 
 // Selection hints (HINTMSG_* in CardScripts/constant.lua)
 const H = { RELEASE: 500, DISCARD: 501, DESTROY: 502, REMOVE: 503, TOGRAVE: 504, RTOHAND: 505, ATOHAND: 506, TODECK: 507, SUMMON: 508,
@@ -102,7 +106,7 @@ function fieldCard(ctx, sel) {
 function turnMem(ctx) {
   const m = ctx.mem;
   const t = ctx.view ? ctx.view.turn : 0;
-  if (m.turn !== t) { m.turn = t; m.used = new Map(); m.idle = 0; m.plan = null; }
+  if (m.turn !== t) { m.turn = t; m.used = new Map(); m.idle = 0; m.plan = null; m.seq = []; }
   return m;
 }
 const keyOf = (a) => `${a.code}:${a.location}:${a.sequence}:${a.description || ""}`;
@@ -210,6 +214,35 @@ function worthActivating(a, c, s) {
   return true;
 }
 
+/** Follow a learned line: the play people (or practice games) made next from this point of the turn. */
+function learnedIdle(msg, ctx, m) {
+  if (!ctx.book) return null;
+  const seq = m.seq, p1 = seq[seq.length - 1] || "", p2 = seq[seq.length - 2] || "";
+  let best = null;
+  const lists = [[IDLE.ACTIVATE, msg.activates], [IDLE.SPSUMMON, msg.special_summons], [IDLE.SUMMON, msg.summons], [IDLE.MSET, msg.monster_sets], [IDLE.SSET, msg.spell_sets]];
+  for (const [action, arr] of lists) arr.forEach((_, index) => {
+    const tok = idleToken(msg, { action, index });
+    const n = tok ? ctx.book.seqScore(p2, p1, tok) : 0;
+    if (n >= 0.9 && (m.used.get("learn:" + tok) || 0) < 2 && (!best || n > best.n)) best = { action, index, tok, n };
+  });
+  if (!best) return null;
+  m.used.set("learn:" + best.tok, (m.used.get("learn:" + best.tok) || 0) + 1);
+  return { action: best.action, index: best.index };
+}
+/** Practice games only: now and then try another legal play, so new lines can be discovered. */
+function exploreIdle(msg, ctx, m) {
+  const rnd = ctx.rnd || Math.random;
+  if (!ctx.explore || rnd() >= ctx.explore) return null;
+  const opts = [];
+  [[IDLE.ACTIVATE, msg.activates], [IDLE.SPSUMMON, msg.special_summons], [IDLE.SUMMON, msg.summons]].forEach(([action, arr]) => arr.forEach((a, index) => {
+    if ((m.used.get("x:" + keyOf(a)) || 0) < 1) opts.push({ action, index, k: "x:" + keyOf(a) });
+  }));
+  if (!opts.length) return null;
+  const o = opts[Math.floor(rnd() * opts.length)];
+  m.used.set(o.k, 1);
+  return { action: o.action, index: o.index };
+}
+
 // ---------------------------------------------------------------------------
 // Battle phase
 function battle(msg, ctx) {
@@ -271,6 +304,19 @@ function chain(msg, ctx) {
     if (RX.search.test(t) || RX.spsummon.test(t)) v += 15;
     return v;
   };
+  // Learned answers: what people (or practice games) chained to this card, or to an attack.
+  if (ctx.book) {
+    const trig = oppActing ? last.code : (!last && attacked ? 0 : null);
+    if (trig != null) {
+      const r = opts.map((x) => ({ x, n: ctx.book.respScore(trig, x.s.code) })).sort((a, b) => b.n - a.n)[0];
+      if (r && r.n >= 0.9 && once(m, "lresp:" + keyOf(r.x.s) + ":" + ch.length)) return { index: r.x.index };
+    }
+    if (myTurn && !oppActing) {
+      const seq = m.seq || [], p1 = seq[seq.length - 1] || "", p2 = seq[seq.length - 2] || "";
+      const r = opts.map((x) => ({ x, n: ctx.book.seqScore(p2, p1, chainToken(x.s)) })).sort((a, b) => b.n - a.n)[0];
+      if (r && r.n >= 0.9 && once(m, "lchain:" + keyOf(r.x.s), 2)) return { index: r.x.index };
+    }
+  }
   opts.sort((x, y) => score(y) - score(x));
   const best = opts[0];
   if (!best) return { index: null };
@@ -298,13 +344,22 @@ function polarity(hint, sels, me) {
 function rank(sels, mode, me, ctx) {
   const { db } = ctx;
   const plan = ctx.mem.plan;
+  const ch = ctx.view && ctx.view.state ? ctx.view.state.chain || [] : [];
+  const top = ch.length ? ch[ch.length - 1] : null;
+  const src = top && top.controller === me && top.code ? top.code : ctx.mem.lastSrc || 0;
+  const linked = ctx.hints && src ? ctx.hints.get(src) : null;
   return sels.map((s, i) => {
     const v = value(db, s, ctx);
     let score;
+    const knows = !!(ctx.book && src && ctx.book.knowsPick(src, ctx.hint));
     if (mode === "cost") score = s.controller === me ? -v : -v - 5000; // never pay with the opponent's... (rare) prefer own cheapest
     else if (mode === "harm") score = s.controller !== me ? v + 10000 : -v;
     else score = s.controller === me || s.location === LOCATION_GRAVE || s.location === LOCATION_REMOVED ? v : v - 3000; // reviving their best monster is as good as ours
     if (plan && plan.target != null && s.location === LOCATION_MZONE && s.controller !== me && s.sequence === plan.target) score += 1e6;
+    if (knows && s.code) {                                                  // how people choose for this card's effect
+      const rate = ctx.book.pickRate(src, ctx.hint, s.code);
+      score = (rate == null ? 0.2 : rate) * 1e6 + score / 100;
+    } else if (linked && mode === "gain" && linked.has(s.code)) score += 1e5;  // the card its text names
     return { i, score };
   }).sort((a, b) => b.score - a.score).map((x) => x.i);
 }
@@ -366,10 +421,21 @@ export function smartAnswer(msg, ctx) {
   ctx.mem = ctx.mem || {};
   let r = null;
   switch (msg.type) {
-    case MSG.SELECT_IDLECMD: r = idle(msg, ctx); break;
+    case MSG.SELECT_IDLECMD: {
+      const m = turnMem(ctx);
+      r = learnedIdle(msg, ctx, m) || exploreIdle(msg, ctx, m) || idle(msg, ctx);
+      const tok = r ? idleToken(msg, r) : null;
+      if (tok) { m.seq.push(tok); ctx.mem.lastSrc = codeOf(tok); }
+      break;
+    }
     case MSG.SELECT_BATTLECMD: r = battle(msg, ctx); break;
-    case MSG.SELECT_CHAIN: r = chain(msg, ctx); break;
-    case MSG.SELECT_EFFECTYN: r = { yes: true }; break;
+    case MSG.SELECT_CHAIN: {
+      r = chain(msg, ctx);
+      const sel = r && r.index != null ? msg.selects[r.index] : null;
+      if (sel) { ctx.mem.lastSrc = sel.code; if (ctx.view && ctx.view.turnPlayer === msg.player) turnMem(ctx).seq.push(chainToken(sel)); }
+      break;
+    }
+    case MSG.SELECT_EFFECTYN: r = { yes: true }; if (msg.code) ctx.mem.lastSrc = msg.code; break;
     case MSG.SELECT_YESNO: r = { yes: true }; break;
     case MSG.SELECT_OPTION: r = { index: 0 }; break;
     case MSG.SELECT_CARD: r = selectCard(msg, ctx); break;
