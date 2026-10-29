@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+# License & permissions: https://kodex.meiocg.org/license

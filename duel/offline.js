@@ -4,6 +4,7 @@
 //  - #prepare=<payload>: the KodeX app sends all of its decks, which are stored here and then saved for offline play
 //  - ?app=1: opened from inside the KodeX app, so the "KodeX" links return to the app
 import { ScriptStore } from "./engine/data.js";
+import { SITE } from "./site.js";
 
 const BASE = new URL("./", import.meta.url).href;
 const SCRIPT_CACHE = "arena-scripts", ART_CACHE = "arena-art", SHELL_PREFIX = "arena-shell-";
@@ -66,8 +67,10 @@ export async function saveForOffline(onProgress) {
   const names = [...store.utilPath.keys()];
   for (const c of store.closure(codes)) names.push(`c${c}.lua`);
   const jobs = [];
-  for (const n of names) { const p = store.pathFor(n); if (p) jobs.push([SCRIPT_CACHE, `${BASE}scripts/${index.commit}/${p}`]); }
-  for (const c of codes) jobs.push([ART_CACHE, `${location.origin}/img/${c}.jpg`]);
+  // Inside the KodeX app every script already ships with the Arena: only the card art needs saving.
+  const bundled = await fetch(BASE + "data/bundled.json").then((r) => r.ok).catch(() => false);
+  if (!bundled) for (const n of names) { const p = store.pathFor(n); if (p) jobs.push([SCRIPT_CACHE, `${BASE}scripts/${index.commit}/${p}`]); }
+  for (const c of codes) jobs.push([ART_CACHE, `${SITE}/img/${c}.jpg`]);
   let done = 0, failed = 0, i = 0;
   const worker = async () => {
     while (i < jobs.length) {

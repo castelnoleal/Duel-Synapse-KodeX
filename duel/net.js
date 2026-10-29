@@ -1,8 +1,10 @@
 // Room connection through the Duel Synapse relay (Cloudflare Durable Object at /api/duel/room/<code>).
+import { SITE } from "./site.js";
 export function roomUrl(code, role, name) {
-  const proto = location.protocol === "https:" ? "wss:" : "ws:";
+  const u = new URL(SITE);
+  const proto = u.protocol === "https:" ? "wss:" : "ws:";
   const q = new URLSearchParams({ role, name: name.slice(0, 24) });
-  return `${proto}//${location.host}/api/duel/room/${encodeURIComponent(code)}?${q}`;
+  return `${proto}//${u.host}/api/duel/room/${encodeURIComponent(code)}?${q}`;
 }
 
 export function newRoomCode() {

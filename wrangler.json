@@ -31,6 +31,14 @@
     {
       "pattern": "kodex.meiocg.org/img/*",
       "zone_name": "meiocg.org"
+    },
+    {
+      "pattern": "kodex.meiocg.org/license",
+      "zone_name": "meiocg.org"
+    },
+    {
+      "pattern": "kodex.meiocg.org/license.html",
+      "zone_name": "meiocg.org"
     }
   ],
   "durable_objects": {

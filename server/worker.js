@@ -234,6 +234,15 @@ export default {
         });
       }
 
+      if (url.pathname === "/license" || url.pathname === "/license.html" || url.pathname === "/LICENSE") {
+        const response = await githubFile("license.html", env, 3600);
+        return withHeaders(response, {
+          "Content-Type": "text/html; charset=utf-8",
+          "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400",
+          "X-Content-Type-Options": "nosniff",
+        });
+      }
+
       if (url.pathname === "/privacy-policy.html" || url.pathname === "/privacy-policy") {
         const response = await githubFile("privacy-policy.html", env, 3600);
         return withHeaders(response, {
