@@ -1,10 +1,11 @@
 // Synapse AI learning, page side: keeps this device's play book, merges the shared book from
 // kodex.meiocg.org for the decks in a duel, sends new lines back anonymously, and runs practice
 // games for a newly loaded deck in a background worker.
+import { SITE } from "./site.js";
 import { Book } from "./engine/learn.js";
 
 const KEY = "synapse-book-v1", OUTBOX = "synapse-book-outbox", SHARE = "synapse-share", PRACTICED = "synapse-practiced";
-const API = new URL("/api/duel/book", /^https?:/.test(location.origin) ? location.origin : "https://kodex.meiocg.org").toString();
+const API = new URL("/api/duel/book", SITE).toString();
 const MAX_LOCAL = 25000, MAX_OUTBOX = 4000, PRACTICE_EVERY = 7 * 864e5;
 
 const store = {

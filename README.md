@@ -1,5 +1,9 @@
 # Duel Synapse: KodeX by MEIOCG
 
+> **© 2023–2026 Meta Insider OCG (MEIOCG). All rights reserved. Not open source.**
+> This repository is public to read, not to reuse. Copying, forking for reuse, modifying, redistributing or republishing any part of KodeX needs written permission first: **metainsiderocg@gmail.com** (subject "KodeX permission request").
+> Full terms: [LICENSE.md](LICENSE.md) · https://kodex.meiocg.org/license
+
 Private, centralized card-data and ruling repository powering Duel Synapse and related MEIOCG applications.
 
 ## Repository status

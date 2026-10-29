@@ -1,6 +1,7 @@
 // Duel Synapse Arena — browser client.
 // Modes: solo playtest (engine in a Web Worker), online host (engine in the host's worker,
 // relayed through the Worker's Durable Object), online guest and spectator.
+import { SITE, BUNDLED } from "./site.js";
 import { CardDB, attributeName, raceName } from "./engine/data.js";
 import * as C from "./engine/constants.js";
 import { isDeclarable, placesFromMask, sumValid } from "./engine/rules.js";
@@ -12,7 +13,7 @@ const M = C.MSG;
 const $ = (s) => document.querySelector(s);
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 const BASE = new URL("./", import.meta.url).href;
-const OWN_HOST = location.hostname === "kodex.meiocg.org";
+const OWN_HOST = location.hostname === "kodex.meiocg.org" || BUNDLED;
 const FILLER = 15025844; // Mystical Elf: vanilla filler for the dummy opponent
 
 const S = {
@@ -29,7 +30,7 @@ function toast(text, ms = 2600) {
   t.textContent = text; t.classList.add("on");
   clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("on"), ms);
 }
-function imgUrl(code) { return OWN_HOST ? `/img/${code}.jpg` : `https://images.ygoprodeck.com/images/cards_small/${code}.jpg`; }
+function imgUrl(code) { return OWN_HOST ? `${SITE}/img/${code}.jpg` : `https://images.ygoprodeck.com/images/cards_small/${code}.jpg`; }
 function cardImg(code, alt = "") {
   const c = S.db && S.db.get(code);
   const art = c && c.alias && Math.abs(c.alias - code) < 20 ? code : code; // alt arts have their own art ids
@@ -268,8 +269,8 @@ function bindLobby() {
   $("#hostOpen").addEventListener("click", openRoom);
   $("#hostClose").addEventListener("click", closeRoom);
   $("#hostStart").addEventListener("click", hostStartDuel);
-  $("#copyInvite").addEventListener("click", () => copy(`${location.origin}${location.pathname}#join=${S.room.code}`, "Invite link copied."));
-  $("#copyWatch").addEventListener("click", () => copy(`${location.origin}${location.pathname}#watch=${S.room.code}`, "Spectator link copied."));
+  $("#copyInvite").addEventListener("click", () => copy(`${BUNDLED ? SITE + "/duel/" : location.origin + location.pathname}#join=${S.room.code}`, "Invite link copied."));
+  $("#copyWatch").addEventListener("click", () => copy(`${BUNDLED ? SITE + "/duel/" : location.origin + location.pathname}#watch=${S.room.code}`, "Spectator link copied."));
   $("#joinBtn").addEventListener("click", () => join($("#joinCode").value.trim().toUpperCase()));
   $("#watchBtn").addEventListener("click", () => watch($("#joinCode").value.trim().toUpperCase()));
 }
@@ -522,9 +523,9 @@ function bindTable() {
       d.append(b);
     }
   }).observe($("#sheetBody"), { childList: true, subtree: true });
-  $("#closeInfo").addEventListener("click", () => $("#info").classList.remove("open"));
-  document.addEventListener("click", (e) => { const i = $("#info"); if (i.classList.contains("open") && !i.contains(e.target) && !e.target.closest(".c, .card, .chain-stack li, .menu")) i.classList.remove("open"); });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("#info").classList.remove("open"); });
+  $("#closeInfo").addEventListener("click", closeInfo);
+  document.addEventListener("click", (e) => { const i = $("#info"); if (i.classList.contains("open") && !i.contains(e.target) && !e.target.closest(".c, .card, .chain-stack li, .menu")) closeInfo(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeInfo(); });
   $("#sheetMin").addEventListener("click", () => { const s = $("#sheet"); s.classList.toggle("min"); $("#sheetMin").textContent = s.classList.contains("min") ? "▴" : "▾"; });
   document.addEventListener("click", (e) => { if (!e.target.closest(".menu") && !e.target.closest(".card")) hideMenu(); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") hideMenu(); });
@@ -726,11 +727,36 @@ function render(p) {
 function setStatus(t) { $("#status").textContent = t; }
 
 // ----- card info -----
+// Card details always sit on top. An open pop-up (a modal <dialog>, e.g. the Extra Deck or GY list) is drawn in the
+// browser's top layer, above any z-index, so while one is open the details move into their own modal on top of it.
+function otherModalOpen() {
+  try { return [...document.querySelectorAll("dialog:modal")].some((d) => d.id !== "infoTop"); }
+  catch (e) { return [...document.querySelectorAll("dialog[open]")].some((d) => d.id !== "infoTop"); }
+}
+function infoTop() {
+  let d = $("#infoTop");
+  if (d) return d;
+  d = document.createElement("dialog"); d.id = "infoTop"; d.className = "info-top"; d.setAttribute("aria-label", "Card details");
+  const i = $("#info"), home = i.parentNode, next = i.nextSibling;
+  d.addEventListener("close", () => { i.classList.remove("open"); home.insertBefore(i, next); });
+  d.addEventListener("click", (e) => { if (e.target === d) d.close(); });
+  document.body.append(d);
+  return d;
+}
+function openInfo() {
+  const i = $("#info");
+  if (otherModalOpen()) { const d = infoTop(); if (i.parentNode !== d) d.append(i); if (!d.open) d.showModal(); }
+  i.classList.add("open");
+}
+function closeInfo() {
+  $("#info").classList.remove("open");
+  const d = $("#infoTop"); if (d && d.open) d.close();
+}
 function showInfo(c, team, location, open = true) {
   if (!c || !c.code) return;
   const panel = $("#info");
   if (open === false && !panel.classList.contains("open")) return;
-  if (open === true) panel.classList.add("open");
+  if (open === true) openInfo();
   const data = S.db.get(c.code);
   const b = $("#infoBody");
   b.replaceChildren();
@@ -774,7 +800,10 @@ function showInfo(c, team, location, open = true) {
   if (c.status & C.STATUS_DISABLED) extra.push("Effects negated");
   for (const x of extra) b.append(el("div", "info-extra", x));
   const a = el("a", "info-link", "Open rulings in KodeX");
-  a.href = `/#card=${data && data.alias && Math.abs(data.alias - c.code) < 20 ? data.alias : c.code}`; a.target = "_blank"; a.rel = "noopener";
+  const cid = data && data.alias && Math.abs(data.alias - c.code) < 20 ? data.alias : c.code;
+  a.href = `${BUNDLED ? SITE : ""}/#card=${cid}`; a.target = "_blank"; a.rel = "noopener";
+  // Inside the KodeX app the app itself shows the card.
+  if (window.parent !== window) a.addEventListener("click", (e) => { e.preventDefault(); window.parent.postMessage({ kx: "card", id: cid }, "*"); });
   b.append(a);
 }
 const countBits = (n) => { let k = 0; while (n) { k += n & 1; n >>>= 1; } return k; };
@@ -801,7 +830,7 @@ function onCardClick(c, team, location, seq, d) {
   if (S.sel && S.sel.byKey && S.sel.byKey.has(k)) { S.sel.pickKey(k); return; }
   const acts = S.actions && S.actions.get(k);
   if (acts && acts.length) { showMenu(d, c, acts); return; }
-  if (peek) $("#info").classList.add("open");
+  if (peek) openInfo();
   const pile = { [C.LOCATION_GRAVE]: "grave", [C.LOCATION_REMOVED]: "banished", [C.LOCATION_EXTRA]: "extra" }[location];
   if (pile) openPile(team, pile);
 }
@@ -817,7 +846,7 @@ function showMenu(anchor, c, acts) {
   }
   if (c && c.code) {
     const info = el("button", null, "Card details"); info.type = "button";
-    info.addEventListener("click", () => { hideMenu(); $("#info").classList.add("open"); });
+    info.addEventListener("click", () => { hideMenu(); openInfo(); });
     m.append(info);
   }
   m.hidden = false;
@@ -1354,3 +1383,16 @@ function showResult(p) {
 
 window.__duel = S; // for automated tests and debugging
 boot();
+
+// ----- skins from KodeX Premium (when the Arena runs inside the app): your sleeves, and pictures for your Deck and Extra Deck zones
+const skinOk = (u) => typeof u === "string" && (/^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(u) || /^https:\/\/[^\s"'()<>\\]+$/.test(u));
+window.addEventListener("message", (e) => {
+  if (window.parent === window || e.source !== window.parent) return;
+  const d = e.data;
+  if (!d || d.kx !== "skin") return;
+  const r = document.documentElement;
+  for (const [k, v, cls] of [["--kx-sleeve", d.sleeve, "kx-sleeve"], ["--kx-deck", d.main, "kx-deck"], ["--kx-extra", d.extra, "kx-extra"]]) {
+    if (skinOk(v)) { r.style.setProperty(k, `url("${v}")`); r.classList.add(cls); } else { r.style.removeProperty(k); r.classList.remove(cls); }
+  }
+});
+if (window.parent !== window) window.parent.postMessage({ kx: "ready" }, "*");

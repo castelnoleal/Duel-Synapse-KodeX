@@ -1,6 +1,6 @@
 # Duel Synapse: KodeX app
 
-`Kodex_Mei_Production_v47.html` is the current source (older versions are kept alongside it) of the **Meiocg KodeX** Android app (`com.duelsynapse.kodex`). It's built with instApped: upload this file as the project's HTML source.
+`Kodex_Mei_Production_v48.html` (free) and `Kodex_Mei_Premium_v48.html` (Premium) are the current source (older versions are kept alongside it) of the **Meiocg KodeX** Android app (`com.duelsynapse.kodex`). It's built with instApped: upload this file as the project's HTML source.
 
 It loads cards and rulings from https://kodex.meiocg.org.
 
@@ -38,3 +38,14 @@ Test: `node tests/app/app-scan.e2e.mjs` runs the app (artwork, text, Japanese ca
 **v46:** online lookup (see *Card scanner*). The offline photo search now needs a much closer picture match before it names a card, and no longer lists weak guesses.
 
 **v47:** the sponsor strip stays visible on every screen: panels, pop-ups, the scanner and the Arena all open below it (`--adh` follows the strip's real height). Filters are a small bubble at the lower right (hidden while a panel is open); the bottom tab that held them is now **Test**, which opens the Duel Arena. Settings: *Persistent storage* is gone from the System Check, and a **Premium** row opens *Remove ads* / *Premium* (both marked Coming soon).
+
+**v48 (8.2):** two editions from one source, told apart by `<meta name="kodex-edition">`:
+- **Free** (`Kodex_Mei_Production_v48.html`): as v47.
+- **Premium** (`Kodex_Mei_Premium_v48.html`): Settings › Premium › **Skins** sets pictures for the Main, Extra and Side Deck and card **sleeves** (premade skins from the Skin Injector, or the player's own from the gallery, stored on the device). Deck sections show their skin; in the Duel Arena your face-down cards use your sleeve and your Deck / Extra Deck zones show their skins. *EDOPro cross-play* is listed as coming soon.
+
+The Arena now ships **inside the app**. Build the instApped upload with
+`python3 scripts/build_app_bundle.py app/Kodex_Mei_Production_v48.html KodeX_v48.zip` (or the Premium file): a ZIP with `index.html`, the Arena in `duel/` and all 13,700 card scripts packed into `duel/data/scripts.pack.bin` (about 7 MB in total). instApped serves it from `https://appassets.androidplatform.net/`, so the Test tab opens the Arena with no connection and no connection check. Online rooms, the shared play book and card art still use kodex.meiocg.org. Without the ZIP (page only), the app opens the Arena from kodex.meiocg.org as before.
+
+In the Arena, card details now always open on top of pop-ups such as the Extra Deck, GY and banished lists.
+
+License: [LICENSE.md](../LICENSE.md) (all rights reserved; permission via metainsiderocg@gmail.com), shown in the app under Legal & Privacy and at https://kodex.meiocg.org/license.

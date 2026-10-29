@@ -46,6 +46,9 @@ The Arena reads the same deck payload as `deck.html`: base64url of `{"n": name, 
 
 ## Offline play
 
+**Inside the KodeX app** (`scripts/build_app_bundle.py`), the Arena's files ship with the app and every card script is packed into `data/scripts.pack.bin` (gzip, unpacked once by the engine worker on the first script a duel needs) with its index `data/scripts.pack.json`; `data/bundled.json` marks the bundle. `site.js` sends rooms, the play book and card art to kodex.meiocg.org when the Arena isn't served from it.
+
+
 `sw.js` (scope `/duel/`) keeps the engine, card data, UI files, card scripts and card art on the device, so solo playtests against Synapse AI, the dummy and the random bot work without a connection. Online rooms always need the network.
 `offline.js` registers it and adds the **Offline play** panel to the lobby: **Save decks for offline** stores the scripts and art for every deck saved in the Arena.
 Scripts are pinned to a commit and never change. Bump `VERSION` in `sw.js` when the engine or data files change.

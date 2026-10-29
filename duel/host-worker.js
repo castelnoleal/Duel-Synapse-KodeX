@@ -20,6 +20,29 @@ async function getJSON(url) {
   return r.json();
 }
 
+// When the Arena is bundled inside the KodeX app, every card script ships with it in one compressed file
+// (data/scripts.pack.bin, gzip) with an index (data/scripts.pack.json). It is unpacked once, on the first script a
+// duel needs, so the Arena works with no connection at all. On the website the files don't exist and this is skipped.
+async function scriptPack(base, commit) {
+  if (typeof DecompressionStream === "undefined") return null;
+  let idx;
+  try { const r = await fetch(base + "data/scripts.pack.json"); if (!r.ok) return null; idx = await r.json(); } catch (e) { return null; }
+  if (!idx || idx.commit !== commit || !idx.files) return null;
+  let bytes = null, loading = null;
+  const load = () => loading || (loading = (async () => {
+    const r = await fetch(base + "data/scripts.pack.bin");
+    if (!r.ok) throw new Error("script pack " + r.status);
+    bytes = new Uint8Array(await new Response(r.body.pipeThrough(new DecompressionStream("gzip"))).arrayBuffer());
+  })().catch((e) => { loading = null; throw e; }));
+  const dec = new TextDecoder();
+  return async (p) => {
+    const e = idx.files[p];
+    if (!e) return undefined;
+    try { await load(); } catch (err) { return undefined; }
+    return dec.decode(bytes.subarray(e[0], e[0] + e[1]));
+  };
+}
+
 async function init(base) {
   const [cards, strings, index] = await Promise.all([
     getJSON(base + "data/cards.json"), getJSON(base + "data/strings.json"), getJSON(base + "data/scripts.json")]);
@@ -29,7 +52,9 @@ async function init(base) {
     (p) => `https://cdn.jsdelivr.net/gh/${index.repo}@${index.commit}/${p}`,
   ];
   let preferred = 0;
+  const pack = await scriptPack(base, index.commit);
   store = new ScriptStore(index, async (p) => {
+    if (pack) { const t = await pack(p); if (t !== undefined) return t; }
     for (let k = 0; k < sources.length; k++) {
       const i = (preferred + k) % sources.length;
       try {
