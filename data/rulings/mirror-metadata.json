@@ -1,9 +1,9 @@
 {
   "schema": 4,
-  "cards": 8605,
+  "cards": 8624,
   "qas": 11508,
-  "api_cache_files": 11624,
+  "api_cache_files": 11628,
   "parent": "https://github.com/db-ygoresources-com/yugioh-qa-history",
   "api": "https://db.ygoresources.com",
-  "generated_utc": "2026-10-29T22:46:01.571142+00:00"
+  "generated_utc": "2026-10-30T05:51:17.619313+00:00"
 }
