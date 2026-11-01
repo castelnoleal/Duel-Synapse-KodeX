@@ -378,7 +378,8 @@ function onHostMessage(m) {
       toast(`${S.guest ? S.guest.name : "Your opponent"} wants a rematch.`);
     }
   }
-  if (msg.t === "chat") addChat(m.name, msg.text);
+  if (msg.t === "chat") addChat(m.name, msg.text, true);
+  if (msg.t === "replayreq" && m.from === "guest") sendReplay("guest");
 }
 function showGuest() {
   const g = S.guest;
@@ -437,7 +438,8 @@ function onGuestMessage(m) {
   if (msg.t === "start") { if (msg.hostTeam === 0 || msg.hostTeam === 1) S.specHostTeam = msg.hostTeam; if ($("#table").hidden) enterTable(); S.log = []; $("#log").replaceChildren(); addLog(`${msg.first} goes first.`, "sys"); $("#result").hidden = true; }
   else if (msg.t === "packet") { if ($("#table").hidden) enterTable(); const t = msg.packet.viewer === 2 ? 0 : msg.packet.viewer; if (t !== S.team) { S.team = t; applySkins(); } onPacket(msg.packet); }
   else if (msg.t === "error") toast(msg.error);
-  else if (msg.t === "chat") addChat(m.name, msg.text);
+  else if (msg.t === "chat") addChat(m.name, msg.text, true);
+  else if (msg.t === "replay" && typeof msg.b64 === "string" && msg.b64.length < 400000) saveFile(msg.name || "duel.yrp", "data:application/octet-stream;base64," + msg.b64);
   else if (msg.t === "lobby" && S.mode === "guest") $("#joinStatus").textContent = `Joined ${msg.host}'s room. Waiting for them to start…`;
 }
 function netStatus(s, err) {
@@ -481,8 +483,13 @@ function onWorker(m) {
 
 // ---------------------------------------------------------------------------
 // Table
+function duelState(active) {
+  S.active = active;
+  if (window.parent !== window) window.parent.postMessage({ kx: "duel", active }, "*");
+}
 function enterTable() {
   $("#lobby").hidden = true; $("#table").hidden = false; $("#result").hidden = true;
+  duelState(true); S.unread = 0; badge(); toggleSide(false);
   S.packet = null; S.log = []; S.fullLog = []; S.prevLP = [null, null];
   $("#log").replaceChildren();
   buildField();
@@ -491,6 +498,7 @@ function enterTable() {
   window.scrollTo(0, 0);
 }
 function leaveTable() {
+  duelState(false);
   if (S.mode === "solo") S.worker.postMessage({ cmd: "stop" });
   if (S.mode === "guest" || S.mode === "spec") { if (S.room) S.room.close(); S.room = null; netStatus(null); }
   if (S.mode === "host") { S.worker.postMessage({ cmd: "stop" }); S.packet = null; }
@@ -501,8 +509,8 @@ function leaveTable() {
 }
 
 function bindTable() {
-  document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => {
-    document.querySelectorAll(".tabs button").forEach((x) => x.setAttribute("aria-selected", String(x === b)));
+  document.querySelectorAll(".tabs [data-tab]").forEach((b) => b.addEventListener("click", () => {
+    document.querySelectorAll(".tabs [data-tab]").forEach((x) => x.setAttribute("aria-selected", String(x === b)));
     document.querySelectorAll("[data-pane]").forEach((p) => { p.hidden = p.dataset.pane !== b.dataset.tab; });
   }));
   $("#chatForm").addEventListener("submit", (e) => {
@@ -510,12 +518,12 @@ function bindTable() {
     const text = $("#chatInput").value.trim();
     if (!text) return;
     $("#chatInput").value = "";
-    addChat(myName(), text);
+    addChat(myName(), text, false);
     if (S.room) S.room.send({ to: "all", m: { t: "chat", text } });
   });
-  $("#surrenderBtn").addEventListener("click", () => {
+  $("#surrenderBtn").addEventListener("click", async () => {
     if (!S.packet || S.packet.ended || S.mode === "spec") return;
-    if (!confirm("Surrender this duel?")) return;
+    if (!(await ask("Surrender this duel?", "You lose this duel.", "Surrender"))) return;
     if (S.mode === "guest") S.room.send({ to: "host", m: { t: "surrender" } });
     else S.worker.postMessage({ cmd: "surrender", team: S.team });
   });
@@ -525,6 +533,13 @@ function bindTable() {
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   });
   $("#rematchBtn").addEventListener("click", rematch);
+  $("#sideFab").addEventListener("click", () => toggleSide());
+  $("#sideClose").addEventListener("click", () => toggleSide(false));
+  $("#replayBtn").addEventListener("click", saveReplay);
+  $("#resultReplay").addEventListener("click", saveReplay);
+  $("#revealOk").addEventListener("click", () => $("#reveal").close());
+  $("#revealClose").addEventListener("click", () => $("#reveal").close());
+  try { new ResizeObserver(() => fabAboveSheet()).observe($("#sheet")); } catch (e) { /* older browsers */ }
   $("#leaveBtn").addEventListener("click", leaveTable);
   $("#pileClose").addEventListener("click", () => $("#pile").close());
   // every card offered in a prompt gets an info button, so its text can be read before choosing
@@ -537,7 +552,7 @@ function bindTable() {
     }
   }).observe($("#sheetBody"), { childList: true, subtree: true });
   $("#closeInfo").addEventListener("click", closeInfo);
-  document.addEventListener("click", (e) => { const i = $("#info"); if (i.classList.contains("open") && !i.contains(e.target) && !e.target.closest(".c, .card, .chain-stack li, .menu")) closeInfo(); });
+  document.addEventListener("click", (e) => { const i = $("#info"); if (i.classList.contains("open") && !i.contains(e.target) && !e.target.closest(".c, .card, .chain-stack li, .menu, .chain-card, dialog")) closeInfo(); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeInfo(); });
   $("#sheetMin").addEventListener("click", () => { const s = $("#sheet"); s.classList.toggle("min"); $("#sheetMin").textContent = s.classList.contains("min") ? "▴" : "▾"; });
   document.addEventListener("click", (e) => { if (!e.target.closest(".menu") && !e.target.closest(".card")) hideMenu(); });
@@ -655,6 +670,7 @@ function onPacket(p) {
   if (p.log && p.log.length) for (const l of p.log) addLog("Script: " + l, "sys");
   for (const e of p.events) logEvent(e, p);
   render(p, prev);
+  fxEvents(p);
   handlePrompt(p);
   if (p.ended) showResult(p);
 }
@@ -814,11 +830,11 @@ function showInfo(c, team, location, open = true) {
   if (c.counters && c.counters.length) extra.push("Counters: " + c.counters.map(([k, n]) => `${S.db.counter(k)} ×${n}`).join(", "));
   if (c.status & C.STATUS_DISABLED) extra.push("Effects negated");
   for (const x of extra) b.append(el("div", "info-extra", x));
-  const a = el("a", "info-link", "Open rulings in KodeX");
+  const a = el("a", "info-link", "Show rulings for this card");
   const cid = data && data.alias && Math.abs(data.alias - c.code) < 20 ? data.alias : c.code;
   a.href = `${BUNDLED ? SITE : ""}/#card=${cid}`; a.target = "_blank"; a.rel = "noopener";
   // Inside the KodeX app the app itself shows the card.
-  if (window.parent !== window) a.addEventListener("click", (e) => { e.preventDefault(); window.parent.postMessage({ kx: "card", id: cid }, "*"); });
+  if (window.parent !== window) a.addEventListener("click", (e) => { e.preventDefault(); window.parent.postMessage({ kx: "rulings", id: cid }, "*"); });
   b.append(a);
 }
 const countBits = (n) => { let k = 0; while (n) { k += n & 1; n >>>= 1; } return k; };
@@ -890,7 +906,8 @@ function openPile(team, kind) {
   if (kind !== "deck" && !list.length) body.append(el("p", "empty", "Empty."));
   for (const [c, i] of list) {
     const o = el("div", "opt");
-    const d = cardEl(c, team, loc, i);
+    const d = cardEl(c, team, loc, i, { static: true });
+    if (c && !c.hidden && c.code) d.addEventListener("click", (e) => { e.stopPropagation(); showInfo(c, team, loc, true); });
     o.append(d);
     const acts = S.actions && S.actions.get(key(team, loc, i));
     if (acts) {
@@ -899,6 +916,8 @@ function openPile(team, kind) {
     }
     body.append(o);
   }
+  $("#pile").classList.toggle("pile-extra", kind === "extra");
+  $("#pile").classList.toggle("pile-op", team !== S.team);
   $("#pile").showModal();
 }
 
@@ -1326,13 +1345,21 @@ function addLog(text, cls = "", codes = []) {
   while (log.children.length > 400) log.firstChild.remove();
   log.scrollTop = log.scrollHeight;
 }
-function addChat(who, text) {
+function addChat(who, text, fromOther) {
   const li = el("li"); li.append(el("b", null, who + ": "), String(text).slice(0, 200));
   $("#chatList").append(li); $("#chatList").scrollTop = 1e9;
   S.fullLog.push(`[chat] ${who}: ${text}`);
   const tab = document.querySelector('.tabs [data-tab="chat"]');
-  if (tab.getAttribute("aria-selected") !== "true") tab.textContent = "Chat •";
-  tab.onclick = () => { tab.textContent = "Chat"; };
+  const seen = $("#side").classList.contains("open") && tab.getAttribute("aria-selected") === "true";
+  if (!seen) { tab.textContent = "Chat •"; tab.onclick = () => { tab.textContent = "Chat"; }; }
+  if (fromOther && !seen) { S.unread = (S.unread || 0) + 1; badge(); notifyChat(who, text); }
+}
+function badge() { const b = $("#sideBadge"); b.hidden = !S.unread; b.textContent = S.unread > 9 ? "9+" : String(S.unread || 0); $("#sideFab").classList.toggle("ping", !!S.unread); }
+/** A new chat message while the player isn't looking: vibrate, and a system notification when the app is in the background. */
+function notifyChat(who, text) {
+  try { navigator.vibrate && navigator.vibrate([60, 40, 60]); } catch (e) { /* not supported */ }
+  if (window.parent !== window) { window.parent.postMessage({ kx: "chat", from: String(who).slice(0, 24), text: String(text).slice(0, 200) }, "*"); return; }
+  try { if (document.hidden && "Notification" in window && Notification.permission === "granted") new Notification(`${who} · Duel Synapse`, { body: String(text).slice(0, 200), tag: "duel-chat" }); } catch (e) { /* ignore */ }
 }
 const cn = (code) => (code ? `[[${code}]]` : "a face-down card");
 const PHASES = { 1: "Draw Phase", 2: "Standby Phase", 4: "Main Phase 1", 8: "Battle Phase", 0x10: "Battle Step", 0x20: "Damage Step", 0x40: "Damage Calculation", 0x80: "End of Battle", 0x100: "Main Phase 2", 0x200: "End Phase" };
@@ -1383,6 +1410,8 @@ function logEvent(e, p) {
 }
 
 function showResult(p) {
+  duelState(false);
+  $("#resultReplay").hidden = !(S.premium && S.mode !== "spec");
   setTimeout(() => Learning.flush(), 1500); // send what this duel taught
   const me = S.team;
   const w = p.ended.winner;
@@ -1396,14 +1425,141 @@ function showResult(p) {
   setTimeout(() => { $("#result").hidden = false; }, 700);
 }
 
+// ----- log & chat bubble -----
+function toggleSide(open) {
+  const s = $("#side"), on = open === undefined ? !s.classList.contains("open") : open;
+  s.classList.toggle("open", on);
+  $("#sideFab").setAttribute("aria-expanded", String(on));
+  if (on) {
+    const chatTab = document.querySelector('.tabs [data-tab="chat"]');
+    if (S.unread) chatTab.click();
+    if (chatTab.getAttribute("aria-selected") === "true") { chatTab.textContent = "Chat"; S.unread = 0; badge(); }
+    $("#log").scrollTop = 1e9; $("#chatList").scrollTop = 1e9;
+  }
+}
+/** Keeps the bubble above the prompt panel when one is open. */
+function fabAboveSheet() {
+  const sh = $("#sheet"), f = $("#sideFab");
+  f.style.bottom = sh.hidden ? "" : `${Math.round(window.innerHeight - sh.getBoundingClientRect().top + 10)}px`;
+}
+new MutationObserver(fabAboveSheet).observe(document.getElementById("sheet"), { attributes: true, attributeFilter: ["hidden", "class"] });
+
+// ----- in-page confirmation -----
+function ask(title, text, yes = "OK") {
+  return new Promise((done) => {
+    const d = $("#ask");
+    $("#askTitle").textContent = title; $("#askText").textContent = text || ""; $("#askYes").textContent = yes;
+    const end = (v) => { d.close(); done(v); };
+    $("#askYes").onclick = () => end(true); $("#askNo").onclick = () => end(false);
+    d.oncancel = (e) => { e.preventDefault(); end(false); };
+    d.showModal();
+  });
+}
+
+// ----- reveals and chains, shown as they happen -----
+const fxQueue = [];
+let fxBusy = false;
+function fxEvents(p) {
+  const shown = [];
+  for (const e of p.events) {
+    if (e.type === M.CONFIRM_CARDS || e.type === M.CONFIRM_DECKTOP || e.type === M.CONFIRM_EXTRATOP) {
+      const cards = (e.cards || []).filter((c) => c && c.code);
+      if (cards.length) shown.push({ player: e.player, cards });
+    } else if (e.type === M.CHAINING) fxQueue.push({ kind: "chain", e, name: p.names[e.controller] });
+    else if (e.type === M.CHAIN_SOLVING) fxQueue.push({ kind: "solve", n: e.chain_size });
+    else if (e.type === M.CHAIN_NEGATED || e.type === M.CHAIN_DISABLED) fxQueue.push({ kind: "negate", n: e.chain_size });
+  }
+  if (shown.length) showReveal(shown, p);
+  runFx();
+}
+function showReveal(groups, p) {
+  const d = $("#reveal"), body = $("#revealBody");
+  if (!d.open) body.replaceChildren();
+  for (const g of groups) {
+    for (const c of g.cards) {
+      const o = el("div", "opt");
+      const card = cardEl({ code: c.code, position: C.POS_FACEUP_ATTACK }, c.controller, c.location, c.sequence, { static: true });
+      card.addEventListener("click", (ev) => { ev.stopPropagation(); showInfo({ code: c.code }, c.controller, c.location, true); });
+      o.append(card, el("small", null, name(c.code)));
+      body.append(o);
+    }
+  }
+  const who = groups[0].cards[0].controller === S.team && S.mode !== "spec" ? "Your card" : `${p.names[groups[0].cards[0].controller] || "Opponent"}'s card`;
+  const n = body.children.length;
+  $("#revealTitle").textContent = n > 1 ? `Revealed (${n})` : `${who} revealed`;
+  if (!d.open) d.showModal();
+}
+function runFx() {
+  if (fxBusy || !fxQueue.length) return;
+  const f = fxQueue.shift();
+  if (f.kind !== "chain") {
+    const li = document.querySelectorAll("#chain li")[f.n - 1];
+    if (li) { li.classList.remove("solving", "negated"); void li.offsetWidth; li.classList.add(f.kind === "solve" ? "solving" : "negated"); }
+    runFx(); return;
+  }
+  fxBusy = true;
+  const e = f.e, box = $("#chainFx");
+  const card = el("button", "chain-card"); card.type = "button"; card.setAttribute("aria-label", `Chain ${e.chain_size}: ${name(e.code)}`);
+  card.append(cardImg(e.code, name(e.code)), el("b", null, String(e.chain_size)));
+  const cap = el("div", "chain-cap");
+  cap.append(el("strong", null, `Chain ${e.chain_size}`), el("span", null, `${e.controller === S.team && S.mode !== "spec" ? "You" : f.name} activated ${name(e.code)}`));
+  card.addEventListener("click", () => showInfo({ code: e.code }, e.controller, e.location, true));
+  const wrap = el("div", "chain-show"); wrap.append(card, cap);
+  box.replaceChildren(wrap);
+  requestAnimationFrame(() => wrap.classList.add("in"));
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  setTimeout(() => {
+    wrap.classList.add("out");
+    setTimeout(() => { wrap.remove(); fxBusy = false; runFx(); }, reduce ? 0 : 320);
+  }, reduce ? 500 : 1100);
+}
+
+// ----- replays for EDOPro (KodeX Premium) -----
+function replayName() {
+  const p = S.packet, n = p ? p.names : ["Duelist", "Opponent"], d = new Date(), z = (x) => String(x).padStart(2, "0");
+  const safe = (s) => String(s || "").replace(/[^\w-]+/g, "_").slice(0, 20) || "Duelist";
+  return `${safe(n[0])}_vs_${safe(n[1])}_${d.getFullYear()}${z(d.getMonth() + 1)}${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}.yrp`;
+}
+const b64 = (bytes) => { let s = ""; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(s); };
+function workerReplay() {
+  return new Promise((done) => {
+    const on = (ev) => { if (ev.data && ev.data.t === "replay") { S.worker.removeEventListener("message", on); done(ev.data.bytes || null); } };
+    S.worker.addEventListener("message", on);
+    S.worker.postMessage({ cmd: "replay" });
+    setTimeout(() => { S.worker.removeEventListener("message", on); done(null); }, 5000);
+  });
+}
+async function saveReplay() {
+  if (!S.premium) return;
+  if (S.mode === "guest") { S.room.send({ to: "host", m: { t: "replayreq" } }); toast("Asking the host for the replay…"); return; }
+  if (!S.worker) return;
+  const bytes = await workerReplay();
+  if (!bytes || !bytes.length) { toast("No replay for this duel"); return; }
+  saveFile(replayName(), "data:application/octet-stream;base64," + b64(bytes));
+}
+async function sendReplay(to) {
+  if (!S.worker) return;
+  const bytes = await workerReplay();
+  if (bytes && bytes.length) S.room.send({ to, m: { t: "replay", name: replayName(), b64: b64(bytes) } });
+}
+function saveFile(fileName, dataUrl) {
+  if (window.parent !== window) { window.parent.postMessage({ kx: "save", name: fileName, data: dataUrl }, "*"); return; }
+  const a = el("a"); a.href = dataUrl; a.download = fileName; document.body.append(a); a.click(); a.remove();
+  toast("Replay saved. Open it in EDOPro from the Replay menu.");
+}
+
+// Browsers: ask before closing the tab mid-duel. (Inside the KodeX app, the app asks.)
+if (window.parent === window) addEventListener("beforeunload", (e) => { if (S.active && S.packet && !S.packet.ended) { e.preventDefault(); e.returnValue = ""; } });
+
 window.__duel = S; // for automated tests and debugging
+window.__arena = { fxEvents, showReveal, toggleSide };
 boot();
 
 // ----- skins (KodeX Premium) -----
 // My skins come from the KodeX app. In a room, each player's skins are sent to everyone else, so the opponent and
 // spectators see them too (any edition of KodeX, and the website, shows them; only Premium can set them).
 // Only data: images are accepted, so a skin can't load anything from the internet.
-const SKIN_PARTS = ["sleeve", "deck", "extra", "field"];
+const SKIN_PARTS = ["sleeve", "xsleeve", "field"];
 const imgOk = (u) => typeof u === "string" && u.length < 480000 && /^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(u);
 const clampN = (v, a, b, d) => { v = Number(v); return Number.isFinite(v) ? Math.min(b, Math.max(a, v)) : d; };
 function cleanPart(k, v) {
@@ -1421,7 +1577,7 @@ function applySkins() {
   const r = document.documentElement, sk = sideSkins();
   for (const side of ["me", "op"]) {
     const s = sk[side] || {};
-    for (const k of ["sleeve", "deck", "extra"]) {
+    for (const k of ["sleeve", "xsleeve"]) {
       if (s[k]) { r.style.setProperty(`--${side}-${k}`, `url("${s[k]}")`); r.classList.add(`${side}-${k}`); }
       else { r.style.removeProperty(`--${side}-${k}`); r.classList.remove(`${side}-${k}`); }
     }
@@ -1455,8 +1611,10 @@ window.addEventListener("message", (e) => {
   const d = e.data;
   if (!d || d.kx !== "skin") return;
   const next = {};
-  for (const [k, v] of [["sleeve", d.sleeve], ["deck", d.main], ["extra", d.extra], ["field", d.field]]) { const c = cleanPart(k, v); if (c) next[k] = c; }
+  for (const [k, v] of [["sleeve", d.sleeve], ["xsleeve", d.xsleeve], ["field", d.field]]) { const c = cleanPart(k, v); if (c) next[k] = c; }
   S.mySkin = next;
+  S.premium = d.premium === true;
+  $("#replayBtn").hidden = !S.premium;
   applySkins();
   if (S.room && (S.mode === "host" || S.mode === "guest")) sendSkin("others");
 });

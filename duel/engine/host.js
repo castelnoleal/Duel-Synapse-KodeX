@@ -63,6 +63,8 @@ export class DuelHost {
     core.onLog = (text, type) => { if (type === 0 || type === 1) this.log.push(text); };
     const p = { lp: this.opt.lp, start: this.opt.start, draw: this.opt.draw };
     this.duel = core.createDuel({ seed: this.seed, flags: this.flags(), players: [p, p] });
+    // Everything EDOPro needs to replay this duel itself (see replayFile()).
+    this.rec = { seed: this.seed, flags: this.flags(), p, decks: [], responses: [], time: Math.floor(Date.now() / 1000) };
     core.loadScript(this.duel, "constant.lua");
     core.loadScript(this.duel, "utility.lua");
     this.decks.forEach((d, team) => {
@@ -70,11 +72,39 @@ export class DuelHost {
       // With "noShuffle" (test hands) the list order is the draw order.
       const main = this.opt.noShuffle ? [...(d.main || [])] : shuffle([...(d.main || [])]);
       main.reverse(); // cards are added bottom-to-top
+      this.rec.decks[team] = { main: [...main], extra: [...(d.extra || [])] };
       for (const code of main) core.newCard(this.duel, { team, code, location: C.LOCATION_DECK, position: C.POS_FACEDOWN_DEFENSE });
       for (const code of d.extra || []) core.newCard(this.duel, { team, code, location: C.LOCATION_EXTRA, position: C.POS_FACEDOWN_DEFENSE });
     });
     core.startDuel(this.duel);
     this.run();
+  }
+
+  /**
+   * The duel as an EDOPro replay (.yrp, "YRP1" with the extended header): seed, players, duel options, both decks in
+   * the order they were given to the engine, then every answer. EDOPro re-runs it with its own engine and scripts,
+   * exactly like the _LastReplay.yrp its server writes (gframe/replay.cpp, generic_duel.cpp).
+   */
+  replayFile() {
+    const r = this.rec;
+    if (!r) return null;
+    const out = [];
+    const u8 = (v) => out.push(v & 0xff);
+    const u32 = (v) => { for (let i = 0; i < 4; i++) out.push((v >>> (8 * i)) & 0xff); };
+    const u64 = (v) => { v = BigInt.asUintN(64, BigInt(v)); for (let i = 0n; i < 8n; i++) out.push(Number((v >> (8n * i)) & 0xffn)); };
+    const name = (s) => { const t = String(s || "Duelist").slice(0, 19); for (let i = 0; i < 20; i++) { const c = i < t.length ? t.charCodeAt(i) : 0; out.push(c & 0xff, c >> 8); } };
+    // body
+    u32(1); name(this.names[0]); u32(1); name(this.names[1]);
+    u32(r.p.lp); u32(r.p.start); u32(r.p.draw); u64(r.flags);
+    for (let t = 0; t < 2; t++) { const d = r.decks[t] || { main: [], extra: [] }; u32(d.main.length); d.main.forEach(u32); u32(d.extra.length); d.extra.forEach(u32); }
+    u32(0); // no extra rule cards
+    for (const b of r.responses) { u8(b.length); for (const x of b) u8(x); }
+    const body = out.splice(0);
+    // header (72 bytes): YRP1, EDOPro 41.0 / core 11.0, LUA64 | NEWREPLAY | 64BIT_DUELFLAG | EXTENDED_HEADER, uncompressed
+    u32(0x31707279); u32(41 | (0 << 8) | (11 << 16) | (0 << 24)); u32(0x10 | 0x20 | 0x100 | 0x200); u32(r.time);
+    u32(body.length); u32(0); for (let i = 0; i < 8; i++) u8(0);
+    u64(1); for (let i = 0; i < 4; i++) u64(r.seed[i]);
+    return Uint8Array.from([...out, ...body]);
   }
 
   destroy() { if (this.duel) { this.core.destroyDuel(this.duel); this.duel = 0; } }
@@ -87,6 +117,7 @@ export class DuelHost {
     let bytes;
     try { bytes = encodeResponse(resp); } catch (e) { return String(e.message || e); }
     this.pending = null;
+    if (this.rec && bytes.length <= 255) this.rec.responses.push(Uint8Array.from(bytes));
     this.core.setResponse(this.duel, bytes);
     this.run();
     return null;

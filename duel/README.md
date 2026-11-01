@@ -36,6 +36,14 @@ It runs the real EDOPro rules engine, so every card effect resolves exactly as i
   The trade-off is that the host's browser holds both decks, which is fine for playtesting and friendly matches.
   `DuelHost` doesn't depend on the browser, so it can later run inside the Durable Object for fully server-authoritative ranked play.
 
+## Replays for EDOPro
+
+`DuelHost` records the seed, duel options, both decks in the order they were given to the engine, and every answer. `replayFile()` writes them as an EDOPro `.yrp` (YRP1 with the extended header, uncompressed), the same data EDOPro's own server writes to `_LastReplay.yrp`; EDOPro re-runs it with its engine (Replay menu). `tests/duel/replay-roundtrip.mjs` reads files the way EDOPro does and re-runs them on a fresh engine. Saving is offered in KodeX Premium (the app sends `premium:true`); a guest asks the host for the file (`replayreq` → `replay`).
+
+## Table layout
+
+Log and chat live in a bubble at the bottom left (with an unread badge, a vibration and, inside the app, a notification when the app is in the background). Chain links are shown big as they are activated (tap for details), resolving and negated links are marked in the chain stack, and revealed cards open a window. On landscape screens up to 620 px tall the players sit on the left and the field fills the rest.
+
 ## Skins
 
 KodeX Premium sends the player's skins to the Arena with `postMessage({kx:"skin", sleeve, main, extra, field:{img, zoom, x, y, dim}})`. In a room each player sends theirs as `{t:"skin", part, v}` messages (one per picture, then `{part:"done", have:[...]}`); the host passes the guest's skins on to spectators (`of:"guest"`) and tells spectators its seat (`{t:"seat"}`, also in `start`). Your skins are drawn on your side (bottom), your opponent's on theirs: sleeves on face-down cards, the field on that half of the mat (`.mat-skin.me` / `.mat-skin.op`, the opponent's turned around), pictures on the Deck and Extra Deck zones. Only `data:image` pictures are accepted.

@@ -166,10 +166,12 @@
     <div id="loading" class="loading" hidden><img src="./assets/meiocg-192.webp" alt="" width="64" height="64"><span id="loadingText">Preparing duel…</span></div>
   </section>
 
-  <aside class="side panel">
+  <button id="sideFab" class="side-fab" type="button" aria-label="Log and chat" aria-expanded="false" aria-controls="side"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-5.1A8 8 0 1 1 21 12z"/><path d="M8.5 10.5h7M8.5 13.5h4.5"/></svg><i id="sideBadge" hidden>0</i></button>
+  <aside class="side panel" id="side" aria-label="Log and chat">
     <div class="tabs" role="tablist">
       <button role="tab" aria-selected="true" data-tab="log" type="button">Log</button>
       <button role="tab" aria-selected="false" data-tab="chat" type="button">Chat</button>
+      <button class="icon side-close" id="sideClose" type="button" aria-label="Close">×</button>
     </div>
     <ol id="log" class="log" data-pane="log"></ol>
     <div class="chat" data-pane="chat" hidden>
@@ -180,6 +182,7 @@
       <label class="toggle"><input type="checkbox" id="skipChains"><span>Auto-skip chain prompts</span></label>
       <div class="grid2">
         <button class="btn" id="exportBtn" type="button">Save log</button>
+        <button class="btn" id="replayBtn" type="button" hidden>Save replay</button>
         <button class="btn danger" id="surrenderBtn" type="button">Surrender</button>
       </div>
     </div>
@@ -197,10 +200,14 @@
       <img src="./assets/meiocg-192.webp" alt="" width="64" height="64">
       <h2 id="resultTitle"></h2><p id="resultText"></p>
       <div class="grid2"><button class="btn primary" id="rematchBtn" type="button">Rematch</button><button class="btn" id="leaveBtn" type="button">Lobby</button></div>
+      <button class="btn ghost wide" id="resultReplay" type="button" hidden>Save replay for EDOPro</button>
     </div>
   </div>
 </main>
 
+<div id="chainFx" class="chain-fx" aria-live="polite"></div>
+<dialog id="reveal" class="dlg"><div class="pile-head"><h3 id="revealTitle">Revealed</h3><button class="icon" id="revealClose" type="button" aria-label="Close">×</button></div><div id="revealBody" class="pile-body reveal-body"></div><div class="dlg-actions"><button class="btn primary" id="revealOk" type="button">OK</button></div></dialog>
+<dialog id="ask" class="dlg"><h3 id="askTitle"></h3><p id="askText" class="hint"></p><div class="dlg-actions"><button class="btn" id="askNo" type="button">Cancel</button><button class="btn danger" id="askYes" type="button">OK</button></div></dialog>
 <dialog id="pile" class="dlg"><div class="pile-head"><h3 id="pileTitle"></h3><button class="icon" id="pileClose" type="button" aria-label="Close">×</button></div><div id="pileBody" class="pile-body"></div></dialog>
 <dialog id="importDlg" class="dlg"><form method="dialog" id="importForm">
   <div class="pile-head"><h3>Import deck</h3><button class="icon" value="cancel" type="submit" aria-label="Close">×</button></div>
