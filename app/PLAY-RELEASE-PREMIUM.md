@@ -11,7 +11,7 @@ skins are added).
 | Source | Upload the **ZIP** (`KodeX_Premium_v50_instApped.zip`), not the HTML file. It carries the Duel Arena and all card scripts. |
 | App name | `KodeX Premium` |
 | Package name | `com.duelsynapse.kodex.premium` (must differ from the free app; can't be changed after the first upload) |
-| Version | versionName `8.4`, versionCode higher than any earlier upload of this package (first upload: `1`) |
+| Version | versionName `8.4.1`, versionCode higher than any earlier upload of this package (first upload: `1`) |
 | Orientation | **Auto / sensor** (the Arena has a landscape layout; a locked orientation stops rotation) |
 | Permissions | **Camera** on (card scanner) |
 | Page notifications | **On** (opponent chat notifications) |
@@ -68,7 +68,7 @@ First release of KodeX Premium: custom sleeves and fields seen by your opponent,
 - No accounts, no location, no contacts, no analytics SDKs, no advertising ID.
 - Data is encrypted in transit (HTTPS/WSS). Users can't request deletion because nothing is stored per user; say so.
 
-**Ads:** the sponsor strip shows **house/sponsor banners** (no ad network). Answer **"Yes, my app contains ads"**. *Decide first:* a paid Premium that still shows banners tends to get poor reviews; removing the strip from Premium is a one-line change.
+**Ads:** answer **"No, my app does not contain ads"**. KodeX Premium has no sponsor strip.
 
 **Content rating (IARC):** card game, no violence beyond fantasy card art, **user-to-user chat: yes** (online rooms), no purchases inside the app. Expect *Teen / PEGI 12*.
 
