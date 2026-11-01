@@ -250,7 +250,8 @@ function bindLobby() {
   $("#importBtn").addEventListener("click", () => { $("#importError").textContent = ""; $("#importDlg").showModal(); });
   $("#importFile").addEventListener("change", async (e) => {
     const f = e.target.files[0]; if (!f) return;
-    $("#importText").value = await f.text();
+    $("#importError").textContent = "";
+    try { $("#importText").value = await f.text(); } catch (err) { $("#importError").textContent = "That file couldn't be read"; return; }
     if (!$("#importName").value) $("#importName").value = f.name.replace(/\.(ydk|txt)$/i, "");
   });
   $("#importForm").addEventListener("submit", (e) => {
@@ -262,7 +263,7 @@ function bindLobby() {
       $("#importText").value = ""; $("#importName").value = "";
     } catch (err) {
       e.preventDefault();
-      $("#importError").textContent = "Not a valid deck";
+      $("#importError").textContent = $("#importText").value.trim() ? "Not a valid deck" : "Choose a .ydk file or paste a deck first";
     }
   });
   $("#soloStart").addEventListener("click", startSolo);
@@ -340,8 +341,12 @@ function closeRoom() {
 function onHostMessage(m) {
   if (m.sys === "welcome") { for (const p of m.peers) if (p.role === "spec") S.specs++; return; }
   if (m.sys === "join") {
-    if (m.role === "spec") { S.specs++; if (S.packets[2]) S.room.send({ to: "spec", m: { t: "packet", packet: S.packets[2] } }); }
-    if (m.role === "guest") toast(`${m.name} joined the room.`);
+    if (m.role === "spec") {
+      S.specs++; if (S.packets[2]) S.room.send({ to: "spec", m: { t: "packet", packet: S.packets[2] } });
+      S.room.send({ to: "spec", m: { t: "seat", hostTeam: S.hostTeam || 0 } });
+      sendSkin("spec"); sendSkin("spec", S.peerSkins.guest, "guest");
+    }
+    if (m.role === "guest") { toast(`${m.name} joined the room.`); sendSkin("guest"); }
     return;
   }
   if (m.sys === "leave") {
@@ -350,6 +355,12 @@ function onHostMessage(m) {
     return;
   }
   const msg = m.m || {};
+  if (msg.t === "skin") {
+    onSkin(m, msg);
+    // Guests can only talk to the host: pass their skins on to the spectators.
+    if (m.from === "guest" && S.specs > 0) S.room.send({ to: "spec", m: { ...msg, of: "guest" } });
+    return;
+  }
   if (m.from === "guest") {
     if (msg.t === "hello") {
       const d = msg.deck || {};
@@ -391,7 +402,7 @@ async function hostStartDuel(loserFirst) {
   S.packets = {};
   enterTable();
   addLog(`${names[0]} goes first.`, "sys");
-  S.room.send({ to: "others", m: { t: "start", first: names[0] } });
+  S.room.send({ to: "others", m: { t: "start", first: names[0], hostTeam: S.hostTeam } });
   Learning.stopPractice();
   S.worker.postMessage({ cmd: "start", decks, names, options: options(), bots: {}, ...learningFor(decks) });
 }
@@ -404,7 +415,7 @@ function join(code) {
   S.room = new Room({ code, role: "guest", name: myName(), onMessage: onGuestMessage, onStatus: (s, err) => {
     netStatus(s, err);
     if (s === "error") { $("#joinStatus").textContent = err; S.mode = null; }
-    if (s === "open") S.room.send({ to: "host", m: { t: "hello", name: myName(), deck: { main: S.deck.main, extra: S.deck.extra, side: S.deck.side || [] } } });
+    if (s === "open") { S.room.send({ to: "host", m: { t: "hello", name: myName(), deck: { main: S.deck.main, extra: S.deck.extra, side: S.deck.side || [] } } }); sendSkin("others"); }
   } });
   S.room.connect();
 }
@@ -421,8 +432,10 @@ function onGuestMessage(m) {
   if (m.sys === "leave" && m.role === "host") { toast("The host left. The duel can't continue.", 6000); addLog("The host disconnected.", "sys"); return; }
   if (m.sys) return;
   const msg = m.m || {};
-  if (msg.t === "start") { if ($("#table").hidden) enterTable(); S.log = []; $("#log").replaceChildren(); addLog(`${msg.first} goes first.`, "sys"); $("#result").hidden = true; }
-  else if (msg.t === "packet") { if ($("#table").hidden) enterTable(); S.team = msg.packet.viewer === 2 ? 0 : msg.packet.viewer; onPacket(msg.packet); }
+  if (msg.t === "skin") { onSkin(m, msg); return; }
+  if (msg.t === "seat") { S.specHostTeam = msg.hostTeam === 1 ? 1 : 0; applySkins(); return; }
+  if (msg.t === "start") { if (msg.hostTeam === 0 || msg.hostTeam === 1) S.specHostTeam = msg.hostTeam; if ($("#table").hidden) enterTable(); S.log = []; $("#log").replaceChildren(); addLog(`${msg.first} goes first.`, "sys"); $("#result").hidden = true; }
+  else if (msg.t === "packet") { if ($("#table").hidden) enterTable(); const t = msg.packet.viewer === 2 ? 0 : msg.packet.viewer; if (t !== S.team) { S.team = t; applySkins(); } onPacket(msg.packet); }
   else if (msg.t === "error") toast(msg.error);
   else if (msg.t === "chat") addChat(m.name, msg.text);
   else if (msg.t === "lobby" && S.mode === "guest") $("#joinStatus").textContent = `Joined ${msg.host}'s room. Waiting for them to start…`;
@@ -580,6 +593,8 @@ function buildField() {
   for (let i = 0; i < 5; i++) add(4, 1 + i, "me-s" + i, "me sz" + (i === 0 || i === 4 ? " pz" : ""), "");
   add(4, 6, "me-deck", "me pile", "DECK");
   for (const z of f.querySelectorAll(".zone")) z.addEventListener("click", (e) => onZoneClick(z, e));
+  for (const side of ["op", "me"]) { const k = el("div", "mat-skin " + side); k.hidden = true; k.setAttribute("aria-hidden", "true"); f.prepend(k); }
+  applySkins();
   const ph = $("#phases");
   ph.replaceChildren();
   for (const [lbl, bit, title] of [["DP", C.PHASE.DRAW, "Draw Phase"], ["SP", C.PHASE.STANDBY, "Standby Phase"], ["M1", C.PHASE.MAIN1, "Main Phase 1"],
@@ -1384,15 +1399,65 @@ function showResult(p) {
 window.__duel = S; // for automated tests and debugging
 boot();
 
-// ----- skins from KodeX Premium (when the Arena runs inside the app): your sleeves, and pictures for your Deck and Extra Deck zones
-const skinOk = (u) => typeof u === "string" && (/^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(u) || /^https:\/\/[^\s"'()<>\\]+$/.test(u));
+// ----- skins (KodeX Premium) -----
+// My skins come from the KodeX app. In a room, each player's skins are sent to everyone else, so the opponent and
+// spectators see them too (any edition of KodeX, and the website, shows them; only Premium can set them).
+// Only data: images are accepted, so a skin can't load anything from the internet.
+const SKIN_PARTS = ["sleeve", "deck", "extra", "field"];
+const imgOk = (u) => typeof u === "string" && u.length < 480000 && /^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(u);
+const clampN = (v, a, b, d) => { v = Number(v); return Number.isFinite(v) ? Math.min(b, Math.max(a, v)) : d; };
+function cleanPart(k, v) {
+  if (k === "field") return v && imgOk(v.img) ? { img: v.img, zoom: clampN(v.zoom, 100, 300, 100), x: clampN(v.x, 0, 100, 50), y: clampN(v.y, 0, 100, 50), dim: clampN(v.dim, 0, 90, 35) } : null;
+  return SKIN_PARTS.includes(k) && imgOk(v) ? v : null;
+}
+S.mySkin = {}; S.peerSkins = { host: {}, guest: {} }; S.specHostTeam = 0;
+function sideSkins() {
+  if (S.mode === "host") return { me: S.mySkin, op: S.peerSkins.guest };
+  if (S.mode === "guest") return { me: S.mySkin, op: S.peerSkins.host };
+  if (S.mode === "spec") return S.specHostTeam === S.team ? { me: S.peerSkins.host, op: S.peerSkins.guest } : { me: S.peerSkins.guest, op: S.peerSkins.host };
+  return { me: S.mySkin, op: {} };
+}
+function applySkins() {
+  const r = document.documentElement, sk = sideSkins();
+  for (const side of ["me", "op"]) {
+    const s = sk[side] || {};
+    for (const k of ["sleeve", "deck", "extra"]) {
+      if (s[k]) { r.style.setProperty(`--${side}-${k}`, `url("${s[k]}")`); r.classList.add(`${side}-${k}`); }
+      else { r.style.removeProperty(`--${side}-${k}`); r.classList.remove(`${side}-${k}`); }
+    }
+    const m = document.querySelector(`#field > .mat-skin.${side}`), f = s.field;
+    if (!m) continue;
+    m.hidden = !f;
+    if (f) {
+      const a = (f.dim / 100).toFixed(2);
+      m.style.backgroundImage = `linear-gradient(rgba(5,8,15,${a}),rgba(5,8,15,${a})), url("${f.img}")`;
+      m.style.backgroundSize = `auto, ${f.zoom}% auto`;
+      m.style.backgroundPosition = `center, ${f.x}% ${f.y}%`;
+    } else m.style.backgroundImage = "";
+  }
+}
+function sendSkin(to, skin = S.mySkin, of) {
+  if (!S.room) return;
+  for (const k of SKIN_PARTS) if (skin[k]) S.room.send({ to, m: { t: "skin", part: k, v: skin[k], of } });
+  S.room.send({ to, m: { t: "skin", part: "done", have: SKIN_PARTS.filter((k) => skin[k]), of } });
+}
+function onSkin(m, msg) {
+  let role = m.from;
+  if (msg.of && m.from === "host") role = msg.of;   // the host passes the guest's skins on to spectators
+  if (role !== "host" && role !== "guest") return;
+  const cur = S.peerSkins[role];
+  if (msg.part === "done") { const have = Array.isArray(msg.have) ? msg.have : []; for (const k of SKIN_PARTS) if (!have.includes(k)) delete cur[k]; }
+  else { const v = cleanPart(msg.part, msg.v); if (v) cur[msg.part] = v; }
+  applySkins();
+}
 window.addEventListener("message", (e) => {
   if (window.parent === window || e.source !== window.parent) return;
   const d = e.data;
   if (!d || d.kx !== "skin") return;
-  const r = document.documentElement;
-  for (const [k, v, cls] of [["--kx-sleeve", d.sleeve, "kx-sleeve"], ["--kx-deck", d.main, "kx-deck"], ["--kx-extra", d.extra, "kx-extra"]]) {
-    if (skinOk(v)) { r.style.setProperty(k, `url("${v}")`); r.classList.add(cls); } else { r.style.removeProperty(k); r.classList.remove(cls); }
-  }
+  const next = {};
+  for (const [k, v] of [["sleeve", d.sleeve], ["deck", d.main], ["extra", d.extra], ["field", d.field]]) { const c = cleanPart(k, v); if (c) next[k] = c; }
+  S.mySkin = next;
+  applySkins();
+  if (S.room && (S.mode === "host" || S.mode === "guest")) sendSkin("others");
 });
 if (window.parent !== window) window.parent.postMessage({ kx: "ready" }, "*");

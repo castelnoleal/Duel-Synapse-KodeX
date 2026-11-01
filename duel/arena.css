@@ -391,11 +391,19 @@ dialog.info-top::backdrop { background: #00000080; }
 @media (max-width: 1120px) { .embed { --z: clamp(36px, min(calc((100vw - 350px) / 7.6), calc((100vh - 255px) / 7.6)), 96px); } }
 @media (max-width: 780px) { .embed { --z: min(calc((100vw - 22px) / 7.75), calc((100vh - 215px) / 8.1)); } }
 
-/* skins from KodeX Premium */
-.kx-sleeve .card.back:not(.op-back) { background: var(--kx-sleeve) center / cover no-repeat; }
-.kx-sleeve .card.back:not(.op-back)::after { display: none; }
-.kx-sleeve [id^="op-"] .card.back { background: url("./assets/meiocg-192.webp") center / 62% no-repeat, radial-gradient(circle at 50% 45%, #1b3a6a 0%, #0c1426 62%, #070b16 100%); }
-.kx-sleeve [id^="op-"] .card.back::after { display: block; }
-.kx-deck #me-deck, .kx-extra #me-extra { background-size: cover; background-position: center; }
-.kx-deck #me-deck { background-image: linear-gradient(#0008, #0008), var(--kx-deck); }
-.kx-extra #me-extra { background-image: linear-gradient(#0008, #0008), var(--kx-extra); }
+/* skins (KodeX Premium): mine at the bottom, my opponent's at the top */
+.mat-skin { position: absolute; left: 0; right: 0; z-index: -1; pointer-events: none; background-repeat: no-repeat; }
+.mat-skin.me { top: 50%; bottom: 0; border-radius: 0 0 20px 20px; }
+.mat-skin.op { top: 0; bottom: 50%; border-radius: 0 0 20px 20px; transform: rotate(180deg); }
+.mat-skin[hidden] { display: none; }
+.me-sleeve .card.back:not(.op-back) { background: var(--me-sleeve) center / cover no-repeat; }
+.me-sleeve .card.back:not(.op-back)::after { display: none; }
+.me-sleeve [id^="op-"] .card.back { background: url("./assets/meiocg-192.webp") center / 62% no-repeat, radial-gradient(circle at 50% 45%, #1b3a6a 0%, #0c1426 62%, #070b16 100%); }
+.me-sleeve [id^="op-"] .card.back::after { display: block; }
+.op-sleeve .card.back.op-back, .op-sleeve [id^="op-"] .card.back { background: var(--op-sleeve) center / cover no-repeat; }
+.op-sleeve .card.back.op-back::after, .op-sleeve [id^="op-"] .card.back::after { display: none; }
+.me-deck #me-deck, .me-extra #me-extra, .op-deck #op-deck, .op-extra #op-extra { background-size: cover; background-position: center; }
+.me-deck #me-deck { background-image: linear-gradient(#0008, #0008), var(--me-deck); }
+.me-extra #me-extra { background-image: linear-gradient(#0008, #0008), var(--me-extra); }
+.op-deck #op-deck { background-image: linear-gradient(#0008, #0008), var(--op-deck); }
+.op-extra #op-extra { background-image: linear-gradient(#0008, #0008), var(--op-extra); }
