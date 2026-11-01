@@ -8,7 +8,7 @@ import { observe } from "./engine/smart.js";
 import { Book, Recorder, comboHints } from "./engine/learn.js";
 import { practice } from "./engine/trainer.js";
 
-let core, db, store, host, bots = {}, mems = {}, retries = {};
+let core, db, store, host, bots = {}, mems = {}, retries = {}, lastReplay = null, lastNames = null;
 // Synapse AI learning: the play book for this duel's decks, card-text combo links, and a recorder for people's plays.
 let book = new Book(), hints = new Map(), rec = null, training = false;
 const hasRows = (r) => r && (r.seq.length || r.pick.length || r.resp.length);
@@ -99,7 +99,7 @@ self.onmessage = async (ev) => {
   try {
     if (m.cmd === "init") await init(m.base);
     else if (m.cmd === "start") {
-      if (host) { host.destroy(); host = null; }
+      if (host) { lastReplay = host.replayFile(); lastNames = host.names; host.destroy(); host = null; }
       bots = m.bots || {}; mems = {}; retries = {};
       const codes = m.decks.flatMap((d) => [...d.main, ...d.extra]);
       book = new Book().mergeRows(m.book || null);
@@ -128,9 +128,12 @@ self.onmessage = async (ev) => {
       if (hasRows(rows)) post({ t: "learn", rows, source: "practice" });
       post({ t: "trained", lines: rows.seq.length + rows.pick.length + rows.resp.length });
       training = false;
+    } else if (m.cmd === "replay") {
+      const bytes = host ? host.replayFile() : lastReplay;
+      post({ t: "replay", bytes, names: host ? host.names : lastNames });
     } else if (m.cmd === "stop") {
       if (rec) { const rows = rec.flush(); if (hasRows(rows)) post({ t: "learn", rows, source: "play" }); rec = null; }
-      if (host) host.destroy();
+      if (host) { lastReplay = host.replayFile(); lastNames = host.names; host.destroy(); }
       host = null;
     }
   } catch (e) {

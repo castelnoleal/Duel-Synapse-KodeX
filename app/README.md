@@ -1,6 +1,6 @@
 # Duel Synapse: KodeX app
 
-`Kodex_Mei_Production_v49.html` (free) and `Kodex_Mei_Premium_v49.html` (Premium) are the current source (older versions are kept alongside it) of the **Meiocg KodeX** Android app (`com.duelsynapse.kodex`). It's built with instApped: upload this file as the project's HTML source.
+`Kodex_Mei_Production_v50.html` (free) and `Kodex_Mei_Premium_v50.html` (Premium) are the current source (older versions are kept alongside it) of the **Meiocg KodeX** Android app (`com.duelsynapse.kodex`). It's built with instApped: upload this file as the project's HTML source.
 
 It loads cards and rulings from https://kodex.meiocg.org.
 
@@ -51,3 +51,5 @@ In the Arena, card details now always open on top of pop-ups such as the Extra D
 License: [LICENSE.md](../LICENSE.md) (all rights reserved; permission via metainsiderocg@gmail.com), shown in the app under Legal & Privacy and at https://kodex.meiocg.org/license.
 
 **v49 (8.3):** Premium **Field** skins with an editor (zoom, position, darkness, live preview). In online duels every player's skins (sleeves, field, Deck / Extra Deck pictures) are sent through the room, so opponents and spectators see them; any edition, and the website Arena, shows them. Only `data:` images under ~420 KB are accepted. The Arena's deck import takes any file, because Android hid `.ydk` files when the picker was limited to text files (instApped's file picker was fixed for the same reason).
+
+**v50 (8.4):** Premium skins are now **Field**, **Main Deck sleeves** and **Extra Deck sleeves** (deck-section pictures are gone; the panel was rebuilt as one sideways row per kind). Leaving the Arena mid-duel (X or Back) asks *Leave the duel?* first (the Arena reports `{kx:"duel", active}`). The Arena's "Show rulings for this card" opens the card with its rulings; replays (`{kx:"save"}`) go to Downloads through instApped's `CastelApp.saveBase64File`; opponent chat (`{kx:"chat"}`) raises a system notification through `CastelApp.notify` while the app is in the background (turn on *Page notifications* in instApped). Premium no longer lists anything "coming soon". Play release steps: [PLAY-RELEASE-PREMIUM.md](PLAY-RELEASE-PREMIUM.md).
