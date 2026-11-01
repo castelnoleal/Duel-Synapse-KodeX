@@ -36,6 +36,10 @@ It runs the real EDOPro rules engine, so every card effect resolves exactly as i
   The trade-off is that the host's browser holds both decks, which is fine for playtesting and friendly matches.
   `DuelHost` doesn't depend on the browser, so it can later run inside the Durable Object for fully server-authoritative ranked play.
 
+## Skins
+
+KodeX Premium sends the player's skins to the Arena with `postMessage({kx:"skin", sleeve, main, extra, field:{img, zoom, x, y, dim}})`. In a room each player sends theirs as `{t:"skin", part, v}` messages (one per picture, then `{part:"done", have:[...]}`); the host passes the guest's skins on to spectators (`of:"guest"`) and tells spectators its seat (`{t:"seat"}`, also in `start`). Your skins are drawn on your side (bottom), your opponent's on theirs: sleeves on face-down cards, the field on that half of the mat (`.mat-skin.me` / `.mat-skin.op`, the opponent's turned around), pictures on the Deck and Extra Deck zones. Only `data:image` pictures are accepted.
+
 ## KodeX app integration
 
 The Arena reads the same deck payload as `deck.html`: base64url of `{"n": name, "m": [[id, name, count]], "e": [...], "s": [...]}`.
