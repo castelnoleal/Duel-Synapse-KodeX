@@ -10,7 +10,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#080a10">
-<meta name="kodex-build" content="KODEX-8.3">
+<meta name="kodex-build" content="KODEX-8.3.1">
 <meta name="kodex-edition" content="premium">
 <meta name="copyright" content="© 2023-2026 Meta Insider OCG (MEIOCG). All rights reserved. Permission required: metainsiderocg@gmail.com">
 <link rel="license" href="https://kodex.meiocg.org/license">
@@ -443,7 +443,10 @@ function openSkins(){
   tb.querySelectorAll('[data-skadd]').forEach(inp=>inp.onchange=async()=>{const f=inp.files&&inp.files[0];if(!f)return;try{const t=inp.dataset.skadd,img=await shrinkImage(f,t==='sleeve'?420:t==='field'?1000:900),id='u'+Date.now().toString(36);if(skinsSave([...skinsOwn(),{id,type:t,name:f.name.slice(0,40),img}])){const s=skinSel();s[t]=id;S.s('skin_sel',s);skinsToArena();openSkins();if(t==='field')openFieldEditor()}}catch(e){toast('That picture could not be used')}});
 }
 const ARENA_LOCAL=!!document.querySelector('meta[name=kodex-arena][content=local]'),ARENA_URL=ARENA_LOCAL?new URL('duel/',location.href).href:IMG_BASE+'/duel/';
-let arenaHash='';function arenaSet(on){const f=$('arenaFrame');if(on){const l=document.querySelector('header .logo img');if(l)$('arLogo').src=l.src;f.src=ARENA_URL+'?app=1&embed=1&th='+encodeURIComponent(S.g('theme','Midnight'))+(arenaHash?'#'+arenaHash:'')}else f.src='about:blank'}
+let arenaHash='';function arenaSet(on){const f=$('arenaFrame');if(on){const l=document.querySelector('header .logo img');if(l)$('arLogo').src=l.src;frameGo(f,ARENA_URL+'?app=1&embed=1&th='+encodeURIComponent(S.g('theme','Midnight'))+(arenaHash?'#'+arenaHash:''))}else frameGo(f,'about:blank')}
+// Load the Arena without adding a step to Back: an iframe page load normally becomes its own history entry, so Back
+// or X would first take the Arena to a blank page instead of closing it.
+function frameGo(f,u){f.dataset.url=u;try{f.contentWindow.location.replace(u)}catch(e){f.src=u}}
 const view=(n,on)=>{view0(n,on);if(n==='arena')arenaSet(on)};
 const push=n=>{L.push(n);history.pushState(1,'');view(n,true);navSync()};
 let skip=0;
