@@ -77,6 +77,7 @@ const gs = await guest.evaluate(() => ({ turn: window.__duel.packet.turn, lp: wi
 const ss = await spec.evaluate(() => ({ turn: window.__duel.packet.turn }));
 console.log("host", hs, "guest", gs, "spec", ss);
 // chat
+await guest.click("#sideFab");
 await guest.click('.tabs [data-tab="chat"]');
 await guest.fill("#chatInput", "gg wp");
 await guest.press("#chatInput", "Enter");
@@ -85,6 +86,7 @@ console.log("chat delivered");
 // surrender from guest
 guest.on("dialog", (d) => d.accept());
 await guest.click("#surrenderBtn");
+if (await guest.isVisible("#askYes")) await guest.click("#askYes");
 await host.waitForFunction(() => window.__duel.packet.ended, null, { timeout: 15000 });
 console.log("result on host:", await host.evaluate(() => window.__duel.packet.ended));
 await host.waitForTimeout(900);

@@ -16,7 +16,7 @@ import { MSG, IDLE, BATTLE_ACT, TYPE, PHASE, LOCATION_HAND, LOCATION_MZONE, LOCA
   LOCATION_EXTRA, LOCATION_DECK, POS_FACEUP_ATTACK, POS_FACEUP_DEFENSE, POS_FACEDOWN_DEFENSE, POS_FACEDOWN_ATTACK, POS_FACEUP,
   POS_FACEDOWN, POS_DEFENSE } from "./constants.js";
 import { placesFromMask, findSum } from "./rules.js";
-import { idleToken, chainToken, codeOf } from "./learn.js";
+import { idleToken, chainToken, codeOf, effectIndex } from "./learn.js";
 
 // Selection hints (HINTMSG_* in CardScripts/constant.lua)
 const H = { RELEASE: 500, DISCARD: 501, DESTROY: 502, REMOVE: 503, TOGRAVE: 504, RTOHAND: 505, ATOHAND: 506, TODECK: 507, SUMMON: 508,
@@ -214,6 +214,19 @@ function worthActivating(a, c, s) {
   return true;
 }
 
+/** Combo memory: replay a whole remembered turn, play by play, while the duel lets it. */
+function comboIdle(msg, ctx, m) {
+  if (!ctx.book || !ctx.book.lineNext) return null;
+  const legal = new Map();
+  const lists = [[IDLE.ACTIVATE, msg.activates], [IDLE.SPSUMMON, msg.special_summons], [IDLE.SUMMON, msg.summons], [IDLE.MSET, msg.monster_sets], [IDLE.SSET, msg.spell_sets]];
+  for (const [action, arr] of lists) arr.forEach((_, index) => { const tok = idleToken(msg, { action, index }); if (tok && !legal.has(tok)) legal.set(tok, { action, index }); });
+  const nx = ctx.book.lineNext(m.seq, (tok) => legal.has(tok));
+  if (!nx) return null;
+  const k = "combo:" + m.seq.length + ":" + nx.tok;
+  if (m.used.get(k)) return null;
+  m.used.set(k, 1);
+  return legal.get(nx.tok);
+}
 /** Follow a learned line: the play people (or practice games) made next from this point of the turn. */
 function learnedIdle(msg, ctx, m) {
   if (!ctx.book) return null;
@@ -310,6 +323,12 @@ function chain(msg, ctx) {
     if (trig != null) {
       const r = opts.map((x) => ({ x, n: ctx.book.respScore(trig, x.s.code) })).sort((a, b) => b.n - a.n)[0];
       if (r && r.n >= 0.9 && once(m, "lresp:" + keyOf(r.x.s) + ":" + ch.length)) return { index: r.x.index };
+    }
+    if (myTurn && !oppActing && ctx.book.lineNext) {
+      // Combo memory first: the chain link the remembered turn used at this point.
+      const nx = ctx.book.lineNext(m.seq || [], (tok) => opts.some((x) => chainToken(x.s) === tok));
+      const x = nx && opts.find((o) => chainToken(o.s) === nx.tok);
+      if (x && once(m, "cchain:" + (m.seq || []).length + ":" + nx.tok)) return { index: x.index };
     }
     if (myTurn && !oppActing) {
       const seq = m.seq || [], p1 = seq[seq.length - 1] || "", p2 = seq[seq.length - 2] || "";
@@ -423,7 +442,7 @@ export function smartAnswer(msg, ctx) {
   switch (msg.type) {
     case MSG.SELECT_IDLECMD: {
       const m = turnMem(ctx);
-      r = learnedIdle(msg, ctx, m) || exploreIdle(msg, ctx, m) || idle(msg, ctx);
+      r = comboIdle(msg, ctx, m) || learnedIdle(msg, ctx, m) || exploreIdle(msg, ctx, m) || idle(msg, ctx);
       const tok = r ? idleToken(msg, r) : null;
       if (tok) { m.seq.push(tok); ctx.mem.lastSrc = codeOf(tok); }
       break;
@@ -435,7 +454,10 @@ export function smartAnswer(msg, ctx) {
       if (sel) { ctx.mem.lastSrc = sel.code; if (ctx.view && ctx.view.turnPlayer === msg.player) turnMem(ctx).seq.push(chainToken(sel)); }
       break;
     }
-    case MSG.SELECT_EFFECTYN: r = { yes: true }; if (msg.code) ctx.mem.lastSrc = msg.code; break;
+    case MSG.SELECT_EFFECTYN:
+      r = { yes: true };
+      if (msg.code) { ctx.mem.lastSrc = msg.code; if (ctx.view && ctx.view.turnPlayer === msg.player) turnMem(ctx).seq.push("C" + msg.code + "." + effectIndex(msg.code, msg.description)); }
+      break;
     case MSG.SELECT_YESNO: r = { yes: true }; break;
     case MSG.SELECT_OPTION: r = { index: 0 }; break;
     case MSG.SELECT_CARD: r = selectCard(msg, ctx); break;

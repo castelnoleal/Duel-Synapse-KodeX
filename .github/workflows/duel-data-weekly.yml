@@ -1,0 +1,53 @@
+name: Duel data weekly update
+
+# Keeps the Arena's card data and card-script pin in step with Project Ignis (EDOPro), so new cards appear and
+# replays saved for EDOPro use the same card scripts EDOPro has. The rules engine (ocgcore.wasm) is not rebuilt
+# here: that needs wasi-sdk and is done by hand with duel/engine/build/build.sh when ygopro-core changes.
+on:
+  schedule:
+    - cron: "41 3 * * 1"   # Mondays 03:41 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Fetch Project Ignis sources
+        run: |
+          git clone -q --depth 1 https://github.com/ProjectIgnis/BabelCDB .babel
+          git clone -q --depth 1 https://github.com/ProjectIgnis/CardScripts .cardscripts
+          git clone -q --depth 1 --filter=blob:none --sparse https://github.com/ProjectIgnis/Distribution .dist
+          (cd .dist && git sparse-checkout set config)
+      - name: Rebuild duel/data
+        run: python3 scripts/build_duel_data.py --babel .babel --scripts .cardscripts --strings .dist/config/strings.conf
+      - name: Anything new?
+        id: diff
+        run: |
+          if git diff --quiet -- duel/data; then echo "changed=0" >> "$GITHUB_OUTPUT"; else echo "changed=1" >> "$GITHUB_OUTPUT"; git diff --stat -- duel/data; fi
+      - name: Engine soak test with the new data
+        if: steps.diff.outputs.changed == '1'
+        run: |
+          node tests/duel/engine-sim.mjs .cardscripts 30 random 1
+          node tests/duel/ai-match.mjs .cardscripts 20 smart random classic 0.9
+          node tests/duel/replay-roundtrip.mjs .cardscripts
+      - name: Bump the Arena cache and commit
+        if: steps.diff.outputs.changed == '1'
+        run: |
+          v=$(sed -n 's/^const VERSION = "v\([0-9]*\)".*/\1/p' duel/sw.js)
+          sed -i "s/^const VERSION = \"v$v\"/const VERSION = \"v$((v+1))\"/" duel/sw.js
+          git config user.name "kodex-bot"
+          git config user.email "kodex-bot@users.noreply.github.com"
+          git add duel/data duel/sw.js
+          git commit -m "Duel data: Project Ignis $(node -e "console.log(require('./duel/data/scripts.json').commit.slice(0,7))")"
+          git push

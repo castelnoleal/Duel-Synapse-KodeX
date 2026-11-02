@@ -1,6 +1,6 @@
 # Duel Synapse: KodeX app
 
-`Kodex_Mei_Production_v50.html` (free) and `Kodex_Mei_Premium_v50.html` (Premium) are the current source (older versions are kept alongside it) of the **Meiocg KodeX** Android app (`com.duelsynapse.kodex`). It's built with instApped: upload this file as the project's HTML source.
+`Kodex_Mei_Production_v51.html` (free) and `Kodex_Mei_Premium_v51.html` (Premium) are the current source (older versions are kept alongside it) of the **Meiocg KodeX** Android app (`com.duelsynapse.kodex`). It's built with instApped: upload this file as the project's HTML source.
 
 It loads cards and rulings from https://kodex.meiocg.org.
 
@@ -55,3 +55,6 @@ License: [LICENSE.md](../LICENSE.md) (all rights reserved; permission via metain
 **v50 (8.4):** Premium skins are now **Field**, **Main Deck sleeves** and **Extra Deck sleeves** (deck-section pictures are gone; the panel was rebuilt as one sideways row per kind). Leaving the Arena mid-duel (X or Back) asks *Leave the duel?* first (the Arena reports `{kx:"duel", active}`). The Arena's "Show rulings for this card" opens the card with its rulings; replays (`{kx:"save"}`) go to Downloads through instApped's `CastelApp.saveBase64File`; opponent chat (`{kx:"chat"}`) raises a system notification through `CastelApp.notify` while the app is in the background (turn on *Page notifications* in instApped). Premium no longer lists anything "coming soon". Play release steps: [PLAY-RELEASE-PREMIUM.md](PLAY-RELEASE-PREMIUM.md).
 
 **Premium 8.4.1:** no ads. The sponsor strip is hidden in Premium (`#kx-premium-noads` style); only the status-bar space stays, so panels still open below the status bar.
+
+**v51 (8.5 / Premium 8.5.1):** EDOPro alternate-art passcodes (`ALT_IDS`, 395 of them) now import as the right card instead of *Unknown card*, and keep their own art (`art` on the deck entry). In landscape the Arena's title bar is hidden and its X floats as a round button at the top right (the free edition's sponsor strip stays, as required). Premium **Skins** adds *Music & sounds* (duel music and Summon / Activation / Damage / Victory sounds from the player's files, kept in IndexedDB and sent to the Arena as `{kx:"audio"}`) and *Signature cards* (up to 60 cards that get the big entrance, sent as `signature` in the `skin` message). The Arena itself (layout, sounds, effects, AI combos, opponent deck choice) is described in [duel/README.md](../duel/README.md).
+

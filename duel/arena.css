@@ -187,7 +187,7 @@ dialog.info-top::backdrop { background: #00000080; }
 /* ---------- the mat ---------- */
 .mat-wrap { position: relative; align-self: center; }
 .mat {
-  display: grid; grid-template-columns: repeat(7, var(--z)); grid-template-rows: repeat(5, var(--z)); gap: calc(var(--z) * .08);
+  display: grid; grid-template-columns: repeat(7, var(--z)); grid-template-rows: repeat(5, var(--zh, var(--z))); gap: calc(var(--z) * .08);
   padding: calc(var(--z) * .14); border-radius: 20px; position: relative; isolation: isolate;
   background:
     linear-gradient(180deg, #d2464f10 0%, transparent 40%, transparent 60%, #61a8ff12 100%),
@@ -391,6 +391,16 @@ dialog.info-top::backdrop { background: #00000080; }
 @media (max-width: 1120px) { .embed { --z: clamp(36px, min(calc((100vw - 350px) / 7.6), calc((100vh - 255px) / 7.6)), 96px); } }
 @media (max-width: 780px) { .embed { --z: min(calc((100vw - 22px) / 7.75), calc((100vh - 215px) / 8.1)); } }
 
+/* phones held upright: zones become card-shaped and grow to use the screen's height */
+@media (max-width: 780px) and (orientation: portrait) {
+  :root { --zh: clamp(var(--z), calc((100vh - 380px) / 5.3), calc(var(--z) * 1.4)); --ch: calc(var(--zh) * .92); }
+  .embed { --zh: clamp(var(--z), calc((100vh - 315px) / 5.3), calc(var(--z) * 1.4)); --ch: calc(var(--zh) * .92); }
+  @supports (height: 100dvh) {
+    :root { --zh: clamp(var(--z), calc((100dvh - 380px) / 5.3), calc(var(--z) * 1.4)); }
+    .embed { --zh: clamp(var(--z), calc((100dvh - 315px) / 5.3), calc(var(--z) * 1.4)); }
+  }
+}
+
 /* skins (KodeX Premium): mine at the bottom, my opponent's at the top */
 .mat-skin { position: absolute; left: 0; right: 0; z-index: -1; pointer-events: none; background-repeat: no-repeat; }
 .mat-skin.me { top: 50%; bottom: 0; border-radius: 0 0 20px 20px; }
@@ -429,21 +439,7 @@ dialog.info-top::backdrop { background: #00000080; }
 @media (max-width: 1120px) { .embed { --z: clamp(36px, min(calc((100vw - 90px) / 7.6), calc((100vh - 255px) / 7.6)), 96px); } }
 @media (max-width: 780px) { .embed { --z: min(calc((100vw - 22px) / 7.75), calc((100vh - 215px) / 8.1)); } }
 
-/* ---------- landscape phones, tablets and computers: players on the left, the field in the middle ---------- */
-@media (orientation: landscape) and (max-height: 620px) {
-  :root, .embed { --z: clamp(28px, min(calc((100vh - 24px) / 7.45), calc((100vw - 300px) / 7.6)), 96px); }
-  #table { display: grid; height: 100vh; height: 100dvh; padding: 4px 8px; }
-  .arena { grid-template-columns: minmax(180px, 250px) minmax(0, 1fr); grid-template-rows: auto 1fr auto auto;
-    grid-template-areas: "op ophand" "turn mat" "status mat" "me myhand"; column-gap: 12px; align-items: center; }
-  .arena .duelist.op { grid-area: op; } .arena #opHand { grid-area: ophand; } .arena .mat-wrap { grid-area: mat; }
-  .arena #myHand { grid-area: myhand; } .arena .duelist.me { grid-area: me; } .arena .turnbar { grid-area: turn; flex-wrap: wrap; justify-content: center; }
-  .arena #status { grid-area: status; }
-  .duelist { width: 100%; }
-  .my-hand .card { width: var(--cw); height: var(--ch); }
-  .chain-stack { right: auto; left: calc(100% + 8px); top: 50%; bottom: auto; transform: translateY(-50%); display: grid; }
-  .sheet { max-height: 70vh; width: min(640px, calc(100vw - 24px)); }
-  .side { height: min(78vh, 420px); bottom: 74px; }
-}
+
 
 /* ---------- chains as they happen ---------- */
 .chain-fx { position: fixed; inset: 0; z-index: 44; pointer-events: none; display: grid; place-items: center; }
@@ -472,11 +468,87 @@ dialog.info-top::backdrop { background: #00000080; }
 #ask h3 { margin: 0 0 6px; }
 #table:not([hidden]) .side { animation: none; }
 .side .tabs .side-close { flex: none; width: 34px; min-height: 34px; height: 34px; border-radius: 10px; box-shadow: none; color: var(--muted); font-size: 18px; }
+
+
+
+/* ---------- clear zone markers, readable over any field skin ---------- */
+.zone { border: 1.5px solid #ffffff59; background: #05080f52; box-shadow: inset 0 0 0 1px #0007, 0 0 0 1px #0004; }
+.zone.op.mz, .zone.op.sz { border-color: #ff8a95a6; background: #2a0b1252; }
+.zone.me.mz, .zone.me.sz { border-color: #8cc4ffb3; background: #0a1a3252; }
+.zone.emz { border: 1.5px dashed #b6ecffcc; background: #0a1d2a59; }
+.zone.pile { border-color: #ffffff73; background: #00000066; }
+.zone .lbl { color: #ffffffd9; text-shadow: 0 1px 2px #000, 0 0 6px #000; width: auto; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 1px 5px; border-radius: 5px; background: #00000073; }
+.zone.pz::before { color: #b6ecff; text-shadow: 0 1px 2px #000; font-size: 10px; }
+
+/* ---------- log & chat: bubble on the right, chat first ---------- */
+.side-fab { left: auto; right: 14px; }
+.side { left: auto; right: 12px; display: flex; flex-direction: column; }
+.side .chat, .side .log { min-height: 0; }
+.side .chat { flex: 1; }
+.side-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px; align-items: center; }
+.side-actions .toggle { flex: 1 1 100%; font-size: 13px; }
+.side-actions .grid2 { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
+.side-actions .grid2 .btn { flex: 1 1 30%; min-height: 38px; padding: 0 10px; font-size: 13px; }
+
+/* ---------- landscape: full screen, Master Duel style (field in the middle, players in the corners) ---------- */
 @media (orientation: landscape) and (max-height: 620px) {
-  .duelist { padding: 6px 10px; gap: 8px; }
+  :root, .embed { --z: clamp(28px, min(calc((100vh - 84px) / 5.95), calc((100vw - 300px) / 7.5)), 120px); }
+  body:has(#table:not([hidden])) .top { display: none; }
+  body:has(#table:not([hidden])) { overflow: hidden; }
+  #table { display: block; height: 100vh; height: 100dvh; padding: 0; overflow: hidden; }
+  .arena { display: block; position: relative; height: 100%; width: 100%; }
+  .arena .mat-wrap { position: absolute; inset: 0 0 calc(var(--ch) * .9) 0; margin: auto; width: max-content; height: max-content; }
+  .arena .mat { transform: perspective(1500px) rotateX(13deg); transform-origin: 50% 60%; }
+  .arena .duelist { position: absolute; width: auto; min-width: 150px; max-width: 220px; padding: 6px 10px; gap: 8px; z-index: 6; }
+  .arena .duelist.op { left: 10px; top: 8px; }
+  .arena .duelist.me { left: 10px; bottom: 8px; }
   .duelist .lp-bar, .duelist .lp-label { display: none; }
   .duelist .lp-num { font-size: 20px; }
   .duelist .who span { font-size: 11px; }
-  .sheet { left: auto; right: 8px; transform: none; bottom: 8px; width: min(420px, 46vw); max-height: calc(100vh - 16px); max-height: calc(100dvh - 16px); }
+  .arena #opHand { position: absolute; top: 2px; left: 50%; transform: translateX(-50%); width: auto; min-height: 0; z-index: 4; }
+  .arena #myHand { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: auto; min-height: 0; z-index: 7; padding: 0; }
+  .my-hand .card { width: calc(var(--cw) * 1.15); height: calc(var(--ch) * 1.15); }
+  .arena .turnbar { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); flex-direction: column; gap: 6px; z-index: 6; }
+  .arena .phases { flex-direction: column; border-radius: 16px; }
+  .arena .phases button { min-height: 28px; }
+  .arena #status { position: absolute; top: 50%; left: 10px; transform: translateY(-50%); max-width: calc(50vw - var(--z) * 3.9 - 20px); font-size: 12px; z-index: 6; text-align: left; }
+  .chain-stack { right: auto; left: calc(100% + 10px); top: 50%; bottom: auto; transform: translateY(-50%); display: grid; }
+  .sheet { left: auto; right: 70px; transform: none; bottom: 8px; width: min(360px, 40vw); max-height: calc(100vh - 16px); max-height: calc(100dvh - 16px); }
+  .side { top: 8px; bottom: 8px; height: auto; right: 70px; width: min(360px, 44vw); }
+  .side-fab { right: 10px; bottom: 10px; width: 46px; height: 46px; }
+  .info { top: 8px; bottom: 8px; }
+  .embed .info { top: 8px; }
 }
-@media (orientation: landscape) and (max-height: 620px) { .arena .duelist.me { margin-left: 62px; width: calc(100% - 62px); } }
+
+/* ----- summon glow, boss splash, OTK ----- */
+.zone.summon-glow { animation: zglow 1.2s ease-out; }
+.zone.boss-glow { animation: zboss 1.6s ease-out; }
+@keyframes zglow { 0% { box-shadow: 0 0 0 0 #7cc4ff00; } 25% { box-shadow: 0 0 18px 6px #7cc4ffcc, inset 0 0 14px #7cc4ff99; } 100% { box-shadow: 0 0 0 0 #7cc4ff00; } }
+@keyframes zboss { 0% { box-shadow: 0 0 0 0 #ffcf5a00; } 20% { box-shadow: 0 0 34px 14px #ffcf5ae6, inset 0 0 22px #ffe9a8; } 60% { box-shadow: 0 0 20px 6px #ff8a3d99; } 100% { box-shadow: 0 0 0 0 #ffcf5a00; } }
+.big-fx { position: fixed; inset: 0; pointer-events: none; z-index: 60; display: grid; place-items: center; }
+.splash { position: relative; display: flex; align-items: center; gap: 18px; padding: 18px 28px; opacity: 0; transform: scale(.7);
+  background: linear-gradient(90deg, transparent, #0b0f17e6 18%, #0b0f17e6 82%, transparent); width: 100%; justify-content: center;
+  transition: opacity .25s ease, transform .35s cubic-bezier(.2,1.6,.4,1); }
+.splash::before { content: ""; position: absolute; inset: 0; border-block: 2px solid #ffcf5a; opacity: .8; }
+.splash.in { opacity: 1; transform: scale(1); }
+.splash.out { opacity: 0; transform: scale(1.15); transition-duration: .35s; }
+.splash-art { width: clamp(70px, 16vmin, 130px); aspect-ratio: 59/86; border-radius: 6px; overflow: hidden; box-shadow: 0 0 30px #ffcf5a99; animation: artIn .6s ease-out; }
+.splash-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.splash-txt { display: grid; gap: 4px; text-align: left; }
+.splash-txt strong { font-size: clamp(20px, 4.6vmin, 38px); letter-spacing: .02em; color: #fff; text-shadow: 0 0 18px #ffcf5a, 0 2px 0 #000; }
+.splash-txt span { font-size: 13px; text-transform: uppercase; letter-spacing: .18em; color: #ffcf5a; }
+.splash.sig::before { border-color: #c48bff; }
+.splash.sig .splash-art { box-shadow: 0 0 40px #c48bffcc, 0 0 80px #7cc4ff66; animation: artIn .6s ease-out, sigPulse 1s ease-in-out .6s 2; }
+.splash.sig .splash-txt strong { text-shadow: 0 0 22px #c48bff, 0 0 40px #7cc4ff, 0 2px 0 #000; }
+.splash.sig .splash-txt span { color: #d9b8ff; }
+.splash.otk { padding: 26px 20px; }
+.splash.otk::before { border-color: #ff5a5a; border-width: 3px; }
+.splash.otk .splash-txt { text-align: center; }
+.splash.otk .splash-txt strong { font-size: clamp(30px, 9vmin, 72px); color: #ffe9e0; text-shadow: 0 0 24px #ff5a5a, 0 0 60px #ff8a3d, 0 3px 0 #000; animation: otkIn .9s cubic-bezier(.2,1.6,.4,1); }
+.splash.otk .splash-txt span { color: #ffb4a0; }
+@keyframes artIn { from { transform: translateY(20px) rotateY(80deg); } to { transform: none; } }
+@keyframes sigPulse { 50% { transform: scale(1.08); } }
+@keyframes otkIn { from { transform: scale(2.4); letter-spacing: .4em; opacity: 0; } to { transform: none; opacity: 1; } }
+body.shake .arena { animation: shake .45s ease-in-out; }
+@keyframes shake { 15% { transform: translate(-6px, 3px); } 30% { transform: translate(5px, -4px); } 45% { transform: translate(-4px, 2px); } 60% { transform: translate(3px, -2px); } 80% { transform: translate(-1px, 1px); } }
+@media (prefers-reduced-motion: reduce) { .zone.summon-glow, .zone.boss-glow, .splash, .splash-art, .splash-txt strong, body.shake .arena { animation: none !important; transition: none !important; } }
