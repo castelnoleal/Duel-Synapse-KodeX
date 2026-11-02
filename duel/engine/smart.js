@@ -217,6 +217,9 @@ function worthActivating(a, c, s) {
 /** Combo memory: replay a whole remembered turn, play by play, while the duel lets it. */
 function comboIdle(msg, ctx, m) {
   if (!ctx.book || !ctx.book.lineNext) return null;
+  // The opening play comes from the overall play statistics (learnedIdle); once the turn has started a
+  // remembered line, the rest of that line is followed.
+  if (!m.seq.length) return null;
   const legal = new Map();
   const lists = [[IDLE.ACTIVATE, msg.activates], [IDLE.SPSUMMON, msg.special_summons], [IDLE.SUMMON, msg.summons], [IDLE.MSET, msg.monster_sets], [IDLE.SSET, msg.spell_sets]];
   for (const [action, arr] of lists) arr.forEach((_, index) => { const tok = idleToken(msg, { action, index }); if (tok && !legal.has(tok)) legal.set(tok, { action, index }); });
@@ -324,7 +327,7 @@ function chain(msg, ctx) {
       const r = opts.map((x) => ({ x, n: ctx.book.respScore(trig, x.s.code) })).sort((a, b) => b.n - a.n)[0];
       if (r && r.n >= 0.9 && once(m, "lresp:" + keyOf(r.x.s) + ":" + ch.length)) return { index: r.x.index };
     }
-    if (myTurn && !oppActing && ctx.book.lineNext) {
+    if (myTurn && !oppActing && ctx.book.lineNext && (m.seq || []).length) {
       // Combo memory first: the chain link the remembered turn used at this point.
       const nx = ctx.book.lineNext(m.seq || [], (tok) => opts.some((x) => chainToken(x.s) === tok));
       const x = nx && opts.find((o) => chainToken(o.s) === nx.tok);
