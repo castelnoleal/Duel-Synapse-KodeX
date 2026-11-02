@@ -46,6 +46,12 @@ Chat and log live in a bubble at the bottom right; chat is the first tab (with a
 
 On landscape screens up to 620 px tall the table is laid out like Master Duel: the field is centred and tilted, the duelists sit in the corners, the opponent's hand is at the top, yours at the bottom, and the phases run down the right edge. On phones held upright the zones become card-shaped and grow to use the screen's height.
 
+## Look
+
+The Arena uses the MEIOCG website's look (`meiocg.css`, loaded after `arena.css`): night navy, electric-blue brand, foil-gold highlights, Chakra Petch headings over Plus Jakarta Sans, pill controls. The lobby keeps moving even before a duel: drifting colour blobs, a slowly panning duel-field grid, floating card backs, a ticker, and cards that deal in and lift with a foil sweep. During a duel the background calms down. The theme is the same in the browser and inside the KodeX app (it no longer takes the app's colour theme), and it only touches the Arena.
+
+Every card in the lobby deck can be looked at: hovering with a mouse shows a preview; a click or tap opens the card with its official rulings (`rulings.js`, read from KodeX's rulings mirror at `/data/rulings/`, matched by card name). The card panel during a duel has the same rulings section. Offline inside the app, *Open in KodeX* shows the rulings the app has saved.
+
 ## Sound and effects
 
 `audio.js` makes every sound with Web Audio (synthesised, no recordings), so nothing is borrowed from EDOPro or other games: draw, set, summon, Special Summon, boss entrance, activation, chain links (rising pitch), attack, damage, destroy, phase, turn, win, lose and one-turn kill, plus an original looping duel theme. Music and Sounds switches are in the chat panel (saved per device). Audio starts after the first tap, as browsers require.
