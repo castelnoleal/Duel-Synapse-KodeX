@@ -9,6 +9,7 @@ import { parseAny, resolveDeck, deckProblems, decodeKodex, encodeKodex, toYdk } 
 import { Room, newRoomCode } from "./net.js";
 import { Learning } from "./learning.js";
 import * as Sound from "./audio.js";
+import { rulingsFor } from "./rulings.js";
 
 const M = C.MSG;
 const $ = (s) => document.querySelector(s);
@@ -216,15 +217,22 @@ function renderDeck() {
     if (!list.length) continue;
     const sec = el("div", "deck-section"); sec.append(el("span", null, label), el("span", null, String(list.length))); b.append(sec);
     const g = el("div", "deck-grid");
-    for (const code of list) { const x = cardImg(code, S.db.name(code)); x.title = S.db.name(code); g.append(x); }
+    list.forEach((code, i) => {
+      const x = el("button", "deck-card"); x.type = "button"; x.setAttribute("aria-label", S.db.name(code));
+      x.style.setProperty("--i", String(Math.min(i, 40)));
+      x.append(cardImg(code, S.db.name(code)));
+      peekable(x, code);
+      g.append(x);
+    });
     b.append(g);
   }
   const th = $("#testHand");
   th.replaceChildren();
   $("#testHandCount").textContent = "";
   [...new Set(d.main)].forEach((code) => {
-    const btn = el("button"); btn.type = "button"; btn.title = S.db.name(code);
+    const btn = el("button"); btn.type = "button"; btn.setAttribute("aria-label", S.db.name(code));
     btn.setAttribute("aria-pressed", "false"); btn.append(cardImg(code, S.db.name(code)));
+    peekable(btn, code, { click: false });
     btn.onclick = () => {
       const count = [...S.testHand].length;
       if (S.testHand.has(code)) S.testHand.delete(code);
@@ -257,6 +265,9 @@ function bindLobby() {
     $("#soloFirst").value = b.dataset.v;
   }));
   $("#savedDecks").addEventListener("change", (e) => selectDeck(Number(e.target.value)));
+  $("#peekClose").addEventListener("click", () => $("#peek").close());
+  $("#peek").addEventListener("click", (e) => { if (e.target === $("#peek")) $("#peek").close(); });
+  addEventListener("scroll", hideHoverPeek, { passive: true });
   $("#importBtn").addEventListener("click", () => { $("#importError").textContent = ""; $("#importDlg").showModal(); });
   $("#importFile").addEventListener("change", async (e) => {
     const f = e.target.files[0]; if (!f) return;
@@ -802,9 +813,14 @@ function showInfo(c, team, location, open = true) {
   const panel = $("#info");
   if (open === false && !panel.classList.contains("open")) return;
   if (open === true) openInfo();
-  const data = S.db.get(c.code);
   const b = $("#infoBody");
   b.replaceChildren();
+  fillInfo(b, c, team, location);
+  rulingsBlock(b, c.code, false);
+}
+/** Card details (art, type, stats, text, materials) into `b`. */
+function fillInfo(b, c, team, location) {
+  const data = S.db.get(c.code);
   const img = cardImg(c.code, name(c.code)); img.className = "info-img"; img.loading = "eager";
   const def = location === C.LOCATION_MZONE && c.position && (c.position & C.POS_DEFENSE) && !(c.position & C.POS_FACEDOWN);
   if (def) {
@@ -844,12 +860,84 @@ function showInfo(c, team, location, open = true) {
   if (c.counters && c.counters.length) extra.push("Counters: " + c.counters.map(([k, n]) => `${S.db.counter(k)} ×${n}`).join(", "));
   if (c.status & C.STATUS_DISABLED) extra.push("Effects negated");
   for (const x of extra) b.append(el("div", "info-extra", x));
-  const a = el("a", "info-link", "Show rulings for this card");
-  const cid = data && data.alias && Math.abs(data.alias - c.code) < 20 ? data.alias : c.code;
-  a.href = `${BUNDLED ? SITE : ""}/#card=${cid}`; a.target = "_blank"; a.rel = "noopener";
-  // Inside the KodeX app the app itself shows the card.
-  if (window.parent !== window) a.addEventListener("click", (e) => { e.preventDefault(); window.parent.postMessage({ kx: "rulings", id: cid }, "*"); });
-  b.append(a);
+}
+/** Official rulings for a card, read in place (online), plus a way to open the card in KodeX. */
+function rulingsBlock(b, code, auto) {
+  const data = S.db.get(code);
+  const cid = data && data.alias && Math.abs(data.alias - code) < 20 ? data.alias : code;
+  const box = el("section", "rulings");
+  const head = el("div", "rulings-head");
+  const load = el("button", "btn small primary", "Show rulings"); load.type = "button";
+  const kx = el("a", "btn small ghost", "Open in KodeX");
+  kx.href = `${BUNDLED ? SITE : ""}/#card=${cid}`; kx.target = "_blank"; kx.rel = "noopener";
+  // Inside the KodeX app the app itself shows the card (with rulings saved for offline use).
+  if (window.parent !== window) kx.addEventListener("click", (e) => { e.preventDefault(); window.parent.postMessage({ kx: "rulings", id: cid }, "*"); });
+  head.append(el("h4", null, "Rulings"), load, kx);
+  const list = el("div", "rulings-list");
+  box.append(head, list);
+  b.append(box);
+  const go = async () => {
+    load.disabled = true; load.textContent = "Loading…";
+    list.replaceChildren(el("div", "rulings-skel"), el("div", "rulings-skel"));
+    try {
+      const items = await rulingsFor(data ? data.name : String(code));
+      list.replaceChildren();
+      load.remove();
+      if (!items.length) { list.append(el("p", "hint", "No official Q&A for this card yet.")); return; }
+      head.querySelector("h4").textContent = `Rulings (${items.length})`;
+      items.forEach((r, i) => {
+        const d = el("details", "ruling"); if (i === 0) d.open = true;
+        d.style.setProperty("--i", String(Math.min(i, 12)));
+        const sm = el("summary"); sm.append(el("span", "rq", "Q"), el("span", null, r.q));
+        d.append(sm);
+        const a = el("div", "ra"); a.append(el("span", "rq a", "A"), el("span", null, r.a)); d.append(a);
+        if (r.date) d.append(el("small", "rdate", r.date));
+        list.append(d);
+      });
+    } catch {
+      load.disabled = false; load.textContent = "Try again";
+      list.replaceChildren(el("p", "hint", window.parent !== window ? "Rulings need a connection here. Open the card in KodeX to read your saved rulings." : "Couldn't load rulings. Check your connection."));
+    }
+  };
+  load.addEventListener("click", go);
+  if (auto) go();
+}
+
+// ----- deck cards in the lobby: hover preview (mouse) and full details with rulings (tap/click) -----
+const canHover = () => matchMedia("(hover: hover) and (pointer: fine)").matches;
+let hoverTimer = 0;
+function peekable(node, code, { click = true } = {}) {
+  node.dataset.code = code;
+  node.addEventListener("pointerenter", () => {
+    if (!canHover()) return;
+    clearTimeout(hoverTimer);
+    hoverTimer = setTimeout(() => showHoverPeek(node, code), 140);
+  });
+  node.addEventListener("pointerleave", hideHoverPeek);
+  if (click) node.addEventListener("click", () => { hideHoverPeek(); openPeek(code); });
+}
+function showHoverPeek(node, code) {
+  const h = $("#hoverPeek");
+  h.replaceChildren();
+  fillInfo(h, { code }, S.team, 0);
+  h.append(el("div", "peek-tip", "Click for rulings"));
+  h.hidden = false;
+  const r = node.getBoundingClientRect(), w = h.offsetWidth, ht = h.offsetHeight;
+  let x = r.right + 12; if (x + w > innerWidth - 8) x = r.left - w - 12; if (x < 8) x = 8;
+  let y = r.top + r.height / 2 - ht / 2; y = Math.max(8, Math.min(y, innerHeight - ht - 8));
+  h.style.left = x + "px"; h.style.top = y + "px";
+  requestAnimationFrame(() => h.classList.add("in"));
+}
+function hideHoverPeek() { clearTimeout(hoverTimer); const h = $("#hoverPeek"); h.classList.remove("in"); h.hidden = true; }
+function openPeek(code) {
+  const d = $("#peek"), b = $("#peekBody");
+  b.replaceChildren();
+  const info = el("div", "peek-info");
+  fillInfo(info, { code }, S.team, 0);
+  b.append(info);
+  rulingsBlock(b, code, true);
+  if (!d.open) d.showModal();
+  b.scrollTop = 0;
 }
 const countBits = (n) => { let k = 0; while (n) { k += n & 1; n >>>= 1; } return k; };
 
