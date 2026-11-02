@@ -1,7 +1,7 @@
 name: Duel data weekly update
 
-# Keeps the Arena's card data and card-script pin in step with Project Ignis (EDOPro), so new cards appear and
-# replays saved for EDOPro use the same card scripts EDOPro has. The rules engine (ocgcore.wasm) is not rebuilt
+# Keeps the Arena's card data and card-script pin in step with Project Ignis, so new cards appear and
+# saved replays use the current card scripts. The rules engine (ocgcore.wasm) is not rebuilt
 # here: that needs wasi-sdk and is done by hand with duel/engine/build/build.sh when ygopro-core changes.
 on:
   schedule:

@@ -222,7 +222,7 @@ dialog.info-top::backdrop { background: #00000080; }
 .card.act { box-shadow: 0 0 0 2px var(--a2), 0 0 16px #8be1ffaa; }
 .card.selectable { box-shadow: 0 0 0 2px var(--gold), 0 0 14px #f2c75c99; }
 .card.selected { box-shadow: 0 0 0 3px var(--ok), 0 0 16px #5fd39aaa; }
-.card .stat { position: absolute; left: 50%; bottom: -13px; transform: translateX(-50%); white-space: nowrap; font-size: 10px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; background: #050810eb; border: 1px solid var(--line-2); border-radius: 5px; padding: 3px 5px; z-index: 2; letter-spacing: 0; display: block; color: var(--text); text-transform: none; }
+.card .stat { position: absolute; left: 50%; bottom: 2px; transform: translateX(-50%); white-space: nowrap; font-size: 10px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; background: #050810eb; border: 1px solid var(--line-2); border-radius: 5px; padding: 3px 5px; z-index: 2; letter-spacing: 0; display: block; color: var(--text); text-transform: none; }
 .card.def .stat { transform: translateX(-50%) rotate(90deg); bottom: auto; top: 40%; left: 112%; }
 .op .card.def .stat { transform: translateX(-50%) rotate(-90deg); }
 .card .badge { position: absolute; top: -6px; right: -6px; z-index: 2; min-width: 18px; height: 18px; border-radius: 9px; background: var(--a); color: #04101f; font-size: 10px; font-weight: 800; line-height: 18px; text-align: center; padding: 0 4px; }
@@ -391,6 +391,23 @@ dialog.info-top::backdrop { background: #00000080; }
 @media (max-width: 1120px) { .embed { --z: clamp(36px, min(calc((100vw - 350px) / 7.6), calc((100vh - 255px) / 7.6)), 96px); } }
 @media (max-width: 780px) { .embed { --z: min(calc((100vw - 22px) / 7.75), calc((100vh - 215px) / 8.1)); } }
 
+@media (orientation: portrait), (max-width: 639px) {
+  #table:not([hidden]) .arena { padding-bottom: 66px; }
+  .side-fab { width: 48px; height: 48px; }
+  /* prompts stay small: one sideways row of cards; the chat bubble steps aside while a prompt is open */
+  body:has(#sheet:not([hidden])) .side-fab { display: none; }
+  body .sheet-head .sheet-chat { display: grid; place-items: center; margin-left: auto; }
+  .sheet { max-height: min(46vh, 380px); bottom: 8px; width: calc(100vw - 16px); }
+  .sheet-head { padding: 10px 12px 0; }
+  .sheet-head h3 { font-size: 15px; }
+  .sheet-text { margin: 2px 12px 0; font-size: 12.5px; }
+  .sheet-body:has(> .opt) { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; padding: 10px 12px; gap: 10px; scroll-snap-type: x proximity; }
+  .sheet-body > .opt { flex: none; scroll-snap-align: start; }
+  .opt { font-size: 10px; }
+  .opt .where, .opt > small, .opt > span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .sheet-actions { padding: 0 12px 10px; }
+}
+@media (orientation: landscape) and (max-width: 1000px) { .arena .duelist .avatar { display: none; } }
 /* phones held upright: zones become card-shaped and grow to use the screen's height */
 @media (max-width: 780px) and (orientation: portrait) {
   :root { --zh: clamp(var(--z), calc((100vh - 380px) / 5.3), calc(var(--z) * 1.4)); --ch: calc(var(--zh) * .92); }
@@ -490,34 +507,58 @@ dialog.info-top::backdrop { background: #00000080; }
 .side-actions .grid2 { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
 .side-actions .grid2 .btn { flex: 1 1 30%; min-height: 38px; padding: 0 10px; font-size: 13px; }
 
-/* ---------- landscape: full screen, Master Duel style (field in the middle, players in the corners) ---------- */
-@media (orientation: landscape) and (max-height: 620px) {
-  :root, .embed { --z: clamp(28px, min(calc((100vh - 84px) / 5.95), calc((100vw - 300px) / 7.5)), 120px); }
+/* ---------- landscape (phones, tablets, computers): Master Duel style ----------
+   Left: the card you're looking at, with your Life Points under it. Middle: opponent's hand, the field, your hand.
+   Right: opponent's Life Points, what's happening (a log with card pictures), the phases and the chat button.
+   Nothing sits on top of the field; prompts use the lower half of the left column. */
+@media (orientation: landscape) and (min-width: 640px) {
+  :root, .embed {
+    --L: clamp(200px, 22vw, 340px); --R: clamp(170px, 18vw, 290px);
+    --z: clamp(28px, min(calc((100vh - 40px) / 6.9), calc((100vw - var(--L) - var(--R) - 40px) / 7.6)), 118px);
+    --zh: var(--z); --ch: calc(var(--z) * .92);
+  }
+  @supports (height: 100dvh) { :root, .embed { --z: clamp(28px, min(calc((100dvh - 40px) / 6.9), calc((100vw - var(--L) - var(--R) - 40px) / 7.6)), 118px); } }
   body:has(#table:not([hidden])) .top { display: none; }
   body:has(#table:not([hidden])) { overflow: hidden; }
-  #table { display: block; height: 100vh; height: 100dvh; padding: 0; overflow: hidden; }
-  .arena { display: block; position: relative; height: 100%; width: 100%; }
-  .arena .mat-wrap { position: absolute; inset: 0 0 calc(var(--ch) * .9) 0; margin: auto; width: max-content; height: max-content; }
-  .arena .mat { transform: perspective(1500px) rotateX(13deg); transform-origin: 50% 60%; }
-  .arena .duelist { position: absolute; width: auto; min-width: 150px; max-width: 220px; padding: 6px 10px; gap: 8px; z-index: 6; }
-  .arena .duelist.op { left: 10px; top: 8px; }
-  .arena .duelist.me { left: 10px; bottom: 8px; }
-  .duelist .lp-bar, .duelist .lp-label { display: none; }
-  .duelist .lp-num { font-size: 20px; }
+  #table { display: grid; height: 100vh; height: 100dvh; padding: 8px; gap: 6px 10px; overflow: hidden;
+    grid-template-columns: var(--L) minmax(0, 1fr) var(--R);
+    grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+    grid-template-areas: "info ohand opp" "info mat status" "info mat feed" "info mat turn" "me hand fab"; }
+  .arena { display: contents; }
+  #info { grid-area: info; position: relative; inset: auto; width: auto; transform: none; opacity: 1; pointer-events: auto; box-shadow: none; z-index: 1; min-height: 0; }
+  #info .close-info { display: none; }
+  .arena .duelist { width: auto; min-width: 0; height: 64px; padding: 7px 9px; gap: 8px; z-index: 2; }
+  .arena .duelist .avatar { width: 28px; height: 28px; font-size: 13px; }
+  .arena .duelist .who b, .arena .duelist .who span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .arena .duelist.op { grid-area: opp; }
+  .arena .duelist.me { grid-area: me; }
+  .duelist .lp-label { display: none; }
+  .duelist .lp { flex-direction: column; align-items: flex-end; gap: 4px; }
+  .duelist .lp-bar { width: 72px; height: 4px; }
+  .duelist .lp-num { font-size: clamp(18px, 2.2vw, 26px); min-width: 0; }
   .duelist .who span { font-size: 11px; }
-  .arena #opHand { position: absolute; top: 2px; left: 50%; transform: translateX(-50%); width: auto; min-height: 0; z-index: 4; }
-  .arena #myHand { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: auto; min-height: 0; z-index: 7; padding: 0; }
-  .my-hand .card { width: calc(var(--cw) * 1.15); height: calc(var(--ch) * 1.15); }
-  .arena .turnbar { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); flex-direction: column; gap: 6px; z-index: 6; }
-  .arena .phases { flex-direction: column; border-radius: 16px; }
-  .arena .phases button { min-height: 28px; }
-  .arena #status { position: absolute; top: 50%; left: 10px; transform: translateY(-50%); max-width: calc(50vw - var(--z) * 3.9 - 20px); font-size: 12px; z-index: 6; text-align: left; }
-  .chain-stack { right: auto; left: calc(100% + 10px); top: 50%; bottom: auto; transform: translateY(-50%); display: grid; }
-  .sheet { left: auto; right: 70px; transform: none; bottom: 8px; width: min(360px, 40vw); max-height: calc(100vh - 16px); max-height: calc(100dvh - 16px); }
-  .side { top: 8px; bottom: 8px; height: auto; right: 70px; width: min(360px, 44vw); }
-  .side-fab { right: 10px; bottom: 10px; width: 46px; height: 46px; }
-  .info { top: 8px; bottom: 8px; }
-  .embed .info { top: 8px; }
+  .arena #opHand { grid-area: ohand; justify-self: center; width: auto; min-height: 0; padding: 0; }
+  .op-hand .card { width: calc(var(--cw) * .6); height: calc(var(--ch) * .6); }
+  .arena .mat-wrap { grid-area: mat; place-self: center; }
+  .arena .mat { transform: perspective(1500px) rotateX(13deg); transform-origin: 50% 100%; }
+  .arena #myHand { grid-area: hand; justify-self: center; align-self: end; width: auto; min-height: 0; padding: 0; z-index: 7; }
+  .my-hand .card { width: var(--cw); height: var(--ch); margin: 0 1px; }
+  .arena #status { grid-area: status; font-size: 12px; text-align: left; line-height: 1.35; min-height: 0; }
+  .arena .turnbar { grid-area: turn; flex-direction: column; align-items: stretch; gap: 6px; }
+  .arena .turn-no { text-align: center; }
+  .arena .phases { display: grid; grid-template-columns: repeat(3, 1fr); border-radius: 14px; gap: 3px; padding: 3px; }
+  .arena .phases button { min-height: 30px; padding: 0 4px; }
+  #feed { grid-area: feed; display: flex; }
+  .chain-stack { display: none !important; }
+  .side-fab { grid-area: fab; position: relative; inset: auto; justify-self: end; align-self: end; width: 46px; height: 46px; }
+  .sheet { left: 8px; right: auto; transform: none; top: auto; bottom: 80px; width: var(--L); max-height: calc(100vh - 96px); max-height: min(60dvh, calc(100dvh - 96px)); z-index: 46; }
+  .sheet-head h3 { font-size: 15px; }
+  .sheet-body { gap: 10px 8px; padding: 10px 12px; }
+  .sheet-actions { padding: 0 12px 12px; }
+  .opt { width: calc(var(--cw) * 1.05 + 6px); min-width: 54px; }
+  .opt .card { width: max(var(--cw), 48px); height: max(var(--ch), 70px); }
+  .side { top: 8px; bottom: 8px; height: auto; right: calc(var(--R) + 18px); width: min(360px, 44vw); }
+  .menu { z-index: 50; }
 }
 
 /* ----- summon glow, boss splash, OTK ----- */
@@ -549,6 +590,30 @@ dialog.info-top::backdrop { background: #00000080; }
 @keyframes artIn { from { transform: translateY(20px) rotateY(80deg); } to { transform: none; } }
 @keyframes sigPulse { 50% { transform: scale(1.08); } }
 @keyframes otkIn { from { transform: scale(2.4); letter-spacing: .4em; opacity: 0; } to { transform: none; opacity: 1; } }
-body.shake .arena { animation: shake .45s ease-in-out; }
+body.shake .mat-wrap { animation: shake .45s ease-in-out; }
 @keyframes shake { 15% { transform: translate(-6px, 3px); } 30% { transform: translate(5px, -4px); } 45% { transform: translate(-4px, 2px); } 60% { transform: translate(3px, -2px); } 80% { transform: translate(-1px, 1px); } }
-@media (prefers-reduced-motion: reduce) { .zone.summon-glow, .zone.boss-glow, .splash, .splash-art, .splash-txt strong, body.shake .arena { animation: none !important; transition: none !important; } }
+@media (prefers-reduced-motion: reduce) { .zone.summon-glow, .zone.boss-glow, .splash, .splash-art, .splash-txt strong, body.shake .mat-wrap { animation: none !important; transition: none !important; } }
+
+.zone:has(.card) > .lbl { opacity: 0; }
+.card .stat { font-size: clamp(8px, calc(var(--z) * .14), 11px); padding: 2px 4px; max-width: calc(100% + 14px); background: #050810d9; }
+/* what's happening, with card pictures (landscape) */
+.feed { display: none; flex-direction: column; gap: 4px; min-height: 0; overflow: hidden auto; padding: 6px; border-radius: 14px; background: #10142acc; border: 1px solid var(--line); scrollbar-width: thin; }
+#feed:empty::before { content: "Duel log"; color: var(--muted); font-size: 12px; padding: 6px; }
+.fd { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 7px; align-items: center; padding: 4px; border-radius: 9px; background: #ffffff06; cursor: pointer; animation: fdIn .3s ease both; font-size: 11.5px; line-height: 1.3; color: #d9def4; position: relative; }
+.fd:hover { background: #ffffff10; }
+.fd .th { width: 30px; aspect-ratio: 59/86; border-radius: 3px; overflow: hidden; background: #1b2147; display: grid; place-items: center; }
+.fd .th img, .fd .th .nm { width: 100%; height: 100%; object-fit: cover; font-size: 5px; }
+.fd .cl { position: absolute; left: -2px; top: -2px; min-width: 16px; height: 16px; border-radius: 8px; padding: 0 3px; font: 800 10px/16px system-ui, sans-serif; text-align: center; background: var(--gold, #f0b429); color: #1a1405; }
+.fd.op { border-left: 2px solid #e0566b88; }
+.fd.me { border-left: 2px solid #6f7dff88; }
+.fd.turn { grid-template-columns: 1fr; text-align: center; font-weight: 700; color: var(--gold, #f0b429); background: none; cursor: default; letter-spacing: .04em; }
+@keyframes fdIn { from { opacity: 0; transform: translateX(10px); } }
+.log li .lth { display: inline-block; width: 18px; aspect-ratio: 59/86; vertical-align: middle; margin-right: 6px; border-radius: 2px; overflow: hidden; }
+.log li .lth img, .log li .lth .nm { width: 100%; height: 100%; object-fit: cover; font-size: 0; }
+@media (orientation: landscape) and (min-width: 640px) {
+  dialog.info-top #info { position: fixed; left: 8px; top: 8px; bottom: 8px; width: var(--L); }
+}
+.info .empty-state small { color: var(--muted); font-size: 12px; }
+
+.sheet-head .sheet-chat { display: none; position: relative; }
+.sheet-chat.unread::after { content: ""; position: absolute; top: -2px; right: -2px; width: 10px; height: 10px; border-radius: 50%; background: #ff4d6a; }

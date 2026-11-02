@@ -1,4 +1,4 @@
-// Duel Synapse: KodeX — JavaScript binding for the EDOPro rules engine
+// Duel Synapse: KodeX — JavaScript binding for the rules engine (ygopro-core)
 // (edo9300/ygopro-core, AGPL-3.0-or-later) compiled to WebAssembly.
 //
 // Message/response layouts are ported from n1xx1/ocgcore-wasm (MIT) and checked

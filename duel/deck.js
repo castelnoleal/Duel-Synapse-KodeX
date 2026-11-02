@@ -1,4 +1,4 @@
-// Deck formats: KodeX share links (deck.html payload), EDOPro .ydk files and ydke:// URLs.
+// Deck formats: KodeX share links (deck.html payload), .ydk files and ydke:// URLs.
 
 /** KodeX/deck.html payload: base64url(JSON {n, m:[[id,name,count]], e:[...], s:[...]}) */
 export function decodeKodex(hash) {
@@ -75,7 +75,7 @@ const norm = (s) => String(s || "").toLowerCase().normalize("NFKD").replace(/[^a
 
 /**
  * Map deck entries ({id,name}) to engine card codes. KodeX uses YGOPRODeck ids, which
- * match EDOPro passcodes for released cards; anything else is matched by name.
+ * match the engine's passcodes for released cards; anything else is matched by name.
  * Returns {main, extra, side, missing:[names], moved:[...]} with codes, Extra Deck
  * monsters moved to the Extra Deck if they were listed in the Main Deck.
  */

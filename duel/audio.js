@@ -66,6 +66,12 @@ const SFX = {
   turn(t) { tone(330, t, { type: "triangle", d: 0.25, peak: 0.18 }); tone(494, t + 0.12, { type: "triangle", d: 0.4, peak: 0.18 }); },
   win(t) { [523.3, 659.3, 784, 1046.5, 1318.5].forEach((f, i) => tone(f, t + i * 0.11, { type: "triangle", d: 0.7, peak: 0.2 })); },
   lose(t) { [440, 415.3, 349.2, 293.7].forEach((f, i) => tone(f, t + i * 0.18, { type: "sine", d: 0.6, peak: 0.18 })); },
+  finish(t) {
+    tone(42, t, { type: "sine", a: 0.005, d: 1.8, peak: 0.8, glide: 0.5 });
+    noise(t, { d: 0.9, peak: 0.5, type: "lowpass", f: 5000, f2: 120 });
+    for (let i = 0; i < 14; i++) bell(1800 + Math.random() * 2600, t + 0.35 + i * 0.045, 0.05, 0.4);   // glass-like shards
+    noise(t + 0.35, { d: 0.7, peak: 0.25, type: "highpass", f: 3000 });
+  },
   otk(t) { SFX.boss(t); [1046.5, 1318.5, 1568, 2093].forEach((f, i) => tone(f, t + 0.9 + i * 0.09, { type: "square", d: 0.3, peak: 0.07 })); },
 };
 /** Plays a named effect (or the player's own sound for it, in KodeX Premium). */
