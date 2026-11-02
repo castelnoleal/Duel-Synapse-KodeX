@@ -1,6 +1,6 @@
 # Duel Synapse: KodeX app
 
-`Kodex_Mei_Production_v52.html` (free) and `Kodex_Mei_Premium_v52.html` (Premium) are the current source (older versions are kept alongside it) of the **Meiocg KodeX** Android app (`com.duelsynapse.kodex`). It's built with instApped: upload this file as the project's HTML source.
+`Kodex_Mei_Production_v53.html` (free) and `Kodex_Mei_Premium_v53.html` (Premium) are the current source (older versions are kept alongside it) of the **Meiocg KodeX** Android app (`com.duelsynapse.kodex`). It's built with instApped: upload this file as the project's HTML source.
 
 It loads cards and rulings from https://kodex.meiocg.org.
 
@@ -59,4 +59,6 @@ License: [LICENSE.md](../LICENSE.md) (all rights reserved; permission via metain
 **v51 (8.5 / Premium 8.5.1):** Alternate-art passcodes (`ALT_IDS`, 395 of them) now import as the right card instead of *Unknown card*, and keep their own art (`art` on the deck entry). In landscape the Arena's title bar is hidden and its X floats as a round button at the top right (the free edition's sponsor strip stays, as required). Premium **Skins** adds *Music & sounds* (duel music and Summon / Activation / Damage / Victory sounds from the player's files, kept in IndexedDB and sent to the Arena as `{kx:"audio"}`) and *Signature cards* (up to 60 cards that get the big entrance, sent as `signature` in the `skin` message). The Arena itself (layout, sounds, effects, AI combos, opponent deck choice) is described in [duel/README.md](../duel/README.md).
 
 **v52 (8.6 / Premium 8.6.1):** Premium **Skins** adds *Finishing move* (Shatter, Meteor, Thunder, Vortex or Slash, sent to the Arena as `finisher`), a finishing move per signature card (`sigFx`), and *Effects › MEIOCG animations* (on by default): a moving MEIOCG background with floating MEIOCG cards above any wallpaper and below the content, a sheen on the title, and animated card lists; paused while the app is in the background or the Arena is open, and off with reduced motion. Legal & Privacy now says KodeX and the Duel Arena are a Meta Insider OCG project since 2023 and may not be reverse engineered; open-source components stay under their own licences. The free edition looks the same as before.
+
+**v53 (8.6.2):** Smoother Premium animations. Panels and dialogs (Settings, Decks, Skins…) open instantly again: the fade-in let the page show through and looked like a glitch. Card lists deal in only when the results change, not on every redraw; the hover lift is mouse-only, so a tapped card no longer stays raised. The background glows use gradients instead of a heavy blur and pause while a panel is open; the button shine no longer changes the button's layout.
 
