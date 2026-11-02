@@ -8,10 +8,10 @@ skins are added).
 
 | Setting | Value |
 |---|---|
-| Source | Upload the **ZIP** (`KodeX_Premium_v50_instApped.zip`), not the HTML file. It carries the Duel Arena and all card scripts. |
+| Source | Upload the **ZIP** (`KodeX_Premium_v51_instApped.zip`), not the HTML file. It carries the Duel Arena and all card scripts. |
 | App name | `KodeX Premium` |
 | Package name | `com.duelsynapse.kodex.premium` (must differ from the free app; can't be changed after the first upload) |
-| Version | versionName `8.4.1`, versionCode higher than any earlier upload of this package (first upload: `1`) |
+| Version | versionName `8.5.1`, versionCode higher than any earlier upload of this package (first upload: `1`) |
 | Orientation | **Auto / sensor** (the Arena has a landscape layout; a locked orientation stops rotation) |
 | Permissions | **Camera** on (card scanner) |
 | Page notifications | **On** (opponent chat notifications) |
@@ -39,13 +39,17 @@ DUEL ARENA
 • Play against Synapse AI, a dummy for goldfish tests, or both sides yourself
 • Online rooms with invite links, spectators and chat
 • Works offline: the rules engine and every card script are built in
-• Chain animations, reveal windows and card details everywhere
-• Phone, tablet and landscape layouts
+• Chain animations, boss entrances, one-turn-kill finish, reveal windows and card details everywhere
+• Original music and sound effects
+• Synapse AI learns the combos you practise and can play any of your saved decks
+• Phone, tablet and full-screen landscape layouts
 
 PREMIUM
 • Custom Main Deck sleeves, Extra Deck sleeves and fields, with a field editor
 • Your sleeves and field are shown to your opponent and spectators in online duels
 • Save any duel as a replay you can open in EDOPro
+• Your own duel music and sound effects
+• Signature cards: pick the cards that get the biggest entrance
 
 KodeX is an independent fan project. It is not affiliated with, sponsored by or endorsed by Konami, Studio Dice, SHUEISHA or TV Tokyo. Card names, text and artwork belong to their owners.
 ```

@@ -37,3 +37,5 @@ jobs:
         run: node tests/duel/ai-match.mjs .cardscripts 6 smart smart classic
       - name: Synapse AI learns from play (imitation, practice games, card-text links)
         run: node tests/duel/ai-learn.mjs .cardscripts
+      - name: Synapse AI repeats a practised combo (combo memory)
+        run: node tests/duel/ai-combo.mjs .cardscripts

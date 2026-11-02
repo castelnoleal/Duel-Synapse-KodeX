@@ -7,6 +7,8 @@
 //   seq  : after plays (p2, p1) in the same turn, the player made play `next`  (combo lines)
 //   pick : when card `src` asked for a choice with hint `hint` and card `code` was offered, how often it was chosen
 //   resp : when the opponent played card `trig` (0 = declared an attack), the player answered with `code`
+//   lines: whole turns ("A123.0>P456>C789.1>…"), so the AI can replay a combo from its first play to its last.
+//          Turns that left a better board count more (reinforcement), and every repeat adds to the line's score.
 // Plays from people count 1, the AI's own practice games count less, so people's lines win.
 import { MSG, IDLE, BATTLE_ACT, LOCATION_MZONE, LOCATION_SZONE, LOCATION_HAND, POS_FACEUP, POS_DEFENSE } from "./constants.js";
 
@@ -38,6 +40,27 @@ export class Book {
     this.seq = (data && data.seq) || {};   // key "p2|p1" -> { next: n }
     this.pick = (data && data.pick) || {}; // key "src:hint" -> { code: [chosen, offered] }
     this.resp = (data && data.resp) || {}; // key trig -> { code: n }
+    this.lines = (data && data.lines) || {}; // "tok>tok>tok" -> score
+  }
+  addLine(tokens, w) { if (tokens && tokens.length >= 3 && w) { const k = tokens.join(">"); this.lines[k] = (this.lines[k] || 0) + w; this._parsed = null; } }
+  /**
+   * Combo memory: the next play of the best remembered turn that starts exactly like this one.
+   * `isLegal(token)` says whether a play can be made now. Longer and more practised lines win.
+   */
+  lineNext(seq, isLegal) {
+    if (!this._parsed) this._parsed = Object.entries(this.lines).filter(([, n]) => n > 0).map(([k, n]) => [k.split(">"), n]);
+    let best = null;
+    for (const [toks, n] of this._parsed) {
+      if (n < 0.7) continue; // one turn played by a person is enough
+      // Line up the plays made so far with the line (in order); a couple of extra plays don't break it.
+      let at = 0;
+      for (const t of seq) if (at < toks.length && toks[at] === t) at++;
+      if (at >= toks.length || seq.length - at > 2 || (seq.length && !at)) continue;
+      if (!isLegal(toks[at])) continue;
+      const score = n * (1 + 0.1 * toks.length) * (1 + at);
+      if (!best || score > best.score) best = { tok: toks[at], score, line: toks };
+    }
+    return best;
   }
   static key2(p2, p1) { return (p2 || "") + "|" + (p1 || ""); }
   addSeq(p2, p1, next, w) {
@@ -72,6 +95,8 @@ export class Book {
     for (const [p2, p1, nx, n] of rows.seq || []) bump(this.seq, Book.key2(p2, p1), nx, n * scale);
     for (const [src, hint, code, c, o] of rows.pick || []) bump2(this.pick, `${src}:${hint}`, String(code), c * scale, (o == null ? 1 : o) * scale);
     for (const [trig, code, n] of rows.resp || []) bump(this.resp, String(trig), String(code), n * scale);
+    for (const [k, n] of rows.lines || []) { if (typeof k === "string" && Number.isFinite(n)) { this.lines[k] = (this.lines[k] || 0) + n * scale; } }
+    this._parsed = null;
     return this;
   }
   rows() {
@@ -79,7 +104,8 @@ export class Book {
     for (const [k, m] of Object.entries(this.seq)) { const [p2, p1] = k.split("|"); for (const [nx, n] of Object.entries(m)) seq.push([p2, p1, nx, round(n)]); }
     for (const [k, m] of Object.entries(this.pick)) { const [src, hint] = k.split(":").map(Number); for (const [c, [ch, of]] of Object.entries(m)) pick.push([src, hint, Number(c), round(ch), round(of)]); }
     for (const [k, m] of Object.entries(this.resp)) for (const [c, n] of Object.entries(m)) resp.push([Number(k), Number(c), round(n)]);
-    return { seq, pick, resp };
+    const lines = Object.entries(this.lines).map(([k, n]) => [k, round(n)]);
+    return { seq, pick, resp, lines };
   }
   /** Only the lines that involve these cards (what a duel with these decks can use). */
   subset(codes) {
@@ -89,12 +115,16 @@ export class Book {
     for (const [k, m] of Object.entries(this.seq)) { const [p2, p1] = k.split("|"); if (!okTok(p2) || !okTok(p1)) continue; for (const [nx, n] of Object.entries(m)) if (okTok(nx)) bump(out.seq, k, nx, n); }
     for (const [k, m] of Object.entries(this.pick)) if (has.has(Number(k.split(":")[0]))) out.pick[k] = Object.fromEntries(Object.entries(m).map(([c, v]) => [c, [...v]]));
     for (const [k, m] of Object.entries(this.resp)) for (const [c, n] of Object.entries(m)) if (has.has(Number(c))) bump(out.resp, k, c, n);
+    for (const [k, n] of Object.entries(this.lines)) if (k.split(">").every(okTok)) out.lines[k] = n;
     return out;
   }
-  size() { let n = 0; for (const t of [this.seq, this.pick, this.resp]) for (const m of Object.values(t)) n += Object.keys(m).length; return n; }
+  size() { let n = Object.keys(this.lines).length; for (const t of [this.seq, this.pick, this.resp]) for (const m of Object.values(t)) n += Object.keys(m).length; return n; }
   /** Lines the book knows for these cards (shown to the player). */
   linesFor(codes) { return this.subset(codes).size(); }
   prune(max = MAX_KEYS) {
+    // Keep the best 2000 remembered turns.
+    const ls = Object.entries(this.lines);
+    if (ls.length > 2000) { ls.sort((a, b) => b[1] - a[1]); this.lines = Object.fromEntries(ls.slice(0, 2000)); this._parsed = null; }
     if (this.size() <= max) return this;
     const all = [];
     for (const [name, t] of [["seq", this.seq], ["pick", this.pick], ["resp", this.resp]]) for (const [k, m] of Object.entries(t)) for (const [c, n] of Object.entries(m)) all.push([Array.isArray(n) ? n[1] : n, name, k, c]);
@@ -102,7 +132,7 @@ export class Book {
     for (const [, name, k, c] of all.slice(0, all.length - max)) { delete this[name][k][c]; if (!Object.keys(this[name][k]).length) delete this[name][k]; }
     return this;
   }
-  toJSON() { return { v: 1, seq: this.seq, pick: this.pick, resp: this.resp }; }
+  toJSON() { return { v: 1, seq: this.seq, pick: this.pick, resp: this.resp, lines: this.lines }; }
 }
 function bump(t, k, c, w) { if (!w || !Number.isFinite(w)) return; const m = t[k] || (t[k] = {}); m[c] = (m[c] || 0) + w; if (Math.abs(m[c]) < 1e-6) delete m[c]; }
 function bump2(t, k, c, a, b) { if (!(b > 0) || !Number.isFinite(a)) return; const m = t[k] || (t[k] = {}); const v = m[c] || (m[c] = [0, 0]); v[0] += a; v[1] += b; }
@@ -114,7 +144,7 @@ const round = (n) => Math.round(n * 1000) / 1000;
  * Plays are held until the seat's turn ends, so self-play can keep only turns that improved the board.
  */
 export class Recorder {
-  constructor() { this.seats = [this.fresh(), this.fresh()]; this.out = { seq: [], pick: [], resp: [] }; }
+  constructor() { this.seats = [this.fresh(), this.fresh()]; this.out = { seq: [], pick: [], resp: [], lines: [] }; }
   fresh() { return { turn: -1, seq: [], last: 0, pending: { seq: [], pick: [], resp: [] }, start: null }; }
   /** Call with every packet a seat receives (keeps turn boundaries and attack state). */
   observe(seat, packet, weightForTurn) {
@@ -172,6 +202,11 @@ export class Recorder {
   commit(seat, w) {
     const s = this.seats[seat], P = s.pending;
     if (w > 0) {
+      // A whole turn of 3+ plays is remembered as a combo; a turn that improved the board counts more.
+      if (s.seq.length >= 3) {
+        const gain = s.view && s.start != null ? boardValue(s.view, seat) - s.start : 0;
+        this.out.lines.push([s.seq.join(">"), round(w * (gain > 0 ? 1.5 : 0.75))]);
+      }
       for (const [p2, p1, nx] of P.seq) this.out.seq.push([p2, p1, nx, w]);
       for (const [src, hint, code, chosen] of P.pick) this.out.pick.push([src, hint, code, round(w * chosen), round(w)]);
       for (const [trig, code] of P.resp) this.out.resp.push([trig, code, w]);
@@ -181,10 +216,10 @@ export class Recorder {
   /** Finish the duel and return everything learned (rows in the shared format). */
   flush(weightForTurn) {
     for (let seat = 0; seat < 2; seat++) this.commit(seat, weightForTurn ? weightForTurn(seat, this.seats[seat], this.seats[seat].view) : 1);
-    const out = this.out; this.out = { seq: [], pick: [], resp: [] };
+    const out = this.out; this.out = { seq: [], pick: [], resp: [], lines: [] };
     return out;
   }
-  take() { const out = this.out; this.out = { seq: [], pick: [], resp: [] }; return out; }
+  take() { const out = this.out; this.out = { seq: [], pick: [], resp: [], lines: [] }; return out; }
 }
 
 /** Rough board strength for a seat (used to reward practice turns that improved the position). */
