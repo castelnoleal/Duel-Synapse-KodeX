@@ -43,8 +43,8 @@
     <div class="motto" aria-hidden="true"><span>Build</span><span>Test</span><span>Duel</span><span>Learn</span></div>
   </section>
   <div class="ticker" aria-hidden="true"><ul>
-    <li>Synapse AI learns the combos you practise</li><li>Play offline against Synapse AI</li><li>Online rooms with invite links and spectators</li><li>Real EDOPro rules engine</li><li>Hover or tap any card for details and rulings</li>
-    <li>Synapse AI learns the combos you practise</li><li>Play offline against Synapse AI</li><li>Online rooms with invite links and spectators</li><li>Real EDOPro rules engine</li><li>Hover or tap any card for details and rulings</li>
+    <li>Synapse AI learns the combos you practise</li><li>Play offline against Synapse AI</li><li>Online rooms with invite links and spectators</li><li>Finishing moves and boss entrances</li><li>Hover or tap any card for details and rulings</li>
+    <li>Synapse AI learns the combos you practise</li><li>Play offline against Synapse AI</li><li>Online rooms with invite links and spectators</li><li>Finishing moves and boss entrances</li><li>Hover or tap any card for details and rulings</li>
   </ul></div>
 
   <div class="lobby-grid">
@@ -146,14 +146,14 @@
       <div class="engine-line"><span class="dot" id="engineDot"></span><span id="engineStatus" role="status">Starting Duel Synapse Server…</span></div>
     </section>
   </div>
-  <footer class="foot">© MEIOCG · <a href="./source.html" id="srcLink">Source &amp; licences</a></footer>
+  <footer class="foot">© 2023–2026 Meta Insider OCG · A MEIOCG project · <a href="./source.html" id="srcLink" rel="nofollow">Licences &amp; notices</a></footer>
 </main>
 
 <!-- ============================== TABLE ============================== -->
 <main id="table" hidden>
   <aside id="info" class="info panel" aria-label="Card details">
     <button class="icon close-info" id="closeInfo" type="button" aria-label="Close card details">×</button>
-    <div id="infoBody" class="info-body"><div class="empty-state small"><img src="./assets/meiocg-192.webp" alt="" width="56" height="56"><p>Select a card</p></div></div>
+    <div id="infoBody" class="info-body"><div class="empty-state small"><img src="./assets/meiocg-192.webp" alt="" width="56" height="56"><p>Select a card</p><small>Tap or hover any card to read it here</small></div></div>
   </aside>
 
   <section id="arena" class="arena">
@@ -175,6 +175,7 @@
       <nav class="phases" id="phases" aria-label="Phases"></nav>
     </div>
     <div id="status" class="status" role="status"></div>
+    <div id="feed" class="feed" aria-label="Duel log"></div>
     <div id="loading" class="loading" hidden><img src="./assets/meiocg-192.webp" alt="" width="64" height="64"><span id="loadingText">Preparing duel…</span></div>
   </section>
 
@@ -203,7 +204,7 @@
   </aside>
 
   <div id="sheet" class="sheet" hidden role="dialog" aria-modal="false" aria-labelledby="sheetTitle">
-    <div class="sheet-head"><h3 id="sheetTitle"></h3><button class="icon" id="sheetMin" type="button" aria-label="Show the field">▾</button></div>
+    <div class="sheet-head"><h3 id="sheetTitle"></h3><button class="icon sheet-chat" id="sheetChat" type="button" aria-label="Chat and log"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-5.1A8 8 0 1 1 21 12z"/></svg></button><button class="icon" id="sheetMin" type="button" aria-label="Show the field">▾</button></div>
     <p id="sheetText" class="sheet-text"></p>
     <div id="sheetBody" class="sheet-body"></div>
     <div id="sheetActions" class="sheet-actions"></div>
@@ -214,7 +215,7 @@
       <img src="./assets/meiocg-192.webp" alt="" width="64" height="64">
       <h2 id="resultTitle"></h2><p id="resultText"></p>
       <div class="grid2"><button class="btn primary" id="rematchBtn" type="button">Rematch</button><button class="btn" id="leaveBtn" type="button">Lobby</button></div>
-      <button class="btn ghost wide" id="resultReplay" type="button" hidden>Save replay for EDOPro</button>
+      <button class="btn ghost wide" id="resultReplay" type="button" hidden>Save replay file</button>
     </div>
   </div>
 </main>

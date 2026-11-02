@@ -310,9 +310,10 @@ export default {
         });
       }
 
-      const ruling = url.pathname.match(/^\/data\/rulings\/cards\/([0-9]{1,12})\.json$/);
+      // Rulings: one file per card, plus the name index the Duel Arena uses to find a card's file.
+      const ruling = url.pathname.match(/^\/data\/rulings\/(cards\/[0-9]{1,12}|card-name-index)\.json$/);
       if (ruling) {
-        const response = await githubFile(`data/rulings/cards/${ruling[1]}.json`, env, 300);
+        const response = await githubFile(`data/rulings/${ruling[1]}.json`, env, 300);
         return withHeaders(response, {
           "Content-Type": "application/json; charset=utf-8",
           "Cache-Control": "public, max-age=300, stale-while-revalidate=1800",

@@ -1,12 +1,12 @@
 # Project: Duel Synapse
 
-An EDOPro-compatible duel simulator for the browser, served at `https://kodex.meiocg.org/duel/`.
-It runs the real EDOPro rules engine, so every card effect resolves exactly as it does in EDOPro.
+A Meta Insider OCG (MEIOCG) duel simulator for the browser and the KodeX app, served at `https://kodex.meiocg.org/duel/`.
+It runs the ygopro-core rules engine with the Project Ignis card scripts. © 2023–2026 Meta Insider OCG; see [LICENSE.md](../LICENSE.md).
 
 - **Solo playtest:** play against **Synapse AI**, an opponent that plays to win (it develops its board, attacks when the numbers work, sets walls when it's behind, saves traps and hand traps for your turn and answers your plays), against a dummy that never responds (goldfish testing), against a bot that plays random legal moves, or control both players. You can choose your opening hand, and Synapse AI can play any of your saved decks instead of a copy of yours.
 - **Online duel:** open a room and send the invite link. Spectators can watch through a separate link. Chat, rematch (the loser goes first) and surrender are included.
 - **KodeX integration:** decks from the KodeX app open straight into the Arena (see below). Each card in the duel links to its KodeX rulings page.
-- **Deck formats:** KodeX deck links, EDOPro `.ydk` files and `ydke://` links.
+- **Deck formats:** KodeX deck links, `.ydk` files and `ydke://` links.
 
 ## How it works
 
@@ -22,23 +22,23 @@ It runs the real EDOPro rules engine, so every card effect resolves exactly as i
  browser (guest / spectator): app.js only        └──────────────────────────────────┘
 ```
 
-- `engine/ocgcore.wasm` is [edo9300/ygopro-core](https://github.com/edo9300/ygopro-core) 11.0 (the EDOPro core) compiled with wasi-sdk.
+- `engine/ocgcore.wasm` is [edo9300/ygopro-core](https://github.com/edo9300/ygopro-core) 11.0 compiled with wasi-sdk.
   `engine/build/kx_shim.cpp` exposes a flat C API and routes the card/script/log callbacks to JavaScript.
 - `engine/core.js` loads the module and parses every core message. It also encodes answers and reads card queries.
-- `engine/host.js` drives a duel and builds a separate view for each player and for spectators. Hidden cards are masked, the same way EDOPro's server masks them.
+- `engine/host.js` drives a duel and builds a separate view for each player and for spectators. Hidden cards are masked, the same way a simulator server masks them.
   The guest and spectators never receive the host's hand, deck or face-down cards.
 - `engine/learn.js` is how Synapse AI learns. Plays become tokens (summon, Special Summon, set, activate, chain + card code + effect index) and go into a play book of three kinds of counts: which play people make next after the last two plays in a turn (combo lines), how often each card is chosen when a card's effect offers it (preferences, not popularity), and what people answer an opponent's card or attack with. It also links cards to the cards their text names in quotes. Whole turns of three or more plays are also kept as **combo lines** (`lines`): when its hand allows, Synapse AI replays the remembered line step by step (skipping at most two plays it can't make), and lines that left a better board are reinforced (×1.5) while lines that didn't are weakened, so the combos you practise most are the ones it learns first (`tests/duel/ai-combo.mjs`). `engine/trainer.js` runs practice games: it replays a duel to the start of a turn (the engine is deterministic for a fixed deck order and seed), tries other lines from that exact position, and keeps a line only if it leaves a clearly better position after the opponent has answered.
 - `learning.js` (page side) keeps each device's book in local storage, merges the shared book from `/api/duel/book` for the decks in a duel, sends new lines back anonymously in batches (players can turn this off in the lobby), and runs practice games for a newly loaded deck once a week in a background worker (devices with 4+ cores). The engine worker records people's plays (the solo player, or both players in an online room) and hands them to the page at the end of each turn.
 - `engine/smart.js` is Synapse AI. It sees exactly what a player in its seat would see (its own hand and field, public cards, life points, the chain) and decides with board-evaluation heuristics; anything it can't judge falls back to safe defaults. `engine/bot.js` contains the dummy and the random bot and routes the "smart" mode to Synapse AI. `engine/rules.js` holds the shared rule helpers: card declaration filters, zone masks and sum checks.
-- `data/` holds `cards.json` (card data from Project Ignis BabelCDB) and `strings.json` (EDOPro's system strings). It also holds `scripts.json`, which records which card scripts exist, where they live and what they depend on.
+- `data/` holds `cards.json` (card data from Project Ignis BabelCDB) and `strings.json` (Project Ignis system strings). It also holds `scripts.json`, which records which card scripts exist, where they live and what they depend on.
   Before a duel the host downloads only the scripts its two decks need, from the CardScripts commit pinned in `scripts.json`.
-- The duel runs in the **host's** browser and the Durable Object only relays messages. This works like EDOPro's LAN hosting and keeps server cost near zero.
+- The duel runs in the **host's** browser and the Durable Object only relays messages. This works like LAN hosting and keeps server cost near zero.
   The trade-off is that the host's browser holds both decks, which is fine for playtesting and friendly matches.
   `DuelHost` doesn't depend on the browser, so it can later run inside the Durable Object for fully server-authoritative ranked play.
 
-## Replays for EDOPro
+## Replay files
 
-`DuelHost` records the seed, duel options, both decks in the order they were given to the engine, and every answer. `replayFile()` writes them as an EDOPro `.yrp` (YRP1 with the extended header, uncompressed), the same data EDOPro's own server writes to `_LastReplay.yrp`; EDOPro re-runs it with its engine (Replay menu). `tests/duel/replay-roundtrip.mjs` reads files the way EDOPro does and re-runs them on a fresh engine. Saving is offered in KodeX Premium (the app sends `premium:true`); a guest asks the host for the file (`replayreq` → `replay`).
+`DuelHost` records the seed, duel options, both decks in the order they were given to the engine, and every answer. `replayFile()` writes them as a `.yrp` (YRP1 with the extended header, uncompressed), the same data the simulator's own server writes to `_LastReplay.yrp`; the simulator re-runs it with its engine (Replay menu). `tests/duel/replay-roundtrip.mjs` reads files the way the simulator does and re-runs them on a fresh engine. Saving is offered in KodeX Premium (the app sends `premium:true`); a guest asks the host for the file (`replayreq` → `replay`).
 
 ## Table layout
 
@@ -52,9 +52,17 @@ The Arena uses the MEIOCG website's look (`meiocg.css`, loaded after `arena.css`
 
 Every card in the lobby deck can be looked at: hovering with a mouse shows a preview; a click or tap opens the card with its official rulings (`rulings.js`, read from KodeX's rulings mirror at `/data/rulings/`, matched by card name). The card panel during a duel has the same rulings section. Offline inside the app, *Open in KodeX* shows the rulings the app has saved.
 
+## Landscape layout and the log
+
+In landscape (phones, tablets and computers) the table is three columns, like Master Duel: the **card information** panel on the left (whatever card you tap or hover, with its rulings) with your Life Points under it; the opponent's hand, the field and your hand in the middle; and on the right the opponent's Life Points, a **log with card pictures** (newest first, chain links numbered; tap one to read the card), the phases and the chat button. Nothing is drawn over the field: prompts open in the lower half of the left column. On phones held upright, prompts are a single sideways row and the chat button moves into the prompt while one is open. Card stats sit inside the cards and zone labels hide under cards.
+
+## Damage and finishing moves
+
+The field cracks and smoulders as a player's Life Points fall (75 %, 50 %, 25 %, 10 %). When a duel is won, the loser's half of the field breaks into shards and their cards are torn in two (`finisher.js`), with FINISH! or ONE TURN KILL. KodeX Premium chooses the style (shatter, meteor, thunder, vortex, slash: `finisher` in the `skin` message) and can give each signature card its own (`sigFx`), which also plays when that card is summoned.
+
 ## Sound and effects
 
-`audio.js` makes every sound with Web Audio (synthesised, no recordings), so nothing is borrowed from EDOPro or other games: draw, set, summon, Special Summon, boss entrance, activation, chain links (rising pitch), attack, damage, destroy, phase, turn, win, lose and one-turn kill, plus an original looping duel theme. Music and Sounds switches are in the chat panel (saved per device). Audio starts after the first tap, as browsers require.
+`audio.js` makes every sound with Web Audio (synthesised, no recordings), so nothing is borrowed from other games: draw, set, summon, Special Summon, boss entrance, activation, chain links (rising pitch), attack, damage, destroy, phase, turn, win, lose and one-turn kill, plus an original looping duel theme. Music and Sounds switches are in the chat panel (saved per device). Audio starts after the first tap, as browsers require.
 
 Summons make the zone glow. A boss (3000+ ATK, Level/Rank 8+, Link 4+) gets a full-width entrance with its art and a screen shake; 2000+ damage shakes the table; winning in one turn from full LP shows ONE TURN KILL. Reduced-motion settings turn the motion off.
 
@@ -101,7 +109,7 @@ git clone --depth 1 --filter=blob:none --sparse https://github.com/ProjectIgnis/
 python scripts/build_duel_data.py --babel BabelCDB --scripts CardScripts --strings Distribution/config/strings.conf
 ```
 
-This rewrites `duel/data/*.json` and pins the new CardScripts commit. If the scripts start needing a newer core, rebuild the engine as shown below. The **Duel data weekly update** workflow does this every Monday, runs the soak, AI and replay tests, and commits if they pass, so replays saved for EDOPro use the scripts EDOPro has.
+This rewrites `duel/data/*.json` and pins the new CardScripts commit. If the scripts start needing a newer core, rebuild the engine as shown below. The **Duel data weekly update** workflow does this every Monday, runs the soak, AI and replay tests, and commits if they pass, so replays saved for the simulator use the scripts the simulator has.
 
 ## Rebuilding the engine
 

@@ -1,6 +1,6 @@
 # Duel Synapse: KodeX app
 
-`Kodex_Mei_Production_v51.html` (free) and `Kodex_Mei_Premium_v51.html` (Premium) are the current source (older versions are kept alongside it) of the **Meiocg KodeX** Android app (`com.duelsynapse.kodex`). It's built with instApped: upload this file as the project's HTML source.
+`Kodex_Mei_Production_v52.html` (free) and `Kodex_Mei_Premium_v52.html` (Premium) are the current source (older versions are kept alongside it) of the **Meiocg KodeX** Android app (`com.duelsynapse.kodex`). It's built with instApped: upload this file as the project's HTML source.
 
 It loads cards and rulings from https://kodex.meiocg.org.
 
@@ -41,7 +41,7 @@ Test: `node tests/app/app-scan.e2e.mjs` runs the app (artwork, text, Japanese ca
 
 **v48 (8.2):** two editions from one source, told apart by `<meta name="kodex-edition">`:
 - **Free** (`Kodex_Mei_Production_v48.html`): as v47.
-- **Premium** (`Kodex_Mei_Premium_v48.html`): Settings › Premium › **Skins** sets pictures for the Main, Extra and Side Deck and card **sleeves** (premade skins from the Skin Injector, or the player's own from the gallery, stored on the device). Deck sections show their skin; in the Duel Arena your face-down cards use your sleeve and your Deck / Extra Deck zones show their skins. *EDOPro cross-play* is listed as coming soon.
+- **Premium** (`Kodex_Mei_Premium_v48.html`): Settings › Premium › **Skins** sets pictures for the Main, Extra and Side Deck and card **sleeves** (premade skins from the Skin Injector, or the player's own from the gallery, stored on the device). Deck sections show their skin; in the Duel Arena your face-down cards use your sleeve and your Deck / Extra Deck zones show their skins. Cross-play is listed as coming soon.
 
 The Arena now ships **inside the app**. Build the instApped upload with
 `python3 scripts/build_app_bundle.py app/Kodex_Mei_Production_v48.html KodeX_v48.zip` (or the Premium file): a ZIP with `index.html`, the Arena in `duel/` and all 13,700 card scripts packed into `duel/data/scripts.pack.bin` (about 7 MB in total). instApped serves it from `https://appassets.androidplatform.net/`, so the Test tab opens the Arena with no connection and no connection check. Online rooms, the shared play book and card art still use kodex.meiocg.org. Without the ZIP (page only), the app opens the Arena from kodex.meiocg.org as before.
@@ -56,5 +56,7 @@ License: [LICENSE.md](../LICENSE.md) (all rights reserved; permission via metain
 
 **Premium 8.4.1:** no ads. The sponsor strip is hidden in Premium (`#kx-premium-noads` style); only the status-bar space stays, so panels still open below the status bar.
 
-**v51 (8.5 / Premium 8.5.1):** EDOPro alternate-art passcodes (`ALT_IDS`, 395 of them) now import as the right card instead of *Unknown card*, and keep their own art (`art` on the deck entry). In landscape the Arena's title bar is hidden and its X floats as a round button at the top right (the free edition's sponsor strip stays, as required). Premium **Skins** adds *Music & sounds* (duel music and Summon / Activation / Damage / Victory sounds from the player's files, kept in IndexedDB and sent to the Arena as `{kx:"audio"}`) and *Signature cards* (up to 60 cards that get the big entrance, sent as `signature` in the `skin` message). The Arena itself (layout, sounds, effects, AI combos, opponent deck choice) is described in [duel/README.md](../duel/README.md).
+**v51 (8.5 / Premium 8.5.1):** Alternate-art passcodes (`ALT_IDS`, 395 of them) now import as the right card instead of *Unknown card*, and keep their own art (`art` on the deck entry). In landscape the Arena's title bar is hidden and its X floats as a round button at the top right (the free edition's sponsor strip stays, as required). Premium **Skins** adds *Music & sounds* (duel music and Summon / Activation / Damage / Victory sounds from the player's files, kept in IndexedDB and sent to the Arena as `{kx:"audio"}`) and *Signature cards* (up to 60 cards that get the big entrance, sent as `signature` in the `skin` message). The Arena itself (layout, sounds, effects, AI combos, opponent deck choice) is described in [duel/README.md](../duel/README.md).
+
+**v52 (8.6 / Premium 8.6.1):** Premium **Skins** adds *Finishing move* (Shatter, Meteor, Thunder, Vortex or Slash, sent to the Arena as `finisher`), a finishing move per signature card (`sigFx`), and *Effects › MEIOCG animations* (on by default): a moving MEIOCG background with floating MEIOCG cards above any wallpaper and below the content, a sheen on the title, and animated card lists; paused while the app is in the background or the Arena is open, and off with reduced motion. Legal & Privacy now says KodeX and the Duel Arena are a Meta Insider OCG project since 2023 and may not be reverse engineered; open-source components stay under their own licences. The free edition looks the same as before.
 

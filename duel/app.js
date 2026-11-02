@@ -10,6 +10,7 @@ import { Room, newRoomCode } from "./net.js";
 import { Learning } from "./learning.js";
 import * as Sound from "./audio.js";
 import { rulingsFor } from "./rulings.js";
+import { runFinisher, zoneStrike, STYLES } from "./finisher.js";
 
 const M = C.MSG;
 const $ = (s) => document.querySelector(s);
@@ -33,15 +34,33 @@ function toast(text, ms = 2600) {
   clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("on"), ms);
 }
 function imgUrl(code) { return OWN_HOST ? `${SITE}/img/${code}.jpg` : `https://images.ygoprodeck.com/images/cards_small/${code}.jpg`; }
+/** A designed stand-in for a card whose art couldn't be loaded: the card's frame colour, its name and type. */
+function cardStandIn(code) {
+  const c = S.db && S.db.get(code), t = c ? c.type : 0;
+  const kind = !c ? "x" : t & C.TYPE.SPELL ? "spell" : t & C.TYPE.TRAP ? "trap" : t & C.TYPE.LINK ? "link" : t & C.TYPE.XYZ ? "xyz" : t & C.TYPE.SYNCHRO ? "synchro" : t & C.TYPE.FUSION ? "fusion" : t & C.TYPE.RITUAL ? "ritual" : t & C.TYPE.EFFECT ? "effect" : "normal";
+  const sp = el("span", "nm stand " + kind);
+  sp.append(el("b", null, S.db ? S.db.name(code) : String(code)));
+  if (c) sp.append(el("i", null, t & C.TYPE.MONSTER ? `${c.atk < 0 ? "?" : c.atk} / ${t & C.TYPE.LINK ? "L" + (c.level & 0xff) : c.def < 0 ? "?" : c.def}` : t & C.TYPE.SPELL ? "Spell" : "Trap"));
+  return sp;
+}
 function cardImg(code, alt = "") {
   const c = S.db && S.db.get(code);
   const art = c && c.alias && Math.abs(c.alias - code) < 20 ? code : code; // alt arts have their own art ids
   const i = new Image();
   i.alt = alt; i.loading = "lazy"; i.decoding = "async"; i.referrerPolicy = "no-referrer";
-  i.src = imgUrl(art);
+  // Card art can fail when the art host is busy or a card is brand new: try again, try the other sizes and the
+  // card's main art, and only then show a designed stand-in (which tries once more later).
+  const tries = [imgUrl(art), `${imgUrl(art)}?r=1`, `https://images.ygoprodeck.com/images/cards_small/${art}.jpg`, `https://images.ygoprodeck.com/images/cards/${art}.jpg`];
+  if (c && c.alias) tries.push(imgUrl(c.alias), `https://images.ygoprodeck.com/images/cards/${c.alias}.jpg`);
+  let n = 0;
+  i.src = tries[0];
   i.onerror = () => {
-    if (!i.dataset.f) { i.dataset.f = 1; i.src = `https://images.ygoprodeck.com/images/cards_small/${art}.jpg`; return; }
-    i.replaceWith(el("span", "nm", S.db ? S.db.name(code) : String(code)));
+    n++;
+    if (n < tries.length) { setTimeout(() => { i.src = tries[n]; }, n === 1 ? 900 : 150); return; }
+    const ph = cardStandIn(code);
+    if (i.className) ph.classList.add(...i.classList);
+    i.replaceWith(ph);
+    setTimeout(() => { if (!ph.isConnected) return; const again = new Image(); again.onload = () => { if (ph.isConnected) { i.src = again.src; i.onerror = null; ph.replaceWith(i); } }; again.src = `${tries[0]}?r=2`; }, 12000);
   };
   return i;
 }
@@ -458,7 +477,7 @@ function onGuestMessage(m) {
   const msg = m.m || {};
   if (msg.t === "skin") { onSkin(m, msg); return; }
   if (msg.t === "seat") { S.specHostTeam = msg.hostTeam === 1 ? 1 : 0; applySkins(); return; }
-  if (msg.t === "start") { if (msg.hostTeam === 0 || msg.hostTeam === 1) S.specHostTeam = msg.hostTeam; if ($("#table").hidden) enterTable(); S.log = []; $("#log").replaceChildren(); addLog(`${msg.first} goes first.`, "sys"); $("#result").hidden = true; }
+  if (msg.t === "start") { if (msg.hostTeam === 0 || msg.hostTeam === 1) S.specHostTeam = msg.hostTeam; if ($("#table").hidden) enterTable(); S.log = []; $("#log").replaceChildren(); $("#feed").replaceChildren(); addLog(`${msg.first} goes first.`, "sys"); $("#result").hidden = true; }
   else if (msg.t === "packet") { if ($("#table").hidden) enterTable(); const t = msg.packet.viewer === 2 ? 0 : msg.packet.viewer; if (t !== S.team) { S.team = t; applySkins(); } onPacket(msg.packet); }
   else if (msg.t === "error") toast(msg.error);
   else if (msg.t === "chat") addChat(m.name, msg.text, true);
@@ -514,8 +533,8 @@ function duelState(active) {
 function enterTable() {
   $("#lobby").hidden = true; $("#table").hidden = false; $("#result").hidden = true;
   duelState(true); S.unread = 0; badge(); toggleSide(false);
-  S.packet = null; S.log = []; S.fullLog = []; S.prevLP = [null, null]; S.fxEnded = false; S.turnStartLP = null;
-  $("#log").replaceChildren();
+  S.packet = null; S.log = []; S.fullLog = []; $("#feed").replaceChildren(); S.prevLP = [null, null]; S.fxEnded = false; S.turnStartLP = null; S.lastBlow = 0; S.finPromise = null;
+  $("#log").replaceChildren(); $("#feed").replaceChildren();
   buildField();
   closeSheet();
   $("#loading").hidden = false; $("#loadingText").textContent = "Preparing duel…";
@@ -558,6 +577,7 @@ function bindTable() {
   });
   $("#rematchBtn").addEventListener("click", rematch);
   $("#sideFab").addEventListener("click", () => toggleSide());
+  $("#sheetChat").addEventListener("click", () => toggleSide());
   $("#sideClose").addEventListener("click", () => toggleSide(false));
   $("#replayBtn").addEventListener("click", saveReplay);
   $("#resultReplay").addEventListener("click", saveReplay);
@@ -587,7 +607,7 @@ function rematch() {
   $("#result").hidden = true;
   const ended = S.packet && S.packet.ended;
   if (S.mode === "solo" && S.lastSolo) {
-    S.packet = null; S.log = []; $("#log").replaceChildren(); S.prevLP = [null, null]; S.fxEnded = false; S.turnStartLP = null;
+    S.packet = null; S.log = []; $("#log").replaceChildren(); $("#feed").replaceChildren(); S.prevLP = [null, null]; S.fxEnded = false; S.turnStartLP = null; S.lastBlow = 0; S.finPromise = null;
     const { me, opp, noShuffle } = soloDecks();
     const decks = []; decks[S.team] = me; decks[1 - S.team] = opp;
     if (S.control === "both") { /* keep seats */ }
@@ -595,7 +615,7 @@ function rematch() {
   } else if (S.mode === "host") {
     // The loser of the previous duel goes first.
     const loserHost = ended && ended.winner >= 0 ? (ended.winner === S.hostTeam ? 1 : 0) : undefined;
-    S.log = []; $("#log").replaceChildren(); S.prevLP = [null, null]; S.fxEnded = false; S.turnStartLP = null;
+    S.log = []; $("#log").replaceChildren(); $("#feed").replaceChildren(); S.prevLP = [null, null]; S.fxEnded = false; S.turnStartLP = null; S.lastBlow = 0; S.finPromise = null;
     hostStartDuel(loserHost);
   } else if (S.mode === "guest") {
     S.room.send({ to: "host", m: { t: "rematch" } });
@@ -687,6 +707,18 @@ function cardEl(c, team, location, seq, opts = {}) {
   return d;
 }
 
+// ----- the field shows the damage taken: cracks and embers grow as Life Points fall -----
+function matDamage(side, lvl) {
+  const f = $("#field");
+  let d = f.querySelector(".mat-dmg." + side);
+  if (!d) { d = el("div", "mat-dmg " + side); d.setAttribute("aria-hidden", "true"); f.append(d); }
+  if (d.dataset.l !== String(lvl)) {
+    d.dataset.l = String(lvl);
+    if (lvl) { d.classList.remove("hit"); void d.offsetWidth; d.classList.add("hit"); }
+  }
+  document.querySelector(`.duelist.${side}`).classList.toggle("danger", lvl >= 3);
+}
+
 // ----- render -----
 function onPacket(p) {
   const prev = S.packet;
@@ -723,6 +755,8 @@ function render(p) {
       $(`#${id}LP`).append(pop); setTimeout(() => pop.remove(), 1400);
     }
     S.prevLP[t] = z.lp;
+    const ratio = z.lp / lpMax, lvl = z.lp <= 0 ? 4 : ratio <= .1 ? 4 : ratio <= .25 ? 3 : ratio <= .5 ? 2 : ratio <= .75 ? 1 : 0;
+    matDamage(id, lvl);
     $(`#${id}Meta`).textContent = `Hand ${z.hand.length} · Deck ${z.deck}`;
   }
   // clear zones
@@ -808,10 +842,11 @@ function closeInfo() {
   $("#info").classList.remove("open");
   const d = $("#infoTop"); if (d && d.open) d.close();
 }
+const LANDSCAPE = matchMedia("(orientation: landscape) and (min-width: 640px)");
 function showInfo(c, team, location, open = true) {
   if (!c || !c.code) return;
   const panel = $("#info");
-  if (open === false && !panel.classList.contains("open")) return;
+  if (open === false && !panel.classList.contains("open") && !LANDSCAPE.matches) return;
   if (open === true) openInfo();
   const b = $("#infoBody");
   b.replaceChildren();
@@ -920,7 +955,15 @@ function showHoverPeek(node, code) {
   const h = $("#hoverPeek");
   h.replaceChildren();
   fillInfo(h, { code }, S.team, 0);
-  h.append(el("div", "peek-tip", "Click for rulings"));
+  const rul = el("div", "peek-rul", "Checking rulings…");
+  h.append(rul, el("div", "peek-tip", "Click for full rulings"));
+  const data = S.db.get(code);
+  rulingsFor(data ? data.name : String(code)).then((items) => {
+    if (!rul.isConnected) return;
+    rul.replaceChildren();
+    if (!items.length) { rul.textContent = "No official Q&A yet"; return; }
+    rul.append(el("b", null, `${items.length} ruling${items.length > 1 ? "s" : ""}`), el("span", null, items[0].q.length > 160 ? items[0].q.slice(0, 157) + "…" : items[0].q));
+  }).catch(() => { if (rul.isConnected) rul.textContent = "Rulings need a connection"; });
   h.hidden = false;
   const r = node.getBoundingClientRect(), w = h.offsetWidth, ht = h.offsetHeight;
   let x = r.right + 12; if (x + w > innerWidth - 8) x = r.left - w - 12; if (x < 8) x = 8;
@@ -1442,10 +1485,29 @@ function addLog(text, cls = "", codes = []) {
   }
   const plain = li.textContent;
   S.fullLog.push(plain);
+  const code = Number((/\[\[(\d+)\]\]/.exec(text) || [])[1] || 0) || (codes && codes[0]) || 0;
+  if (code) { const t = el("span", "lth"); t.append(cardImg(code, "")); li.prepend(t); }
+  feed(plain, code, cls);
   const log = $("#log");
   log.append(li);
   while (log.children.length > 400) log.firstChild.remove();
   log.scrollTop = log.scrollHeight;
+}
+/** Landscape log with card pictures, newest first (Master Duel style). Tap an entry to read the card. */
+function feed(text, code, cls) {
+  const f = $("#feed");
+  if (!f || cls === "phase" || cls === "sys" && !code) return;
+  const d = el("div", "fd" + (cls === "turn" ? " turn" : ""));
+  if (cls === "turn") d.textContent = text;
+  else {
+    const th = el("span", "th"); if (code) th.append(cardImg(code, "")); d.append(th, el("span", null, text));
+    const ch = /^Chain (\d+)/.exec(text); if (ch) d.append(el("b", "cl", ch[1]));
+    const mine = /^You\b/.test(text) || / You /.test(text);
+    d.classList.add(mine ? "me" : /^(Synapse AI|Opponent)/.test(text) || (S.packet && S.packet.names && text.startsWith(S.packet.names[1 - (S.team === 2 ? 0 : S.team)])) ? "op" : "x");
+    if (code) d.addEventListener("click", () => showInfo({ code }, S.team, 0, true));
+  }
+  f.prepend(d);
+  while (f.children.length > 60) f.lastChild.remove();
 }
 function addChat(who, text, fromOther) {
   const li = el("li"); li.append(el("b", null, who + ": "), String(text).slice(0, 200));
@@ -1456,7 +1518,7 @@ function addChat(who, text, fromOther) {
   if (!seen) { tab.textContent = "Chat •"; tab.onclick = () => { tab.textContent = "Chat"; }; }
   if (fromOther && !seen) { S.unread = (S.unread || 0) + 1; badge(); notifyChat(who, text); }
 }
-function badge() { const b = $("#sideBadge"); b.hidden = !S.unread; b.textContent = S.unread > 9 ? "9+" : String(S.unread || 0); $("#sideFab").classList.toggle("ping", !!S.unread); }
+function badge() { const b = $("#sideBadge"); b.hidden = !S.unread; b.textContent = S.unread > 9 ? "9+" : String(S.unread || 0); $("#sideFab").classList.toggle("ping", !!S.unread); $("#sheetChat").classList.toggle("unread", !!S.unread); }
 /** A new chat message while the player isn't looking: vibrate, and a system notification when the app is in the background. */
 function notifyChat(who, text) {
   try { navigator.vibrate && navigator.vibrate([60, 40, 60]); } catch (e) { /* not supported */ }
@@ -1524,7 +1586,7 @@ function showResult(p) {
   $("#rematchBtn").hidden = S.mode === "spec";
   $("#rematchBtn").textContent = S.mode === "guest" ? "Ask for a rematch" : "Rematch";
   addLog(`${title}${p.ended.reason ? ` — ${p.ended.reason}` : ""}`, "turn");
-  setTimeout(() => { $("#result").hidden = false; }, 700);
+  Promise.resolve(S.finPromise).then(() => setTimeout(() => { $("#result").hidden = false; S.finPromise = null; }, 250));
 }
 
 // ----- log & chat bubble -----
@@ -1543,7 +1605,7 @@ function toggleSide(open) {
 function fabAboveSheet() {
   const sh = $("#sheet"), f = $("#sideFab");
   f.style.bottom = "";
-  if (sh.hidden) return;
+  if (sh.hidden || LANDSCAPE.matches || matchMedia("(orientation: portrait), (max-width: 639px)").matches) return;
   const r = sh.getBoundingClientRect(), fr = f.getBoundingClientRect();
   if (r.right > fr.left && r.left < fr.right) f.style.bottom = `${Math.round(window.innerHeight - r.top + 10)}px`;
 }
@@ -1621,6 +1683,8 @@ function runFx() {
 
 // ----- summon glow, boss splash, big damage and OTK (sounds come from audio.js) -----
 S.signature = new Set();      // KodeX Premium: cards the player marked for the full show
+S.sigFx = {};                 // KodeX Premium: finishing-move style per signature card
+S.finisher = "";              // KodeX Premium: the player's finishing move
 const reduceMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 function isBoss(code) {
   if (S.signature.has(Number(code))) return true;
@@ -1656,6 +1720,7 @@ function bigFx(p) {
       case M.SUMMONING: case M.SPSUMMONING: case M.FLIPSUMMONING: {
         const boss = isBoss(e.code), sig = S.signature.has(Number(e.code));
         if (e.location === C.LOCATION_MZONE) glowZone(e.controller, e.sequence, boss ? "boss-glow" : "summon-glow");
+        if (sig && S.premium) zoneStrike(S.sigFx[Number(e.code)] || S.finisher || "shatter", document.getElementById(zoneId(e.controller, C.LOCATION_MZONE, e.sequence)));
         if (boss) {
           Sound.play("boss");
           splash(e.code, name(e.code), sig ? "Signature summon" : e.type === M.SPSUMMONING ? "Special Summon" : "Summon", sig ? "boss sig" : "boss");
@@ -1663,10 +1728,11 @@ function bigFx(p) {
         break;
       }
       case M.CHAINING:
+        S.lastBlow = Number(e.code);
         Sound.play(S.signature.has(Number(e.code)) ? "boss" : e.chain_size > 1 ? "chain" : "activate", e.chain_size);
         if (S.signature.has(Number(e.code))) splash(e.code, name(e.code), "Signature card", "boss sig");
         break;
-      case M.ATTACK: Sound.play("attack"); break;
+      case M.ATTACK: { Sound.play("attack"); const a = e.card && lookup(e.card.controller, e.card.location, e.card.sequence); if (a && a.code) S.lastBlow = Number(a.code); break; }
       case M.DAMAGE: {
         const big = e.amount >= 2000;
         Sound.play("damage", big);
@@ -1681,13 +1747,19 @@ function bigFx(p) {
     const w = p.ended.winner, start = S.turnStartLP, full = options().lp;
     const loser = w === 0 || w === 1 ? 1 - w : -1;
     const otk = loser >= 0 && start && start[loser] >= full && p.turnPlayer === w && (p.state ? p.state.teams[loser].lp <= 0 : true);
-    if (otk) { Sound.play("otk"); splash(null, "ONE TURN KILL", `${w === me && S.mode !== "spec" ? "You" : p.names[w]} won in a single turn`, "otk"); }
-    else Sound.play(w === me && S.mode !== "spec" ? "win" : "lose");
+    if (loser >= 0) {
+      // The finishing move: the loser's half of the field breaks and their cards are torn up.
+      const style = (S.premium && (S.sigFx[S.lastBlow] || S.finisher)) || "shatter";
+      const side = loser === me ? "me" : "op";
+      Sound.play("finish");
+      setTimeout(() => Sound.play(otk ? "otk" : w === me && S.mode !== "spec" ? "win" : "lose"), 1600);
+      S.finPromise = runFinisher({ style, side, mat: $("#field"), title: otk ? "ONE TURN KILL" : "FINISH!" });
+    } else Sound.play("lose");
   }
 }
 addEventListener("pointerdown", () => Sound.unlock(), { capture: true });
 
-// ----- replays for EDOPro (KodeX Premium) -----
+// ----- replay files (KodeX Premium) -----
 function replayName() {
   const p = S.packet, n = p ? p.names : ["Duelist", "Opponent"], d = new Date(), z = (x) => String(x).padStart(2, "0");
   const safe = (s) => String(s || "").replace(/[^\w-]+/g, "_").slice(0, 20) || "Duelist";
@@ -1718,7 +1790,7 @@ async function sendReplay(to) {
 function saveFile(fileName, dataUrl) {
   if (window.parent !== window) { window.parent.postMessage({ kx: "save", name: fileName, data: dataUrl }, "*"); return; }
   const a = el("a"); a.href = dataUrl; a.download = fileName; document.body.append(a); a.click(); a.remove();
-  toast("Replay saved. Open it in EDOPro from the Replay menu.");
+  toast("Replay saved (.yrp).");
 }
 
 // Browsers: ask before closing the tab mid-duel. (Inside the KodeX app, the app asks.)
@@ -1727,6 +1799,8 @@ if (window.parent === window) addEventListener("beforeunload", (e) => { if (S.ac
 window.__duel = S; // for automated tests and debugging
 window.__arena = { fxEvents, showReveal, toggleSide };
 window.__arenaFx = (p) => bigFx(p);
+window.__arenaFin = (side, style) => runFinisher({ side, style, mat: $("#field") });
+window.__arenaDmg = (side, lvl) => matDamage(side, lvl);
 boot();
 
 // ----- skins (KodeX Premium) -----
@@ -1790,6 +1864,9 @@ window.addEventListener("message", (e) => {
   S.premium = d.premium === true;
   $("#replayBtn").hidden = !S.premium;
   S.signature = new Set(S.premium && Array.isArray(d.signature) ? d.signature.map(Number).filter((n) => n > 0).slice(0, 60) : []);
+  S.finisher = S.premium && STYLES.includes(d.finisher) ? d.finisher : "";
+  S.sigFx = {};
+  if (S.premium && d.sigFx && typeof d.sigFx === "object") for (const [k, v] of Object.entries(d.sigFx)) if (/^\d{3,10}$/.test(k) && STYLES.includes(v)) S.sigFx[Number(k)] = v;
   applySkins();
   if (S.room && (S.mode === "host" || S.mode === "guest")) sendSkin("others");
 });

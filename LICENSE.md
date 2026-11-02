@@ -2,6 +2,8 @@
 
 **Copyright © 2023–2026 Meta Insider OCG (MEIOCG). All rights reserved.**
 
+Duel Synapse, KodeX and the Duel Arena are a project of Meta Insider OCG, since 2023.
+
 This repository is public so it can be read, not so it can be reused. It is **not open source**.
 
 ## What this covers
@@ -18,6 +20,7 @@ Everything in this repository, the KodeX Android apps (free and Premium) and kod
 Unless Meta Insider OCG has given you permission in writing, you may not:
 
 - copy, fork, mirror or rehost any MEIOCG Materials, in whole or in part;
+- decompile, disassemble, unpack or otherwise reverse engineer KodeX, the KodeX apps, the Duel Arena or their features;
 - modify them, translate them or build other apps, websites, bots or services from them;
 - publish, sell, sublicense or distribute them, including as or inside an app on any store;
 - rebrand them, or use the KodeX, Duel Synapse or MEIOCG names and logos;
@@ -34,12 +37,12 @@ These keep their own licenses. Nothing here limits the rights those licenses giv
 
 | Component | Where | License |
 |---|---|---|
-| EDOPro rules engine ([edo9300/ygopro-core](https://github.com/edo9300/ygopro-core)) compiled to `duel/engine/ocgcore.wasm`, with the bridge `duel/engine/build/kx_shim.cpp` | Duel Arena | GNU AGPL-3.0-or-later |
+| Rules engine ([edo9300/ygopro-core](https://github.com/edo9300/ygopro-core)) compiled to `duel/engine/ocgcore.wasm`, with the bridge `duel/engine/build/kx_shim.cpp` | Duel Arena | GNU AGPL-3.0-or-later |
 | Card scripts ([ProjectIgnis/CardScripts](https://github.com/ProjectIgnis/CardScripts)), downloaded or packed unmodified | Duel Arena | GNU AGPL-3.0-or-later |
-| Card database ([ProjectIgnis/BabelCDB](https://github.com/ProjectIgnis/BabelCDB)) and EDOPro strings | `duel/data/` | as published by Project Ignis |
+| Card database ([ProjectIgnis/BabelCDB](https://github.com/ProjectIgnis/BabelCDB)) and strings | `duel/data/` | as published by Project Ignis |
 | Tesseract.js | card scanner (loaded from jsDelivr) | Apache-2.0 |
 
-The Arena's complete corresponding source is listed in `duel/source.html` (also shown inside the Arena under **Source & licences**). To the extent any part of `duel/` is a work based on the AGPL components, that part is available under the AGPL-3.0-or-later as that license requires.
+The open-source components and their source are listed in the Arena under **Licences & notices** (`duel/source.html`). Anyone may use those components as their licences allow. To the extent any part of `duel/` is a work based on the AGPL components, that part is available under the AGPL-3.0-or-later as that license requires.
 
 *Yu-Gi-Oh!* names, card names, card text and artwork belong to Konami, ©Studio Dice/SHUEISHA and TV Tokyo. KodeX is not affiliated with, sponsored by or endorsed by them, and claims no rights in them. Rulings are from Konami OCG Japan as mirrored and translated by YGOrganization.
 

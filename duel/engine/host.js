@@ -63,12 +63,12 @@ export class DuelHost {
     core.onLog = (text, type) => { if (type === 0 || type === 1) this.log.push(text); };
     const p = { lp: this.opt.lp, start: this.opt.start, draw: this.opt.draw };
     this.duel = core.createDuel({ seed: this.seed, flags: this.flags(), players: [p, p] });
-    // Everything EDOPro needs to replay this duel itself (see replayFile()).
+    // Everything a replay needs to re-run this duel (see replayFile()).
     this.rec = { seed: this.seed, flags: this.flags(), p, decks: [], responses: [], time: Math.floor(Date.now() / 1000) };
     core.loadScript(this.duel, "constant.lua");
     core.loadScript(this.duel, "utility.lua");
     this.decks.forEach((d, team) => {
-      // Like EDOPro's server, shuffle before handing the deck to the core (the core does not).
+      // Shuffle before handing the deck to the core (the core does not).
       // With "noShuffle" (test hands) the list order is the draw order.
       const main = this.opt.noShuffle ? [...(d.main || [])] : shuffle([...(d.main || [])]);
       main.reverse(); // cards are added bottom-to-top
@@ -81,8 +81,8 @@ export class DuelHost {
   }
 
   /**
-   * The duel as an EDOPro replay (.yrp, "YRP1" with the extended header): seed, players, duel options, both decks in
-   * the order they were given to the engine, then every answer. EDOPro re-runs it with its own engine and scripts,
+   * The duel as a replay file (.yrp, "YRP1" with the extended header): seed, players, duel options, both decks in
+   * the order they were given to the engine, then every answer. A compatible simulator re-runs it with its own engine and scripts,
    * exactly like the _LastReplay.yrp its server writes (gframe/replay.cpp, generic_duel.cpp).
    */
   replayFile() {
@@ -100,7 +100,7 @@ export class DuelHost {
     u32(0); // no extra rule cards
     for (const b of r.responses) { u8(b.length); for (const x of b) u8(x); }
     const body = out.splice(0);
-    // header (72 bytes): YRP1, EDOPro 41.0 / core 11.0, LUA64 | NEWREPLAY | 64BIT_DUELFLAG | EXTENDED_HEADER, uncompressed
+    // header (72 bytes): YRP1, client 41.0 / core 11.0, LUA64 | NEWREPLAY | 64BIT_DUELFLAG | EXTENDED_HEADER, uncompressed
     u32(0x31707279); u32(41 | (0 << 8) | (11 << 16) | (0 << 24)); u32(0x10 | 0x20 | 0x100 | 0x200); u32(r.time);
     u32(body.length); u32(0); for (let i = 0; i < 8; i++) u8(0);
     u64(1); for (let i = 0; i < 4; i++) u64(r.seed[i]);

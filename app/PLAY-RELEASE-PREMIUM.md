@@ -8,10 +8,10 @@ skins are added).
 
 | Setting | Value |
 |---|---|
-| Source | Upload the **ZIP** (`KodeX_Premium_v51_instApped.zip`), not the HTML file. It carries the Duel Arena and all card scripts. |
+| Source | Upload the **ZIP** (`KodeX_Premium_v52_instApped.zip`), not the HTML file. It carries the Duel Arena and all card scripts. |
 | App name | `KodeX Premium` |
 | Package name | `com.duelsynapse.kodex.premium` (must differ from the free app; can't be changed after the first upload) |
-| Version | versionName `8.5.1`, versionCode higher than any earlier upload of this package (first upload: `1`) |
+| Version | versionName `8.6.1`, versionCode higher than any earlier upload of this package (first upload: `1`) |
 | Orientation | **Auto / sensor** (the Arena has a landscape layout; a locked orientation stops rotation) |
 | Permissions | **Camera** on (card scanner) |
 | Page notifications | **On** (opponent chat notifications) |
@@ -47,16 +47,18 @@ DUEL ARENA
 PREMIUM
 • Custom Main Deck sleeves, Extra Deck sleeves and fields, with a field editor
 • Your sleeves and field are shown to your opponent and spectators in online duels
-• Save any duel as a replay you can open in EDOPro
+• Save any duel as a replay file (.yrp)
 • Your own duel music and sound effects
 • Signature cards: pick the cards that get the biggest entrance
+• Finishing moves: Shatter, Meteor, Thunder, Vortex or Slash, also per signature card
+• MEIOCG animations throughout the app
 
 KodeX is an independent fan project. It is not affiliated with, sponsored by or endorsed by Konami, Studio Dice, SHUEISHA or TV Tokyo. Card names, text and artwork belong to their owners.
 ```
 
 **Release notes (first release):** see `release notes` in the update message, or:
 ```
-First release of KodeX Premium: custom sleeves and fields seen by your opponent, EDOPro replays, the Duel Arena built in for offline play, chain animations, reveal windows, landscape layout and chat notifications.
+First release of KodeX Premium: custom sleeves and fields seen by your opponent, replay files, the Duel Arena built in for offline play, chain animations, reveal windows, landscape layout and chat notifications.
 ```
 
 **Category:** Board (or Card) games. **Contact email:** metainsiderocg@gmail.com. **Privacy policy:** https://kodex.meiocg.org/privacy-policy
@@ -93,7 +95,7 @@ If your developer account is a **personal account created after November 2023**,
 - [ ] Opened a duel on a real phone: Test tab, solo duel, chain animation, reveal window, Log/Chat bubble, rotate to landscape.
 - [ ] Back / X during a duel asks "Leave the duel?"
 - [ ] Skins: picked a Main Deck sleeve, Extra Deck sleeve and field; checked them from a second phone in an online room.
-- [ ] Saved a replay and opened it in EDOPro (Replay menu) on a computer.
+- [ ] Saved a replay file and checked it opens in a compatible simulator on a computer.
 - [ ] Chat notification arrives with the app in the background (allow notifications when asked).
 - [ ] Card scanner works (Gemini key set on the Worker).
 - [ ] Privacy policy link opens; Legal & Privacy shows the license.
@@ -101,4 +103,4 @@ If your developer account is a **personal account created after November 2023**,
 ## Known risks
 
 - **Intellectual property:** KodeX shows Konami card names, text and artwork. Google Play removes apps after rights-holder complaints, and a *paid* app is a more likely target. The disclaimer helps but is not permission.
-- **EDOPro replays** are written in EDOPro's own format and re-simulated by EDOPro with its own card scripts. If EDOPro's scripts have changed a card since the Arena's pinned version, a replay can drift at that card.
+- **Replay files** are re-simulated by the program that opens them, with its own card scripts. If those scripts changed a card after the Arena's pinned version, a replay can drift at that card.
