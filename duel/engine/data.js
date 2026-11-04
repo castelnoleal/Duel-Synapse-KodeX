@@ -10,6 +10,8 @@ export class CardDB {
     this.cache = new Map();
   }
   has(code) { return !!this.raw[code]; }
+  /** Alternate-art passcodes have no card script of their own: play them as the card they show. */
+  main(code) { const c = this.get(code); return c && c.alias && Math.abs(c.alias - c.code) < 20 && this.has(c.alias) ? c.alias : Number(code); }
   /** Full card record, or null. */
   get(code) {
     code = Number(code);

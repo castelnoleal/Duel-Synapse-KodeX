@@ -91,9 +91,9 @@ export function resolveDeck(deck, db) {
   }
   const missing = [];
   const map = (e) => {
-    if (db.has(e.id)) return e.id;
+    if (db.has(e.id)) return db.main ? db.main(Number(e.id)) : e.id;
     const c = e.name && db._byName.get(norm(e.name));
-    if (c) return c.code;
+    if (c) return db.main ? db.main(c.code) : c.code;
     missing.push(e.name || "#" + e.id);
     return 0;
   };

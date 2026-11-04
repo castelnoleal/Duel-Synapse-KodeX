@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Finishing move preview · Project: Duel Synapse</title>
+<link rel="stylesheet" href="./arena.css">
+<link rel="stylesheet" href="./meiocg.css">
+<style>
+  html, body { height: 100%; overflow: hidden; }
+  body { display: grid; place-items: center; background: radial-gradient(800px 500px at 50% 0, #1d2563, transparent 70%), #0c0f1f; }
+  :root { --z: min(calc((100vw - 24px) / 7.6), calc((100vh - 70px) / 5.9)); --zh: var(--z); --ch: calc(var(--z) * .92); --cw: calc(var(--ch) * 59 / 86); }
+  .stage { display: grid; gap: 10px; justify-items: center; }
+  .mat { transform: perspective(1200px) rotateX(12deg); }
+  .cap { font: 600 13px var(--f-display); letter-spacing: .12em; text-transform: uppercase; color: #f0b429; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="cap" id="cap">Preview</div>
+  <div id="field" class="mat"></div>
+</div>
+<script type="module">
+import { runFinisher, zoneStrike, STYLES } from "./finisher.js";
+const f = document.getElementById("field");
+const KINDS = ["effect", "spell", "trap", "fusion", "synchro", "xyz", "link", "normal"];
+const NAMES = ["Synapse Dragon", "Meta Field", "Insider Trap", "Fusion Core", "Tuner Wing", "Rank Knight", "Link Circuit", "Duelist"];
+let k = 0;
+const card = () => { const c = document.createElement("div"); c.className = "card"; const s = document.createElement("span"); const i = k++ % 8; s.className = "nm stand " + KINDS[i]; s.innerHTML = `<b>${NAMES[i]}</b><i>${1000 + 300 * i} / ${800 + 200 * i}</i>`; c.append(s); return c; };
+const back = () => { const c = document.createElement("div"); c.className = "card back"; return c; };
+function zone(row, col, cls, fill) {
+  const z = document.createElement("div"); z.className = "zone " + cls; z.style.gridRow = row + 1; z.style.gridColumn = col + 1;
+  if (fill) z.append(fill()); f.append(z); return z;
+}
+function build() {
+  f.replaceChildren(); k = 0;
+  zone(0, 0, "op pile", back); for (let i = 1; i < 6; i++) zone(0, i, "op sz", i % 2 ? back : null); zone(0, 6, "op pile", back);
+  zone(1, 0, "op pile", card); for (let i = 1; i < 6; i++) zone(1, i, "op mz", i !== 3 ? card : null); zone(1, 6, "op sz", null);
+  zone(2, 0, "op pile", null); zone(2, 2, "emz", null); const sig = zone(2, 4, "emz", card); zone(2, 6, "me pile", null);
+  zone(3, 0, "me sz", null); for (let i = 1; i < 6; i++) zone(3, i, "me mz", i === 2 || i === 4 ? card : null); zone(3, 6, "me pile", card);
+  zone(4, 0, "me pile", back); for (let i = 1; i < 6; i++) zone(4, i, "me sz", i === 3 ? back : null); zone(4, 6, "me pile", back);
+  return sig;
+}
+const style = STYLES.includes(location.hash.slice(1)) ? location.hash.slice(1) : "shatter";
+document.getElementById("cap").textContent = style + " · finishing move";
+async function loop() {
+  for (;;) {
+    const sig = build();
+    await new Promise((r) => setTimeout(r, 500));
+    zoneStrike(style, sig);
+    await new Promise((r) => setTimeout(r, 1300));
+    await runFinisher({ style, side: "op", mat: f, title: "FINISH!" });
+    await new Promise((r) => setTimeout(r, 700));
+  }
+}
+loop();
+</script>
+</body>
+</html>

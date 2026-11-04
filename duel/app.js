@@ -43,25 +43,52 @@ function cardStandIn(code) {
   if (c) sp.append(el("i", null, t & C.TYPE.MONSTER ? `${c.atk < 0 ? "?" : c.atk} / ${t & C.TYPE.LINK ? "L" + (c.level & 0xff) : c.def < 0 ? "?" : c.def}` : t & C.TYPE.SPELL ? "Spell" : "Trap"));
   return sp;
 }
-function cardImg(code, alt = "") {
+// Card art: each card's picture is looked up once and remembered (a redraw never reloads or flickers), at most a few
+// at a time (bursts made the art host refuse pictures), trying the other sizes and the card's main art before
+// settling on a designed stand-in, which is tried again later.
+const ART = new Map();          // code -> { url } | { fail: time } | { wait: [callbacks] }
+const artQueue = []; let artBusy = 0;
+function artSources(code) {
   const c = S.db && S.db.get(code);
-  const art = c && c.alias && Math.abs(c.alias - code) < 20 ? code : code; // alt arts have their own art ids
+  const t = [imgUrl(code), `https://images.ygoprodeck.com/images/cards_small/${code}.jpg`, `https://images.ygoprodeck.com/images/cards/${code}.jpg`];
+  if (c && c.alias && Math.abs(c.alias - code) < 20) t.push(imgUrl(c.alias), `https://images.ygoprodeck.com/images/cards/${c.alias}.jpg`);
+  return [...new Set(t)];
+}
+function artPump() {
+  while (artBusy < 4 && artQueue.length) {
+    const code = artQueue.shift(), rec = ART.get(code);
+    artBusy++;
+    const src = artSources(code);
+    let n = 0;
+    const probe = new Image(); probe.referrerPolicy = "no-referrer"; probe.decoding = "async";
+    const done = (url) => { artBusy--; const w = rec.wait; ART.set(code, url ? { url } : { fail: Date.now() }); for (const f of w) f(url); artPump(); };
+    probe.onload = () => done(probe.src);
+    probe.onerror = () => { n++; if (n < src.length) setTimeout(() => { probe.src = src[n]; }, n === 1 ? 600 : 120); else done(null); };
+    probe.src = src[0];
+  }
+}
+function artFor(code, cb) {
+  const r = ART.get(code);
+  if (r && r.url) { cb(r.url); return; }
+  if (r && r.fail && Date.now() - r.fail < 20000) { cb(null); return; }
+  if (r && r.wait) { r.wait.push(cb); return; }
+  ART.set(code, { wait: [cb] }); artQueue.push(code); artPump();
+}
+function cardImg(code, alt = "") {
+  code = Number(code);
+  const known = ART.get(code);
+  if (known && known.fail && Date.now() - known.fail < 20000) { const ph = cardStandIn(code); setTimeout(() => artFor(code, (u) => { if (u && ph.isConnected) { const i = new Image(); i.alt = alt; i.decoding = "async"; i.referrerPolicy = "no-referrer"; i.src = u; if (ph.className) i.className = ph.className.replace(/\b(nm|stand|spell|trap|effect|normal|fusion|synchro|xyz|link|ritual|x)\b/g, "").trim(); ph.replaceWith(i); } }), 20500); return ph; }
   const i = new Image();
-  i.alt = alt; i.loading = "lazy"; i.decoding = "async"; i.referrerPolicy = "no-referrer";
-  // Card art can fail when the art host is busy or a card is brand new: try again, try the other sizes and the
-  // card's main art, and only then show a designed stand-in (which tries once more later).
-  const tries = [imgUrl(art), `${imgUrl(art)}?r=1`, `https://images.ygoprodeck.com/images/cards_small/${art}.jpg`, `https://images.ygoprodeck.com/images/cards/${art}.jpg`];
-  if (c && c.alias) tries.push(imgUrl(c.alias), `https://images.ygoprodeck.com/images/cards/${c.alias}.jpg`);
-  let n = 0;
-  i.src = tries[0];
-  i.onerror = () => {
-    n++;
-    if (n < tries.length) { setTimeout(() => { i.src = tries[n]; }, n === 1 ? 900 : 150); return; }
+  i.alt = alt; i.decoding = "async"; i.referrerPolicy = "no-referrer";
+  if (known && known.url) { i.src = known.url; return i; }
+  i.classList.add("art-wait");
+  artFor(code, (url) => {
+    i.classList.remove("art-wait");
+    if (url) { i.src = url; return; }
     const ph = cardStandIn(code);
     if (i.className) ph.classList.add(...i.classList);
-    i.replaceWith(ph);
-    setTimeout(() => { if (!ph.isConnected) return; const again = new Image(); again.onload = () => { if (ph.isConnected) { i.src = again.src; i.onerror = null; ph.replaceWith(i); } }; again.src = `${tries[0]}?r=2`; }, 12000);
-  };
+    if (i.isConnected) i.replaceWith(ph); else i.dataset.stand = "1";
+  });
   return i;
 }
 const name = (code) => (code ? S.db.name(code) : "a face-down card");
@@ -533,7 +560,7 @@ function duelState(active) {
 function enterTable() {
   $("#lobby").hidden = true; $("#table").hidden = false; $("#result").hidden = true;
   duelState(true); S.unread = 0; badge(); toggleSide(false);
-  S.packet = null; S.log = []; S.fullLog = []; $("#feed").replaceChildren(); S.prevLP = [null, null]; S.fxEnded = false; S.turnStartLP = null; S.lastBlow = 0; S.finPromise = null;
+  S.packet = null; S.log = []; S.fullLog = []; $("#feed").replaceChildren(); S.prevLP = [null, null]; S.fxEnded = false; S.turnStartLP = null; S.lastBlow = 0; S.lastBlowBy = [0, 0]; S.finPromise = null;
   $("#log").replaceChildren(); $("#feed").replaceChildren();
   buildField();
   closeSheet();
@@ -607,7 +634,7 @@ function rematch() {
   $("#result").hidden = true;
   const ended = S.packet && S.packet.ended;
   if (S.mode === "solo" && S.lastSolo) {
-    S.packet = null; S.log = []; $("#log").replaceChildren(); $("#feed").replaceChildren(); S.prevLP = [null, null]; S.fxEnded = false; S.turnStartLP = null; S.lastBlow = 0; S.finPromise = null;
+    S.packet = null; S.log = []; $("#log").replaceChildren(); $("#feed").replaceChildren(); S.prevLP = [null, null]; S.fxEnded = false; S.turnStartLP = null; S.lastBlow = 0; S.lastBlowBy = [0, 0]; S.finPromise = null;
     const { me, opp, noShuffle } = soloDecks();
     const decks = []; decks[S.team] = me; decks[1 - S.team] = opp;
     if (S.control === "both") { /* keep seats */ }
@@ -615,7 +642,7 @@ function rematch() {
   } else if (S.mode === "host") {
     // The loser of the previous duel goes first.
     const loserHost = ended && ended.winner >= 0 ? (ended.winner === S.hostTeam ? 1 : 0) : undefined;
-    S.log = []; $("#log").replaceChildren(); $("#feed").replaceChildren(); S.prevLP = [null, null]; S.fxEnded = false; S.turnStartLP = null; S.lastBlow = 0; S.finPromise = null;
+    S.log = []; $("#log").replaceChildren(); $("#feed").replaceChildren(); S.prevLP = [null, null]; S.fxEnded = false; S.turnStartLP = null; S.lastBlow = 0; S.lastBlowBy = [0, 0]; S.finPromise = null;
     hostStartDuel(loserHost);
   } else if (S.mode === "guest") {
     S.room.send({ to: "host", m: { t: "rematch" } });
@@ -856,7 +883,7 @@ function showInfo(c, team, location, open = true) {
 /** Card details (art, type, stats, text, materials) into `b`. */
 function fillInfo(b, c, team, location) {
   const data = S.db.get(c.code);
-  const img = cardImg(c.code, name(c.code)); img.className = "info-img"; img.loading = "eager";
+  const img = cardImg(c.code, name(c.code)); img.classList.add("info-img");
   const def = location === C.LOCATION_MZONE && c.position && (c.position & C.POS_DEFENSE) && !(c.position & C.POS_FACEDOWN);
   if (def) {
     const w = el("div", "info-art def" + (team !== S.team && S.team !== 2 ? " op" : "")); w.append(img); b.append(w);
@@ -1020,6 +1047,9 @@ function showMenu(anchor, c, acts) {
     b.addEventListener("click", () => { hideMenu(); a.run(); });
     m.append(b);
   }
+  const cd = c && c.code && S.db.get(c.code);
+  if (cd && cd.type & (C.TYPE.SPELL | C.TYPE.TRAP) && acts.every((x) => /^Set\b/.test(x.label)))
+    m.append(el("div", "menu-note", cd.type & C.TYPE.TRAP ? "Traps are Set first and activated on a later turn." : "Can't be activated right now: its conditions aren't met, its once-per-turn was used, or another effect is stopping it."));
   if (c && c.code) {
     const info = el("button", null, "Card details"); info.type = "button";
     info.addEventListener("click", () => { hideMenu(); openInfo(); });
@@ -1098,13 +1128,13 @@ function handlePrompt(p) {
   const { msg, hint } = p.prompt;
   // SELECT_PLACE/POSITION hints carry the card being placed; other hints are text ids.
   const hintCard = hint && S.db.has(Number(hint)) && Number(hint) > 9999 ? Number(hint) : 0;
-  const title = hintCard ? `Choose a zone for ${name(hintCard)}` : hint && hint !== "0" ? S.db.desc(hint) : "";
+  const title = hintCard ? `Choose a zone for ${name(hintCard)}` : hint && hint !== "0" ? fdesc(S.db.desc(hint), S.lastHintCode, 0) : "";
   switch (msg.type) {
     case M.SELECT_IDLECMD: return idlePrompt(msg);
     case M.SELECT_BATTLECMD: return battlePrompt(msg);
     case M.SELECT_CHAIN: return chainPrompt(msg);
-    case M.SELECT_EFFECTYN: return yesNo(msg, `Use the effect of ${name(msg.code)}?`, msg.description !== "0" ? S.db.desc(msg.description) : where(msg));
-    case M.SELECT_YESNO: return yesNo(msg, S.db.desc(msg.description), "");
+    case M.SELECT_EFFECTYN: return yesNo(msg, `Use the effect of ${name(msg.code)}?`, msg.description !== "0" ? fdesc(S.db.desc(msg.description), msg.code, msg.location) : where(msg));
+    case M.SELECT_YESNO: return yesNo(msg, fdesc(S.db.desc(msg.description), S.lastHintCode, 0), "");
     case M.SELECT_OPTION: return optionPrompt(msg, title);
     case M.SELECT_CARD: case M.SELECT_TRIBUTE: return cardPrompt(msg, title || (msg.type === M.SELECT_TRIBUTE ? "Select monsters to Tribute" : "Select cards"));
     case M.SELECT_SUM: return sumPrompt(msg, title || "Select cards");
@@ -1142,7 +1172,7 @@ function markActions() {
   }
 }
 function activateLabel(a) {
-  const d = a.description && a.description !== "0" ? S.db.desc(a.description) : "";
+  const d = a.description && a.description !== "0" ? fdesc(S.db.desc(a.description), a.code, a.location) : "";
   return d && !/^#/.test(d) && !d.endsWith("(effect 1)") ? `Activate: ${d}` : "Activate";
 }
 
@@ -1188,6 +1218,15 @@ function chainPrompt(msg) {
   if (!msg.forced) sheetButton("Don't chain", () => send({ t: msg.type, index: null }), "primary");
 }
 
+/** System strings carry printf-style blanks ("%ls", "%d"): fill them with the card's name, its place and numbers. */
+function fdesc(text, code, location, n) {
+  let k = 0;
+  return String(text || "").replace(/%ls|%d|%s/g, (m) => {
+    if (m === "%d") return String(n == null ? "" : n);
+    k++;
+    return k === 1 ? (code ? name(code) : "this card") : (LOCNAME[location] || "the field");
+  });
+}
 function yesNo(msg, title, text) {
   openSheet(title || "Confirm", text);
   if (msg.code) { const o = optCard({ code: msg.code, controller: msg.controller, location: msg.location, sequence: msg.sequence }, ""); $("#sheetBody").append(o); }
@@ -1198,7 +1237,7 @@ function yesNo(msg, title, text) {
 function optionPrompt(msg, title) {
   openSheet(title || "Choose an effect", "");
   const list = el("div", "choice-list");
-  msg.options.forEach((o, i) => { const b = el("button", "btn", S.db.desc(o)); b.type = "button"; b.onclick = () => send({ t: msg.type, index: i }); list.append(b); });
+  msg.options.forEach((o, i) => { const b = el("button", "btn", fdesc(S.db.desc(o), S.lastHintCode, 0)); b.type = "button"; b.onclick = () => send({ t: msg.type, index: i }); list.append(b); });
   $("#sheetBody").append(list);
 }
 
@@ -1538,7 +1577,7 @@ function logEvent(e, p) {
     case M.SPSUMMONING: addLog(`${pn(e.controller)} Special Summoned ${cn(e.code)}`); break;
     case M.FLIPSUMMONING: addLog(`${pn(e.controller)} Flip Summoned ${cn(e.code)}`); break;
     case M.SET: addLog(`${pn(e.controller)} Set a card`); break;
-    case M.CHAINING: addLog(`Chain ${e.chain_size}: ${pn(e.controller)} activated ${cn(e.code)}`, "chain"); break;
+    case M.CHAINING: S.lastHintCode = e.code; addLog(`Chain ${e.chain_size}: ${pn(e.controller)} activated ${cn(e.code)}`, "chain"); break;
     case M.CHAIN_NEGATED: addLog(`Chain ${e.chain_size} was negated`, "chain"); break;
     case M.CHAIN_DISABLED: addLog(`Chain ${e.chain_size}'s effect was negated`, "chain"); break;
     case M.DRAW: addLog(`${pn(e.player)} drew ${e.drawn.length === 1 ? (e.drawn[0].code ? cn(e.drawn[0].code) : "1 card") : e.drawn.length + " cards"}`); break;
@@ -1551,12 +1590,12 @@ function logEvent(e, p) {
     case M.CONFIRM_CARDS: if (e.cards.length) addLog(`Revealed: ${e.cards.map((c) => cn(c.code)).join(", ")}`); break;
     case M.SHUFFLE_HAND: if (e.player === S.team) { /* quiet */ } break;
     case M.HINT:
-      if (e.hint_type === C.HINT.OPSELECTED) addLog(`${pn(e.player)} chose: ${S.db.desc(e.hint)}`, "sys");
+      if (e.hint_type === C.HINT.OPSELECTED) addLog(`${pn(e.player)} chose: ${fdesc(S.db.desc(e.hint), S.lastHintCode, 0)}`, "sys");
       else if (e.hint_type === C.HINT.CODE) addLog(`${pn(e.player)} declared ${cn(Number(e.hint))}`, "sys");
       else if (e.hint_type === C.HINT.NUMBER) addLog(`${pn(e.player)} declared ${e.hint}`, "sys");
       else if (e.hint_type === C.HINT.RACE) addLog(`${pn(e.player)} declared ${raceName(e.hint)}`, "sys");
       else if (e.hint_type === C.HINT.ATTRIB) addLog(`${pn(e.player)} declared ${attributeName(Number(e.hint))}`, "sys");
-      else if (e.hint_type === C.HINT.MESSAGE) toast(S.db.desc(e.hint));
+      else if (e.hint_type === C.HINT.MESSAGE) toast(fdesc(S.db.desc(e.hint), S.lastHintCode, 0));
       break;
     case M.MOVE: {
       const to = e.to, from = e.from;
@@ -1686,8 +1725,8 @@ S.signature = new Set();      // KodeX Premium: cards the player marked for the 
 S.sigFx = {};                 // KodeX Premium: finishing-move style per signature card
 S.finisher = "";              // KodeX Premium: the player's finishing move
 const reduceMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
-function isBoss(code) {
-  if (S.signature.has(Number(code))) return true;
+function isBoss(code, fx) {
+  if (fx && fx.signature.has(Number(code))) return true;
   const c = S.db && S.db.get(code);
   if (!c || !(c.type & C.TYPE.MONSTER)) return false;
   const lv = c.level & 0xff;
@@ -1711,6 +1750,9 @@ function splash(code, title, sub, kind = "boss") {
 }
 function bigFx(p) {
   const me = S.team === 2 ? 0 : S.team;
+  const sideOf = (t) => (t === me ? "me" : "op");
+  const viewerFree = !S.premium;
+  S.lastBlowBy = S.lastBlowBy || [0, 0];
   for (const e of p.events) {
     switch (e.type) {
       case M.NEW_TURN: S.turnStartLP = p.state ? p.state.teams.map((t) => t.lp) : null; Sound.play("turn"); break;
@@ -1718,21 +1760,24 @@ function bigFx(p) {
       case M.DRAW: Sound.play("draw"); break;
       case M.SET: Sound.play("set"); break;
       case M.SUMMONING: case M.SPSUMMONING: case M.FLIPSUMMONING: {
-        const boss = isBoss(e.code), sig = S.signature.has(Number(e.code));
+        const fx = fxOf(sideOf(e.controller)), boss = isBoss(e.code, fx), sig = fx.signature.has(Number(e.code));
         if (e.location === C.LOCATION_MZONE) glowZone(e.controller, e.sequence, boss ? "boss-glow" : "summon-glow");
-        if (sig && S.premium) zoneStrike(S.sigFx[Number(e.code)] || S.finisher || "shatter", document.getElementById(zoneId(e.controller, C.LOCATION_MZONE, e.sequence)));
+        if (sig) zoneStrike(fx.sigFx[Number(e.code)] || fx.finisher || "shatter", document.getElementById(zoneId(e.controller, C.LOCATION_MZONE, e.sequence)));
         if (boss) {
           Sound.play("boss");
-          splash(e.code, name(e.code), sig ? "Signature summon" : e.type === M.SPSUMMONING ? "Special Summon" : "Summon", sig ? "boss sig" : "boss");
+          splash(e.code, name(e.code), sig ? (viewerFree ? "Signature summon · KodeX Premium" : "Signature summon") : e.type === M.SPSUMMONING ? "Special Summon" : "Summon", sig ? "boss sig" : "boss");
         } else Sound.play(e.type === M.SPSUMMONING ? "spsummon" : "summon");
         break;
       }
       case M.CHAINING:
-        S.lastBlow = Number(e.code);
-        Sound.play(S.signature.has(Number(e.code)) ? "boss" : e.chain_size > 1 ? "chain" : "activate", e.chain_size);
-        if (S.signature.has(Number(e.code))) splash(e.code, name(e.code), "Signature card", "boss sig");
+      {
+        S.lastBlow = Number(e.code); S.lastBlowBy[e.controller] = Number(e.code);
+        const fx = fxOf(sideOf(e.controller)), sig = fx.signature.has(Number(e.code));
+        Sound.play(sig ? "boss" : e.chain_size > 1 ? "chain" : "activate", e.chain_size);
+        if (sig) splash(e.code, name(e.code), viewerFree ? "Signature card · KodeX Premium" : "Signature card", "boss sig");
         break;
-      case M.ATTACK: { Sound.play("attack"); const a = e.card && lookup(e.card.controller, e.card.location, e.card.sequence); if (a && a.code) S.lastBlow = Number(a.code); break; }
+      }
+      case M.ATTACK: { Sound.play("attack"); const a = e.card && lookup(e.card.controller, e.card.location, e.card.sequence); if (a && a.code) { S.lastBlow = Number(a.code); S.lastBlowBy[e.card.controller] = Number(a.code); } break; }
       case M.DAMAGE: {
         const big = e.amount >= 2000;
         Sound.play("damage", big);
@@ -1749,8 +1794,11 @@ function bigFx(p) {
     const otk = loser >= 0 && start && start[loser] >= full && p.turnPlayer === w && (p.state ? p.state.teams[loser].lp <= 0 : true);
     if (loser >= 0) {
       // The finishing move: the loser's half of the field breaks and their cards are torn up.
-      const style = (S.premium && (S.sigFx[S.lastBlow] || S.finisher)) || "shatter";
+      // The winner's own move: a KodeX Premium player's choice shows on everyone's screen.
+      const wfx = fxOf(sideOf(w)), blow = S.lastBlowBy[w] || S.lastBlow;
+      const style = (wfx.premium && (wfx.sigFx[blow] || wfx.finisher)) || "shatter";
       const side = loser === me ? "me" : "op";
+      if (wfx.premium && viewerFree) setTimeout(() => toast(`${p.names[w]} finished with a KodeX Premium move: ${style[0].toUpperCase() + style.slice(1)}`), 2400);
       Sound.play("finish");
       setTimeout(() => Sound.play(otk ? "otk" : w === me && S.mode !== "spec" ? "win" : "lose"), 1600);
       S.finPromise = runFinisher({ style, side, mat: $("#field"), title: otk ? "ONE TURN KILL" : "FINISH!" });
@@ -1810,7 +1858,15 @@ boot();
 const SKIN_PARTS = ["sleeve", "xsleeve", "field"];
 const imgOk = (u) => typeof u === "string" && u.length < 480000 && /^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(u);
 const clampN = (v, a, b, d) => { v = Number(v); return Number.isFinite(v) ? Math.min(b, Math.max(a, v)) : d; };
+function cleanFx(v) {
+  if (!v || typeof v !== "object" || v.premium !== true) return null;
+  const sigFx = {};
+  if (v.sigFx && typeof v.sigFx === "object") for (const [k, x] of Object.entries(v.sigFx).slice(0, 60)) if (/^\d{3,10}$/.test(k) && STYLES.includes(x)) sigFx[k] = x;
+  return { premium: true, finisher: STYLES.includes(v.finisher) ? v.finisher : "shatter",
+    signature: Array.isArray(v.signature) ? v.signature.map(Number).filter((n) => n > 0 && n < 1e10).slice(0, 60) : [], sigFx };
+}
 function cleanPart(k, v) {
+  if (k === "fx") return cleanFx(v);
   if (k === "field") return v && imgOk(v.img) ? { img: v.img, zoom: clampN(v.zoom, 100, 300, 100), x: clampN(v.x, 0, 100, 50), y: clampN(v.y, 0, 100, 50), dim: clampN(v.dim, 0, 90, 35) } : null;
   return SKIN_PARTS.includes(k) && imgOk(v) ? v : null;
 }
@@ -1821,8 +1877,14 @@ function sideSkins() {
   if (S.mode === "spec") return S.specHostTeam === S.team ? { me: S.peerSkins.host, op: S.peerSkins.guest } : { me: S.peerSkins.guest, op: S.peerSkins.host };
   return { me: S.mySkin, op: {} };
 }
+/** Premium effects of the player on `side` ("me"/"op"): theirs travel with their skins, so everyone sees them. */
+function fxOf(side) {
+  const f = (sideSkins()[side] || {}).fx;
+  return f ? { premium: true, finisher: f.finisher, signature: new Set(f.signature.map(Number)), sigFx: f.sigFx } : { premium: false, finisher: "", signature: new Set(), sigFx: {} };
+}
 function applySkins() {
   const r = document.documentElement, sk = sideSkins();
+  for (const side of ["me", "op"]) { const d = document.querySelector(`.duelist.${side}`); if (d) d.classList.toggle("is-premium", !!(sk[side] && sk[side].fx)); }
   for (const side of ["me", "op"]) {
     const s = sk[side] || {};
     for (const k of ["sleeve", "xsleeve"]) {
@@ -1842,15 +1904,15 @@ function applySkins() {
 }
 function sendSkin(to, skin = S.mySkin, of) {
   if (!S.room) return;
-  for (const k of SKIN_PARTS) if (skin[k]) S.room.send({ to, m: { t: "skin", part: k, v: skin[k], of } });
-  S.room.send({ to, m: { t: "skin", part: "done", have: SKIN_PARTS.filter((k) => skin[k]), of } });
+  for (const k of [...SKIN_PARTS, "fx"]) if (skin[k]) S.room.send({ to, m: { t: "skin", part: k, v: skin[k], of } });
+  S.room.send({ to, m: { t: "skin", part: "done", have: [...SKIN_PARTS, "fx"].filter((k) => skin[k]), of } });
 }
 function onSkin(m, msg) {
   let role = m.from;
   if (msg.of && m.from === "host") role = msg.of;   // the host passes the guest's skins on to spectators
   if (role !== "host" && role !== "guest") return;
   const cur = S.peerSkins[role];
-  if (msg.part === "done") { const have = Array.isArray(msg.have) ? msg.have : []; for (const k of SKIN_PARTS) if (!have.includes(k)) delete cur[k]; }
+  if (msg.part === "done") { const have = Array.isArray(msg.have) ? msg.have : []; for (const k of [...SKIN_PARTS, "fx"]) if (!have.includes(k)) delete cur[k]; }
   else { const v = cleanPart(msg.part, msg.v); if (v) cur[msg.part] = v; }
   applySkins();
 }
@@ -1867,6 +1929,7 @@ window.addEventListener("message", (e) => {
   S.finisher = S.premium && STYLES.includes(d.finisher) ? d.finisher : "";
   S.sigFx = {};
   if (S.premium && d.sigFx && typeof d.sigFx === "object") for (const [k, v] of Object.entries(d.sigFx)) if (/^\d{3,10}$/.test(k) && STYLES.includes(v)) S.sigFx[Number(k)] = v;
+  if (S.premium) S.mySkin.fx = { premium: true, finisher: S.finisher || "shatter", signature: [...S.signature], sigFx: Object.fromEntries(Object.entries(S.sigFx)) };
   applySkins();
   if (S.room && (S.mode === "host" || S.mode === "guest")) sendSkin("others");
 });

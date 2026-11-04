@@ -60,6 +60,14 @@ In landscape (phones, tablets and computers) the table is three columns, like Ma
 
 The field cracks and smoulders as a player's Life Points fall (75 %, 50 %, 25 %, 10 %). When a duel is won, the loser's half of the field breaks into shards and their cards are torn in two (`finisher.js`), with FINISH! or ONE TURN KILL. KodeX Premium chooses the style (shatter, meteor, thunder, vortex, slash: `finisher` in the `skin` message) and can give each signature card its own (`sigFx`), which also plays when that card is summoned.
 
+## Premium effects in online duels
+
+A KodeX Premium player's finishing move, signature cards and their moves travel with their skins (`{t:"skin", part:"fx", v:{premium, finisher, signature, sigFx}}`), so every player and spectator sees them, free edition included; the player's name gets a PREMIUM tag, and free viewers see a short note naming the Premium move. `preview.html#style` plays a finishing move on a demo field (used by the KodeX app's previews).
+
+## Card art and fonts
+
+Card pictures are looked up once per card and remembered, at most four at a time, so redraws never reload or flicker and bursts don't trip the art host; a card whose art can't be found gets a designed stand-in. Alternate-art passcodes are played as the card they show (`CardDB.main`). The fonts ship in `assets/fonts/` (SIL OFL), so nothing outside the Arena is needed to draw the page. System texts with blanks (`%ls`, `%d`) are filled in with the card name and place.
+
 ## Sound and effects
 
 `audio.js` makes every sound with Web Audio (synthesised, no recordings), so nothing is borrowed from other games: draw, set, summon, Special Summon, boss entrance, activation, chain links (rising pitch), attack, damage, destroy, phase, turn, win, lose and one-turn kill, plus an original looping duel theme. Music and Sounds switches are in the chat panel (saved per device). Audio starts after the first tap, as browsers require.

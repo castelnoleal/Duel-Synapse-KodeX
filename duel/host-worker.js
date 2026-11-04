@@ -101,6 +101,7 @@ self.onmessage = async (ev) => {
     else if (m.cmd === "start") {
       if (host) { lastReplay = host.replayFile(); lastNames = host.names; host.destroy(); host = null; }
       bots = m.bots || {}; mems = {}; retries = {};
+      m.decks = m.decks.map((d) => ({ ...d, main: (d.main || []).map((c) => db.main(c)), extra: (d.extra || []).map((c) => db.main(c)), side: (d.side || []).map((c) => db.main(c)) }));
       const codes = m.decks.flatMap((d) => [...d.main, ...d.extra]);
       book = new Book().mergeRows(m.book || null);
       hints = comboHints(db, codes);
