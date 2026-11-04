@@ -155,8 +155,8 @@ function withHeaders(response, headers = {}) {
 // repository; card scripts are proxied from the pinned public Project Ignis commit.
 const DUEL_TYPES = { js: "text/javascript; charset=utf-8", css: "text/css; charset=utf-8", html: "text/html; charset=utf-8",
   json: "application/json; charset=utf-8", wasm: "application/wasm", svg: "image/svg+xml",
-  md: "text/plain; charset=utf-8", png: "image/png", webp: "image/webp", cpp: "text/plain; charset=utf-8", sh: "text/plain; charset=utf-8" };
-const DUEL_FILE = /^duel\/(?:[a-z0-9-]+\.(?:js|css|html|svg)|README\.md|assets\/[a-z0-9-]+\.(?:png|webp)|engine\/[a-z0-9-]+\.(?:js|wasm)|engine\/build\/(?:kx_shim\.cpp|build\.sh|build-runtimes\.sh)|data\/(?:cards|strings|scripts)\.json)$/;
+  md: "text/plain; charset=utf-8", png: "image/png", webp: "image/webp", woff: "font/woff", txt: "text/plain; charset=utf-8", cpp: "text/plain; charset=utf-8", sh: "text/plain; charset=utf-8" };
+const DUEL_FILE = /^duel\/(?:[a-z0-9-]+\.(?:js|css|html|svg)|README\.md|assets\/[a-z0-9-]+\.(?:png|webp)|assets\/fonts\/[a-z0-9-]+\.(?:woff|txt)|engine\/[a-z0-9-]+\.(?:js|wasm)|engine\/build\/(?:kx_shim\.cpp|build\.sh|build-runtimes\.sh)|data\/(?:cards|strings|scripts)\.json)$/;
 const DUEL_SCRIPT = /^\/duel\/scripts\/([0-9a-f]{40})\/((?:official|pre-release)\/c\d{1,10}\.lua|unofficial\/(?:proc_unofficial|rankup_functions)\.lua|[a-z_]{3,40}\.lua)$/;
 
 async function handleDuel(request, url, env) {

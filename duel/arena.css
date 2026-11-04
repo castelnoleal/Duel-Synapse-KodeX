@@ -392,8 +392,10 @@ dialog.info-top::backdrop { background: #00000080; }
 @media (max-width: 780px) { .embed { --z: min(calc((100vw - 22px) / 7.75), calc((100vh - 215px) / 8.1)); } }
 
 @media (orientation: portrait), (max-width: 639px) {
-  #table:not([hidden]) .arena { padding-bottom: 66px; }
+  #table:not([hidden]) .arena { padding-bottom: 0; }
   .side-fab { width: 48px; height: 48px; }
+  /* the chat bubble sits beside the status line instead of taking a row of its own */
+  #table:not([hidden]) #status { padding-right: 62px; padding-left: 8px; min-height: 48px; display: flex; align-items: center; justify-content: center; }
   /* prompts stay small: one sideways row of cards; the chat bubble steps aside while a prompt is open */
   body:has(#sheet:not([hidden])) .side-fab { display: none; }
   body .sheet-head .sheet-chat { display: grid; place-items: center; margin-left: auto; }
@@ -410,12 +412,18 @@ dialog.info-top::backdrop { background: #00000080; }
 @media (orientation: landscape) and (max-width: 1000px) { .arena .duelist .avatar { display: none; } }
 /* phones held upright: zones become card-shaped and grow to use the screen's height */
 @media (max-width: 780px) and (orientation: portrait) {
-  :root { --zh: clamp(var(--z), calc((100vh - 380px) / 5.3), calc(var(--z) * 1.4)); --ch: calc(var(--zh) * .92); }
-  .embed { --zh: clamp(var(--z), calc((100vh - 315px) / 5.3), calc(var(--z) * 1.4)); --ch: calc(var(--zh) * .92); }
+  /* field rows + hands share the height: 5 rows, the opponent's hand (.55 card) and yours (1.3 cards) */
+  :root { --zh: clamp(var(--z), calc((100vh - 290px) / 6.95), calc(var(--z) * 1.55)); --ch: calc(var(--zh) * .92); }
+  .embed { --zh: clamp(var(--z), calc((100vh - 230px) / 6.95), calc(var(--z) * 1.55)); --ch: calc(var(--zh) * .92); }
   @supports (height: 100dvh) {
-    :root { --zh: clamp(var(--z), calc((100dvh - 380px) / 5.3), calc(var(--z) * 1.4)); }
-    .embed { --zh: clamp(var(--z), calc((100dvh - 315px) / 5.3), calc(var(--z) * 1.4)); }
+    :root { --zh: clamp(var(--z), calc((100dvh - 290px) / 6.95), calc(var(--z) * 1.55)); }
+    .embed { --zh: clamp(var(--z), calc((100dvh - 230px) / 6.95), calc(var(--z) * 1.55)); }
   }
+  .op-hand .card { width: calc(var(--cw) * .6); height: calc(var(--ch) * .6); }
+  .arena > .hand.op-hand { min-height: calc(var(--ch) * .6); }
+  .my-hand .card { width: calc(var(--cw) * 1.3); height: calc(var(--ch) * 1.3); margin: 0 calc(var(--cw) * -.12); }
+  .arena { gap: 4px; }
+  .embed .arena .duelist.op { margin-right: 52px; width: calc(100% - 52px); justify-self: start; }
 }
 
 /* skins (KodeX Premium): mine at the bottom, my opponent's at the top */
@@ -617,3 +625,9 @@ body.shake .mat-wrap { animation: shake .45s ease-in-out; }
 
 .sheet-head .sheet-chat { display: none; position: relative; }
 .sheet-chat.unread::after { content: ""; position: absolute; top: -2px; right: -2px; width: 10px; height: 10px; border-radius: 50%; background: #ff4d6a; }
+
+/* inside the KodeX app: keep the corner free for the app's floating X */
+@media (orientation: landscape) and (min-width: 640px) {
+  .embed #table { grid-template-rows: minmax(40px, auto) auto auto minmax(0, 1fr) auto auto;
+    grid-template-areas: "info ohand ." "info mat opp" "info mat status" "info mat feed" "info mat turn" "me hand fab"; }
+}

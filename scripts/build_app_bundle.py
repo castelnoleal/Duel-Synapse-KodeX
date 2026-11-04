@@ -11,7 +11,7 @@ import gzip, json, os, re, subprocess, sys, tempfile, zipfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DUEL = os.path.join(ROOT, "duel")
-KEEP = re.compile(r"^(?:[a-z0-9-]+\.(?:js|css|html)|assets/[a-z0-9-]+\.(?:png|webp)|engine/[a-z0-9-]+\.(?:js|wasm)|engine/build/[a-z0-9_-]+\.(?:cpp|sh)|data/(?:cards|strings|scripts)\.json)$")
+KEEP = re.compile(r"^(?:[a-z0-9-]+\.(?:js|css|html)|assets/[a-z0-9-]+\.(?:png|webp)|assets/fonts/[a-z0-9-]+\.(?:woff|txt)|engine/[a-z0-9-]+\.(?:js|wasm)|engine/build/[a-z0-9_-]+\.(?:cpp|sh)|data/(?:cards|strings|scripts)\.json)$")
 
 def cardscripts(commit, repo, given):
     if given: return given

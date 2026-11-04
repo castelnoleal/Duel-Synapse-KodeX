@@ -42,6 +42,7 @@ function run({ core, db, scripts, decks, seed, script, policy, stop, onPrompt, o
  * book: the current Book (merged into as lines are found). turns: how many of each seat's early turns to explore.
  */
 export async function practice({ core, db, scripts, deck, book, duels = 4, variants = 4, turns = 3, explore = 0.5, rnd = Math.random, shouldStop, onDuel }) {
+  if (db.main) deck = { ...deck, main: deck.main.map((c) => db.main(c)), extra: deck.extra.map((c) => db.main(c)) };
   const codes = [...deck.main, ...deck.extra];
   await scripts.preload(codes);
   const hints = comboHints(db, codes);

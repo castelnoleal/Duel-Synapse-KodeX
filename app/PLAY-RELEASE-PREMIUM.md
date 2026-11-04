@@ -8,10 +8,10 @@ skins are added).
 
 | Setting | Value |
 |---|---|
-| Source | Upload the **ZIP** (`KodeX_Premium_v53_instApped.zip`), not the HTML file. It carries the Duel Arena and all card scripts. |
+| Source | Upload the **ZIP** (`KodeX_Premium_v54_instApped.zip`), not the HTML file. It carries the Duel Arena and all card scripts. |
 | App name | `KodeX Premium` |
 | Package name | `com.duelsynapse.kodex.premium` (must differ from the free app; can't be changed after the first upload) |
-| Version | versionName `8.6.2`, versionCode higher than any earlier upload of this package (first upload: `1`) |
+| Version | versionName `8.7.1`, versionCode higher than any earlier upload of this package (first upload: `1`) |
 | Orientation | **Auto / sensor** (the Arena has a landscape layout; a locked orientation stops rotation) |
 | Permissions | **Camera** on (card scanner) |
 | Page notifications | **On** (opponent chat notifications) |
@@ -32,7 +32,7 @@ KodeX Premium is the full edition of Duel Synapse: KodeX by Meta Insider OCG.
 CARDS AND RULINGS
 • Fast card search with filters
 • Official OCG rulings, downloadable for offline use
-• Card scanner: identify a card from the camera or a photo, Japanese cards included
+• Unlimited card scanner: identify a card from the camera or a photo, Japanese cards included
 • Deck builder with import and export (YDK and links)
 
 DUEL ARENA

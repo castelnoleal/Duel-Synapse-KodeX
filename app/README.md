@@ -1,6 +1,6 @@
 # Duel Synapse: KodeX app
 
-`Kodex_Mei_Production_v53.html` (free) and `Kodex_Mei_Premium_v53.html` (Premium) are the current source (older versions are kept alongside it) of the **Meiocg KodeX** Android app (`com.duelsynapse.kodex`). It's built with instApped: upload this file as the project's HTML source.
+`Kodex_Mei_Production_v54.html` (free) and `Kodex_Mei_Premium_v54.html` (Premium) are the current source (older versions are kept alongside it) of the **Meiocg KodeX** Android app (`com.duelsynapse.kodex`). It's built with instApped: upload this file as the project's HTML source.
 
 It loads cards and rulings from https://kodex.meiocg.org.
 
@@ -61,4 +61,6 @@ License: [LICENSE.md](../LICENSE.md) (all rights reserved; permission via metain
 **v52 (8.6 / Premium 8.6.1):** Premium **Skins** adds *Finishing move* (Shatter, Meteor, Thunder, Vortex or Slash, sent to the Arena as `finisher`), a finishing move per signature card (`sigFx`), and *Effects › MEIOCG animations* (on by default): a moving MEIOCG background with floating MEIOCG cards above any wallpaper and below the content, a sheen on the title, and animated card lists; paused while the app is in the background or the Arena is open, and off with reduced motion. Legal & Privacy now says KodeX and the Duel Arena are a Meta Insider OCG project since 2023 and may not be reverse engineered; open-source components stay under their own licences. The free edition looks the same as before.
 
 **v53 (8.6.2):** Smoother Premium animations. Panels and dialogs (Settings, Decks, Skins…) open instantly again: the fade-in let the page show through and looked like a glitch. Card lists deal in only when the results change, not on every redraw; the hover lift is mouse-only, so a tapped card no longer stays raised. The background glows use gradients instead of a heavy blur and pause while a panel is open; the button shine no longer changes the button's layout.
+
+**v54 (8.7 / Premium 8.7.1):** The Arena is loaded in the background a few seconds after KodeX starts and stays loaded, so the Test tab opens at once (closing it reloads a fresh lobby behind the scenes). The Arena's title bar is hidden in every orientation; its X floats at the top right. Finishing moves have icons that match their animation and a **Preview** (`duel/preview.html#style`, a demo field that plays the move), also for each signature card. The free edition's Settings has a **KodeX Premium** section listing the features, with finishing-move previews and *Get KodeX Premium* (`PREMIUM_URL`, the Play Store page of `com.duelsynapse.kodex.premium`). The card scanner is unlimited in Premium; the free edition allows 4 scans every 24 hours (counted per scanner session on the device), then explains the limit and points to Premium.
 
