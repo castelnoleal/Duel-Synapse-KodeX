@@ -3,9 +3,10 @@
 //   seq  — "after these two plays in a turn, players made this play" (combo lines)
 //   pick — "when this card's effect asked for this kind of choice and this card was offered, how often players chose it"
 //   resp — "when the opponent played this card (0 = declared an attack), players answered with this card"
+//   line — whole turns ("A123.0>P456>C789.1>…") that worked, so the AI can replay a combo from its first play to its last
 // Only card codes, action letters and counts are stored: no names, accounts or decks.
 // GET  /api/duel/book?cards=1,2,3     -> rows that only involve those cards (the requester's decks)
-// POST /api/duel/book/learn  {seq:[[c2,c1,next,w]], pick:[[src,hint,code,chosen,offered]], resp:[[trig,code,w]]}
+// POST /api/duel/book/learn  {seq:[[c2,c1,next,w]], pick:[[src,hint,code,chosen,offered]], resp:[[trig,code,w]], lines:[[ "tok>tok>tok", w ]]}
 
 const TOKEN = /^[SPAMTC][0-9]{1,10}(\.[0-9]{1,7})?$/;
 const MAX_ROWS = 600, MAX_W = 3, MAX_CARDS = 200, OUT_LIMIT = 4000;
@@ -21,7 +22,9 @@ export class PlayBook {
       CREATE INDEX IF NOT EXISTS seq_kn ON seq(kn);
       CREATE TABLE IF NOT EXISTS pick (src INTEGER NOT NULL, hint INTEGER NOT NULL, code INTEGER NOT NULL, n REAL NOT NULL, seen REAL NOT NULL DEFAULT 0, PRIMARY KEY (src, hint, code));
       CREATE TABLE IF NOT EXISTS resp (trig INTEGER NOT NULL, code INTEGER NOT NULL, n REAL NOT NULL, PRIMARY KEY (trig, code));
-      CREATE INDEX IF NOT EXISTS resp_code ON resp(code);`);
+      CREATE INDEX IF NOT EXISTS resp_code ON resp(code);
+      CREATE TABLE IF NOT EXISTS line (k TEXT PRIMARY KEY, c1 INTEGER NOT NULL, n REAL NOT NULL);
+      CREATE INDEX IF NOT EXISTS line_c1 ON line(c1);`);
   }
 
   async fetch(request) {
@@ -33,12 +36,15 @@ export class PlayBook {
 
   read(url) {
     const cards = [...new Set((url.searchParams.get("cards") || "").split(",").map(Number).filter((c) => Number.isInteger(c) && c > 0))].slice(0, MAX_CARDS);
-    if (!cards.length) return json({ v: 1, seq: [], pick: [], resp: [] });
+    if (!cards.length) return json({ v: 1, seq: [], pick: [], resp: [], lines: [] });
     const list = cards.join(",");
     const seq = this.sql.exec(`SELECT c2, c1, nx, n FROM seq WHERE kn IN (${list}) AND (k1 = 0 OR k1 IN (${list})) AND (k2 = 0 OR k2 IN (${list})) ORDER BY n DESC LIMIT ${OUT_LIMIT}`).toArray().map((r) => [r.c2, r.c1, r.nx, r.n]);
     const pick = this.sql.exec(`SELECT src, hint, code, n, seen FROM pick WHERE src IN (${list}) ORDER BY seen DESC LIMIT ${OUT_LIMIT}`).toArray().map((r) => [r.src, r.hint, r.code, r.n, r.seen]);
     const resp = this.sql.exec(`SELECT trig, code, n FROM resp WHERE code IN (${list}) ORDER BY n DESC LIMIT ${OUT_LIMIT}`).toArray().map((r) => [r.trig, r.code, r.n]);
-    return json({ v: 1, seq, pick, resp });
+    const have = new Set(cards);
+    const lines = this.sql.exec(`SELECT k, n FROM line WHERE c1 IN (${list}) ORDER BY n DESC LIMIT ${OUT_LIMIT}`).toArray()
+      .filter((r) => r.k.split(">").every((t) => have.has(codeOf(t)))).slice(0, 1500).map((r) => [r.k, r.n]);
+    return json({ v: 1, seq, pick, resp, lines });
   }
 
   async learn(request) {
@@ -62,6 +68,13 @@ export class PlayBook {
     for (const [trig, code, n] of (Array.isArray(body.resp) ? body.resp : []).slice(0, MAX_ROWS)) {
       if (![trig, code].every((x) => Number.isInteger(x) && x >= 0 && x < 2 ** 32) || !(w(n) > 0)) continue;
       this.sql.exec(`INSERT INTO resp (trig, code, n) VALUES (?, ?, ?) ON CONFLICT(trig, code) DO UPDATE SET n = n + excluded.n`, trig, code, w(n));
+      rows++;
+    }
+    for (const [k, n] of (Array.isArray(body.lines) ? body.lines : []).slice(0, 200)) {
+      if (typeof k !== "string" || k.length > 800 || !(w(n) > 0)) continue;
+      const toks = k.split(">");
+      if (toks.length < 3 || toks.length > 40 || !toks.every((t) => TOKEN.test(t))) continue;
+      this.sql.exec(`INSERT INTO line (k, c1, n) VALUES (?, ?, ?) ON CONFLICT(k) DO UPDATE SET n = n + excluded.n`, k, codeOf(toks[0]), w(n));
       rows++;
     }
     return json({ ok: true, rows });

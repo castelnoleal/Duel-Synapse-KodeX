@@ -46,6 +46,11 @@ const RX = {
   search: /add[^.]*from your deck to your hand|draw \d|draw (1|2|3|one|two|three) card/i,
   spsummon: /special summon/i,
   mill: /send[^.]*from your deck to the (gy|graveyard)/i,
+  // "You cannot Special Summon … except …" style locks: the engine refuses them once a summon breaks the lock,
+  // so a card carrying one has to start the turn, before the monsters it doesn't allow.
+  lock: /(cannot|can't) special summon[^.]*except|you can only special summon[^.]*(except|from the extra deck)|for the rest of this turn[^.]*(cannot|can only) special summon/i,
+  // monsters that start combos when they arrive ("If this card is Normal Summoned: you can add/Special Summon …")
+  starter: /if this card is (normal |special )?summoned[^.]*:[^.]*(add|special summon|send)/i,
 };
 
 // ---------------------------------------------------------------------------
@@ -131,7 +136,14 @@ function idle(msg, ctx) {
   acts.sort((x, y) => actPriority(y.c) - actPriority(x.c));
   for (const { a, index } of acts) if (once(m, "act:" + keyOf(a))) return pick(IDLE.ACTIVATE, index);
 
-  // 2) Special Summons: strong Extra Deck plays and free summons from the hand.
+  // 2) A starter monster (searches or summons when it arrives) is Normal Summoned before anything else, so the
+  //    turn builds from it instead of spending the summon on a plain beater.
+  const starter = msg.summons.map((s, index) => ({ s, index, c: db.get(s.code) }))
+    .filter(({ c }) => c && (c.level || 0) <= 4 && RX.starter.test(text(c)) && !RX.handTrap.test(text(c)))
+    .sort((x, y) => (RX.search.test(text(y.c)) ? 1 : 0) - (RX.search.test(text(x.c)) ? 1 : 0))[0];
+  if (starter && once(m, "starter")) return pick(IDLE.SUMMON, starter.index);
+
+  // 3) Special Summons: strong Extra Deck plays and free summons from the hand.
   const sps = msg.special_summons.map((s, index) => ({ s, index, c: db.get(s.code) })).filter(({ c }) => c);
   sps.sort((x, y) => (y.c.atk || 0) - (x.c.atk || 0));
   for (const { s, index, c } of sps) {
@@ -140,7 +152,7 @@ function idle(msg, ctx) {
     if (good && once(m, "sp:" + keyOf(s), 2)) return pick(IDLE.SPSUMMON, index);
   }
 
-  // 3) Normal Summon the monster that wins fights; set a wall when we can't.
+  // 4) Normal Summon the monster that wins fights; set a wall when we can't.
   const summons = msg.summons.map((s, index) => ({ s, index, c: db.get(s.code) })).filter(({ c }) => c && !(RX.handTrap.test(text(c)) && (c.atk || 0) <= 1500));
   summons.sort((x, y) => (y.c.atk || 0) - (x.c.atk || 0));
   const sets = msg.monster_sets.map((s, index) => ({ s, index, c: db.get(s.code) })).filter(({ c }) => c && !(RX.handTrap.test(text(c)) && (c.def || 0) <= 1500));
@@ -161,7 +173,7 @@ function idle(msg, ctx) {
     return pick(IDLE.MSET, sets[0].index);
   if (bestSummon && !sets.length) return pick(IDLE.SUMMON, bestSummon.index);
 
-  // 4) Flip defenders into attack when they now win, and pull weak attackers back in Main Phase 2.
+  // 5) Flip defenders into attack when they now win, and pull weak attackers back in Main Phase 2.
   for (let i = 0; i < msg.pos_changes.length; i++) {
     const p = msg.pos_changes[i], card = mine.mzone[p.sequence];
     if (!card || !once(m, "pos:" + p.sequence)) continue;
@@ -171,14 +183,14 @@ function idle(msg, ctx) {
     if (!main1 && !isDef && atk < oppBestAttack(theirs) && defOf(card) > atk) return pick(IDLE.REPOS, i);
   }
 
-  // 5) Set traps and quick effects for the opponent's turn (keep the field spell zone out of it).
+  // 6) Set traps and quick effects for the opponent's turn (keep the field spell zone out of it).
   const stFree = (mine.szone || []).slice(0, 5).filter((x) => !x).length;
   const ssets = msg.spell_sets.map((s, index) => ({ s, index, c: db.get(s.code) })).filter(({ c }) => c && (isTrap(c) || (c.type & TYPE.QUICKPLAY) || (isSpell(c) && RX.respond.test(text(c)))));
   ssets.sort((x, y) => (isTrap(y.c) ? 1 : 0) - (isTrap(x.c) ? 1 : 0));
   if (ssets.length && stFree > (main1 ? 0 : 0) && (!main1 || !msg.to_bp || ctx.view.turn <= 1 || !canAttackNow(mine)))
     return pick(IDLE.SSET, ssets[0].index);
 
-  // 6) Battle if anything can attack, otherwise end the turn.
+  // 7) Battle if anything can attack, otherwise end the turn.
   if (main1 && msg.to_bp && canAttackNow(mine)) return { action: IDLE.TO_BP };
   if (ssets.length && stFree) return pick(IDLE.SSET, ssets[0].index);
   if (msg.to_ep) return { action: IDLE.TO_EP };
@@ -189,6 +201,7 @@ const canAttackNow = (mine) => monsters(mine).some((c) => faceUp(c) && !(c.posit
 
 function actPriority(c) {
   const t = text(c);
+  if (RX.lock.test(t) && (RX.search.test(t) || RX.spsummon.test(t))) return 10;   // lock cards first, while still legal
   if (c.type & TYPE.FIELD) return 9;
   if (RX.search.test(t)) return 8;
   if (RX.spsummon.test(t) && isMonster(c)) return 7;
@@ -228,6 +241,18 @@ function comboIdle(msg, ctx, m) {
   const k = "combo:" + m.seq.length + ":" + nx.tok;
   if (m.used.get(k)) return null;
   m.used.set(k, 1);
+  return legal.get(nx.tok);
+}
+/** The start of a remembered turn: when nothing else has been learned for the first play, open with the first play
+ *  of the best-practised whole turn these cards can make (then comboIdle follows it to its end). */
+function comboStart(msg, ctx, m) {
+  if (!ctx.book || !ctx.book.lineNext || m.seq.length) return null;
+  const legal = new Map();
+  const lists = [[IDLE.ACTIVATE, msg.activates], [IDLE.SPSUMMON, msg.special_summons], [IDLE.SUMMON, msg.summons], [IDLE.MSET, msg.monster_sets], [IDLE.SSET, msg.spell_sets]];
+  for (const [action, arr] of lists) arr.forEach((_, index) => { const tok = idleToken(msg, { action, index }); if (tok && !legal.has(tok)) legal.set(tok, { action, index }); });
+  const nx = ctx.book.lineNext([], (tok) => legal.has(tok));
+  if (!nx || nx.score / (1 + 0.1 * nx.line.length) < 1 || m.used.get("cstart")) return null;
+  m.used.set("cstart", 1);
   return legal.get(nx.tok);
 }
 /** Follow a learned line: the play people (or practice games) made next from this point of the turn. */
@@ -445,7 +470,7 @@ export function smartAnswer(msg, ctx) {
   switch (msg.type) {
     case MSG.SELECT_IDLECMD: {
       const m = turnMem(ctx);
-      r = comboIdle(msg, ctx, m) || learnedIdle(msg, ctx, m) || exploreIdle(msg, ctx, m) || idle(msg, ctx);
+      r = comboIdle(msg, ctx, m) || learnedIdle(msg, ctx, m) || comboStart(msg, ctx, m) || exploreIdle(msg, ctx, m) || idle(msg, ctx);
       const tok = r ? idleToken(msg, r) : null;
       if (tok) { m.seq.push(tok); ctx.mem.lastSrc = codeOf(tok); }
       break;

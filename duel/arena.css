@@ -526,8 +526,8 @@ dialog.info-top::backdrop { background: #00000080; }
     --zh: var(--z); --ch: calc(var(--z) * .92);
   }
   @supports (height: 100dvh) { :root, .embed { --z: clamp(28px, min(calc((100dvh - 40px) / 6.9), calc((100vw - var(--L) - var(--R) - 40px) / 7.6)), 118px); } }
-  body:has(#table:not([hidden])) .top { display: none; }
-  body:has(#table:not([hidden])) { overflow: hidden; }
+  body.at-table .top { display: none; }
+  body.at-table { overflow: hidden; }
   #table { display: grid; height: 100vh; height: 100dvh; padding: 8px; gap: 6px 10px; overflow: hidden;
     grid-template-columns: var(--L) minmax(0, 1fr) var(--R);
     grid-template-rows: auto auto minmax(0, 1fr) auto auto;
@@ -602,7 +602,7 @@ body.shake .mat-wrap { animation: shake .45s ease-in-out; }
 @keyframes shake { 15% { transform: translate(-6px, 3px); } 30% { transform: translate(5px, -4px); } 45% { transform: translate(-4px, 2px); } 60% { transform: translate(3px, -2px); } 80% { transform: translate(-1px, 1px); } }
 @media (prefers-reduced-motion: reduce) { .zone.summon-glow, .zone.boss-glow, .splash, .splash-art, .splash-txt strong, body.shake .mat-wrap { animation: none !important; transition: none !important; } }
 
-.zone:has(.card) > .lbl { opacity: 0; }
+.zone.filled > .lbl { opacity: 0; }
 .card .stat { font-size: clamp(8px, calc(var(--z) * .14), 11px); padding: 2px 4px; max-width: calc(100% + 14px); background: #050810d9; }
 /* what's happening, with card pictures (landscape) */
 .feed { display: none; flex-direction: column; gap: 4px; min-height: 0; overflow: hidden auto; padding: 6px; border-radius: 14px; background: #10142acc; border: 1px solid var(--line); scrollbar-width: thin; }
@@ -631,3 +631,77 @@ body.shake .mat-wrap { animation: shake .45s ease-in-out; }
   .embed #table { grid-template-rows: minmax(40px, auto) auto auto minmax(0, 1fr) auto auto;
     grid-template-areas: "info ohand ." "info mat opp" "info mat status" "info mat feed" "info mat turn" "me hand fab"; }
 }
+
+/* ---------- landscape / computer panel: tabs like a desktop duel client ---------- */
+.dock-tabs { display: none; }
+.tabs [data-tab].unread::after { content: ""; display: inline-block; width: 7px; height: 7px; margin-left: 5px; border-radius: 50%; background: #ff4d6a; vertical-align: middle; }
+.view-opts { flex: 1 1 100%; display: grid; gap: 8px; }
+.view-opts .vo-l { font-size: 12px; color: var(--muted); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.view-opts .seg { margin: 0; }
+.view-opts .seg button { min-height: 34px; font-size: 12.5px; }
+.view-opts .seg button[aria-pressed="true"] { background: var(--soft, #1d2450); color: var(--text); box-shadow: inset 0 0 0 1px var(--a); }
+@media (orientation: landscape) and (min-width: 640px) {
+  .dock-tabs { display: flex; flex: none; padding: 6px 6px 0; }
+  .dock-tabs button { min-height: 36px; font-size: 12.5px; padding: 0 4px; }
+  .dock-tabs button[data-tab="opts"] { flex: 0 0 40px; font-size: 16px; }
+  #info > .log, #info > .chat, #info > .side-actions { flex: 1; min-height: 0; overflow: auto; border-top: 0; }
+  #info > .chat { display: flex; flex-direction: column; }
+  #info > .chat[hidden], #info > .log[hidden], #info > .side-actions[hidden], #info > .info-body[hidden] { display: none; }
+  #info > .chat .log { flex: 1; overflow: auto; }
+  #info > .side-actions { align-content: flex-start; background: transparent; }
+  #info > .log li { font-size: 12.5px; }
+  .side-fab { display: none !important; }
+  .emote-fab { grid-area: fab; position: relative; inset: auto; justify-self: end; align-self: end; }
+  /* the opponent's box is small, so what's happening right now gets the room */
+  body.op-compact .arena .duelist.op { height: 42px; padding: 4px 8px; gap: 6px; }
+  body.op-compact .arena .duelist.op .avatar { width: 22px; height: 22px; font-size: 11px; }
+  body.op-compact .arena .duelist.op .who span { display: none; }
+  body.op-compact .arena .duelist.op .lp { flex-direction: row; align-items: center; gap: 6px; }
+  body.op-compact .arena .duelist.op .lp-num { font-size: clamp(15px, 1.6vw, 19px); }
+  body.op-compact .arena .duelist.op .lp-bar { width: 40px; }
+  .arena #status { font-size: 13px; padding: 8px 10px; border-radius: 12px; background: #10142acc; border: 1px solid var(--line); align-self: stretch; }
+  /* view: a bigger field (narrower side columns) */
+  body.view-wide { --L: clamp(180px, 18vw, 280px); --R: clamp(150px, 14vw, 220px); }
+  body.view-wide #table { padding: 6px; gap: 4px 8px; }
+}
+/* view: flat field instead of the tilted one */
+body.view-flat .arena .mat { transform: none !important; }
+
+/* ---------- emotes and floating chat ---------- */
+.emote-fab { position: fixed; left: 14px; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); z-index: 49; width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center;
+  border: 1px solid var(--line-2, #2a3270); background: #151a3a; color: #f0b429; cursor: pointer; box-shadow: 0 10px 24px -10px #000; }
+.emote-fab:hover { background: #1d2450; }
+#table[hidden] ~ .emote-fab, #table[hidden] .emote-fab { display: none; }
+@media (orientation: portrait), (max-width: 639px) {
+  #table:not([hidden]) #status { padding-left: 62px; }
+  body:has(#sheet:not([hidden])) .emote-fab { display: none; }
+}
+.emote-pick { position: fixed; z-index: 70; width: 260px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 10px; border-radius: 16px;
+  background: #121734f2; border: 1px solid #2f3a86; box-shadow: 0 20px 50px #000c; }
+.emote-pick[hidden] { display: none; }
+.emote-pick .em { height: 48px; border: 0; border-radius: 12px; background: #1b2150; font-size: 24px; cursor: pointer; display: grid; place-items: center; padding: 0; overflow: hidden; }
+.emote-pick .em:hover, .emote-pick .em:focus-visible { background: #283080; outline: none; }
+.emote-pick .em.img img { width: 100%; height: 100%; object-fit: contain; }
+.emote-pick .em-sep { grid-column: 1 / -1; font-size: 11px; color: var(--muted, #9aa3c7); font-weight: 700; letter-spacing: .04em; margin-top: 4px; }
+.emote-pick .em-sep.up { color: #f0b429; }
+.say-fx { position: fixed; inset: 0; pointer-events: none; z-index: 65; }
+.say { position: fixed; max-width: 220px; animation: sayIn .35s cubic-bezier(.2,1.4,.4,1) both; transition: opacity .35s, transform .35s; }
+.say.me { transform: translateY(-100%); animation-name: sayInUp; }
+.say.out { opacity: 0; }
+.say-emote { display: grid; justify-items: center; gap: 2px; padding: 8px 12px; border-radius: 18px; background: #121734ee; border: 1px solid #3347f0; box-shadow: 0 12px 30px #000a, 0 0 20px #3347f055; }
+.say-emote img { width: 84px; height: 84px; object-fit: contain; border-radius: 10px; }
+.say-emote .em-big { font-size: 44px; line-height: 1; animation: emBob 1.2s ease-in-out infinite; }
+.say-emote small { font-size: 11px; color: #c9d0f2; font-weight: 700; }
+.say-chat { padding: 7px 11px; border-radius: 14px 14px 14px 4px; background: linear-gradient(135deg, #2b37a8f0, #5a3aa8f0); border: 1px solid #8d99ff88; color: #fff; font-size: 13px; line-height: 1.35; box-shadow: 0 12px 26px #0009; }
+.say-chat b { display: block; font-size: 11px; color: #f0b429; margin-bottom: 1px; }
+.say-chat span { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
+@keyframes sayIn { from { opacity: 0; transform: translateY(-8px) scale(.85); } }
+@keyframes sayInUp { from { opacity: 0; transform: translateY(calc(-100% + 8px)) scale(.85); } to { transform: translateY(-100%); } }
+@keyframes emBob { 50% { transform: translateY(-4px) rotate(-6deg); } }
+@media (prefers-reduced-motion: reduce) { .say, .say-emote .em-big { animation: none !important; } }
+@media (orientation: landscape) and (min-width: 640px) {
+  #table > .emote-fab { grid-area: fab; position: relative; left: auto; bottom: auto; justify-self: end; align-self: end; }
+}
+/* the prompt panel in landscape isn't centred, so it slides up without the centring shift (it used to jump sideways) */
+@keyframes sheetUpL { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+@media (orientation: landscape) and (min-width: 640px) { .sheet:not([hidden]) { animation-name: sheetUpL; } }

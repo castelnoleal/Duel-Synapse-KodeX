@@ -64,9 +64,9 @@ h1, h2, h3, h4, .brand-name, .info-name, .room-code b, .lp-num, .turn-no, .phase
 @keyframes floatup { 0% { transform: translateY(0) rotate(-12deg); opacity: 0; } 10% { opacity: .35; } 85% { opacity: .25; } 100% { transform: translateY(-120vh) rotate(18deg); opacity: 0; } }
 /* during a duel the background calms down so the field stays the focus */
 /* the MEIOCG logo cards keep drifting behind the duel, custom fields included (skins only cover the mat) */
-body:has(#table:not([hidden])) .grid-bg { display: none; }
-body:has(#table:not([hidden])) .floaters { opacity: .7; }
-body:has(#table:not([hidden])) .blob { opacity: .14; animation-play-state: paused; }
+body.at-table .grid-bg { display: none; }
+body.at-table .floaters { opacity: .7; }
+body.at-table .blob { opacity: .14; animation-play-state: paused; }
 
 /* ---------- top bar ---------- */
 .top { background: #0c0f1fd9; border-bottom: 1px solid var(--line); }
@@ -222,8 +222,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--a); box-shadow: 
 .mat-dmg { position: absolute; left: 0; right: 0; z-index: -1; pointer-events: none; opacity: 0; transition: opacity .6s ease; border-radius: 20px;
   --crack: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 200' preserveAspectRatio='none'%3E%3Cg fill='none' stroke='%23ffb36b' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' opacity='.85'%3E%3Cpath d='M200 100 L170 70 L150 74 L118 40 L90 44 L60 10'/%3E%3Cpath d='M200 100 L236 82 L262 92 L300 58 L332 62 L372 24'/%3E%3Cpath d='M200 100 L188 136 L206 158 L196 196'/%3E%3Cpath d='M200 100 L240 128 L276 124 L318 160 L360 166 L396 190'/%3E%3Cpath d='M200 100 L160 120 L128 150 L84 146 L40 176 L6 182'/%3E%3Cpath d='M118 40 L112 14 M300 58 L312 30 M128 150 L136 186 M318 160 L306 194'/%3E%3C/g%3E%3C/svg%3E");
   --crack2: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 200' preserveAspectRatio='none'%3E%3Cg fill='none' stroke='%23ff7a45' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M60 100 L84 84 L80 60 L104 44 M60 100 L40 124 L48 150 M340 96 L316 74 L322 50 L300 30 M340 96 L362 120 L354 150 L370 176'/%3E%3Cpath d='M130 30 L150 52 L176 46 L196 64 M270 170 L250 150 L222 156 L204 138'/%3E%3C/g%3E%3C/svg%3E"); }
-.mat-dmg.op { top: 0; bottom: 50%; }
-.mat-dmg.me { top: 50%; bottom: 0; }
+.mat-dmg.op { top: 0; bottom: 60%; }
+.mat-dmg.me { top: 60%; bottom: 0; }
 .mat-dmg[data-l="1"] { opacity: .45; background: var(--crack) center / 70% 60% no-repeat; }
 .mat-dmg[data-l="2"] { opacity: .75; background: var(--crack) center / 95% 85% no-repeat, radial-gradient(ellipse at 50% 50%, #ff6a2a22, transparent 60%); }
 .mat-dmg[data-l="3"] { opacity: .85; background: var(--crack2) center / 100% 100% no-repeat, var(--crack) center / 110% 100% no-repeat, radial-gradient(ellipse at 50% 50%, #ff4a1a3a, transparent 70%); animation: smoulder 2.4s ease-in-out infinite; }
@@ -280,11 +280,44 @@ img { color: transparent; }
 img.art-wait { background: linear-gradient(110deg, #141a3d 30%, #232b66 50%, #141a3d 70%) 0 0 / 220% 100%; animation: skel 1.2s linear infinite; }
 
 /* ---------- performance during a duel: no live blurs behind moving things ---------- */
-body:has(#table:not([hidden])) .panel, body:has(#table:not([hidden])) .duelist, body:has(#table:not([hidden])) .sheet,
-body:has(#table:not([hidden])) .menu, body:has(#table:not([hidden])) .loading { -webkit-backdrop-filter: none; backdrop-filter: none; }
-body:has(#table:not([hidden])) .blob { animation-duration: 60s; }
+body.at-table .panel, body.at-table .duelist, body.at-table .sheet,
+body.at-table .menu, body.at-table .loading { -webkit-backdrop-filter: none; backdrop-filter: none; }
+body.at-table .blob { animation-duration: 60s; }
 .fin-shard { filter: none; box-shadow: inset 0 0 14px #ffb36baa, inset 0 0 0 2px #ffd88a, 0 6px 12px #000a; }
 .nm.stand > b, .nm.stand > i { display: block; }
 .info-body > .nm.stand { font-size: 15px; display: flex !important; }
 .duelist.is-premium .who b::after { content: "PREMIUM"; margin-left: 6px; padding: 1px 6px; border-radius: 999px; font: 700 9px/14px var(--f-display); letter-spacing: .08em; vertical-align: 2px;
   background: linear-gradient(100deg, #f0b429, #ffe9a8 50%, #f0b429); background-size: 200% 100%; color: #1a1405; animation: sheen 3s ease-in-out infinite alternate; }
+
+/* ---------- entrances and attacks (moves.js) ---------- */
+.move-fx { position: fixed; inset: 0; pointer-events: none; z-index: 60; overflow: hidden; }
+.move-fx > * { position: fixed; pointer-events: none; will-change: transform, opacity; }
+.mv-svg { left: 0; top: 0; filter: drop-shadow(0 0 6px #9fd0ff); }
+.mv-ring { border-radius: 50%; border: 3px solid #8d99ff; box-shadow: 0 0 22px #3347f0, inset 0 0 22px #7a4fd6; }
+.mv-ring.inferno { border-color: #ffb347; box-shadow: 0 0 22px #ff5a1a, inset 0 0 18px #ff8a3a; }
+.mv-ring.nova { border-color: #f0b429; box-shadow: 0 0 26px #f0b429, inset 0 0 20px #fff2c4; }
+.mv-ring.storm { border-color: #bfe3ff; box-shadow: 0 0 22px #6fb7ff, inset 0 0 18px #bfe3ff; }
+.mv-ring.glitch { border-style: dashed; border-color: #42f5d7; box-shadow: 0 0 16px #ff3ad2, inset 0 0 16px #42f5d7; }
+.mv-pillar { background: linear-gradient(180deg, transparent, #8d99ffaa 40%, #ffffffee 85%, #8d99ff); border-radius: 50% 50% 8px 8px; transform-origin: 50% 100%; mix-blend-mode: screen; }
+.mv-portal { border-radius: 50%; background: conic-gradient(from 0deg, #3347f0, #7a4fd6, #f0b429, #3347f0); -webkit-mask: radial-gradient(circle, transparent 34%, #000 36%, #000 60%, transparent 62%); mask: radial-gradient(circle, transparent 34%, #000 36%, #000 60%, transparent 62%); box-shadow: 0 0 30px #7a4fd6; }
+.mv-flash { inset: 0; background: #dff0ff; }
+.mv-flame { width: 16px; height: 26px; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; background: radial-gradient(circle at 50% 70%, #fff6c8, #ffb347 40%, #ff4a1a 75%, transparent 78%); mix-blend-mode: screen; }
+.mv-rays { border-radius: 50%; background: repeating-conic-gradient(#f0b42966 0 6deg, transparent 6deg 22deg); -webkit-mask: radial-gradient(circle, #000 20%, transparent 70%); mask: radial-gradient(circle, #000 20%, transparent 70%); }
+.mv-spark { width: 6px; height: 6px; border-radius: 50%; background: #fff2c4; box-shadow: 0 0 10px #f0b429; }
+.mv-slice { background: linear-gradient(90deg, #42f5d755, #ff3ad255); mix-blend-mode: screen; }
+.mv-shock { width: 70vmin; height: 70vmin; border-radius: 50%; border: 2px solid #ffffffaa; box-shadow: 0 0 40px #8d99ff, inset 0 0 40px #8d99ff88; }
+.mv-lock { border: 2px solid #ff3a50; border-radius: 10px; box-shadow: 0 0 0 2px #ff3a5033, 0 0 22px #ff3a50aa, inset 0 0 18px #ff3a5055;
+  background: linear-gradient(#ff3a50, #ff3a50) 50% 0 / 2px 10px no-repeat, linear-gradient(#ff3a50, #ff3a50) 50% 100% / 2px 10px no-repeat, linear-gradient(#ff3a50, #ff3a50) 0 50% / 10px 2px no-repeat, linear-gradient(#ff3a50, #ff3a50) 100% 50% / 10px 2px no-repeat; }
+.mv-lock.direct { border-radius: 16px; }
+.mv-lock-tag { position: absolute; left: 50%; top: -22px; transform: translateX(-50%); white-space: nowrap; font: 800 10px/1 "Chakra Petch", system-ui, sans-serif; letter-spacing: .12em;
+  padding: 4px 7px; border-radius: 6px; background: #ff3a50; color: #fff; box-shadow: 0 4px 14px #ff3a5066; }
+.mv-line { height: 3px; margin-top: -1.5px; transform-origin: 0 50%; background: repeating-linear-gradient(90deg, #ff6a7a 0 12px, transparent 12px 20px); filter: drop-shadow(0 0 4px #ff3a50); }
+.mv-line.beam { background: linear-gradient(90deg, #8d99ff, #fff); }
+.mv-comet { height: 14px; margin-top: -7px; transform-origin: 0 50%; border-radius: 7px; background: linear-gradient(90deg, transparent, #ff8a3a 60%, #fff6c8); filter: blur(1px) drop-shadow(0 0 8px #ff5a1a); }
+.mv-beam { height: 16px; margin-top: -8px; transform-origin: 0 50%; border-radius: 8px; background: linear-gradient(180deg, #8d99ff00, #8d99ff 30%, #fff 50%, #8d99ff 70%, #8d99ff00); box-shadow: 0 0 24px #3347f0; }
+.mv-claw { width: 5px; border-radius: 4px; background: linear-gradient(#fff, #ff3a50); box-shadow: 0 0 12px #ff3a50; transform-origin: 50% 0; }
+.mv-ghost { position: fixed; filter: saturate(.3) brightness(1.6) drop-shadow(0 0 8px #8d99ff); }
+.mv-impact { border-radius: 50%; background: radial-gradient(circle, #fff 0 12%, #ffd88a 25%, #ff5a1a88 45%, transparent 70%); mix-blend-mode: screen; }
+.mv-impact.beam { background: radial-gradient(circle, #fff 0 12%, #b9c2ff 30%, #3347f088 50%, transparent 70%); }
+.mv-impact.claw { background: radial-gradient(circle, #fff 0 8%, #ff3a5088 40%, transparent 70%); }
+.mv-impact.phantom { background: radial-gradient(circle, #fff 0 10%, #c8b3ff 30%, #7a4fd688 50%, transparent 70%); }
