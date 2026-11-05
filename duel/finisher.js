@@ -28,10 +28,16 @@ export function runFinisher({ style = "shatter", side = "op", mat, title = "FINI
     if (!mat || reduced()) { done(); return; }
     style = STYLES.includes(style) ? style : "shatter";
     const L = layer(); L.replaceChildren(); L.className = "fin-fx on " + style;
+    // The broken area is the loser's own two rows only. The middle row (Extra Monster Zones, banished piles) is
+    // left whole, so a monster in an Extra Monster Zone is never sliced by the edge of the hole: it is torn up
+    // whole with the loser's other cards instead.
     const m = mat.getBoundingClientRect();
-    const half = side === "op" ? { x: m.left, y: m.top, w: m.width, h: m.height / 2 } : { x: m.left, y: m.top + m.height / 2, w: m.width, h: m.height / 2 };
+    const rows = [...mat.querySelectorAll(`.zone.${side}:not(#${side}-banished)`)].map((z) => z.getBoundingClientRect()).filter((r) => r.width > 2);
+    const half = rows.length
+      ? (() => { const x = Math.min(...rows.map((r) => r.left)), y = Math.min(...rows.map((r) => r.top)), x2 = Math.max(...rows.map((r) => r.right)), y2 = Math.max(...rows.map((r) => r.bottom)); return { x: x - 6, y: y - 6, w: x2 - x + 12, h: y2 - y + 12 }; })()
+      : side === "op" ? { x: m.left, y: m.top, w: m.width, h: m.height * .4 } : { x: m.left, y: m.top + m.height * .6, w: m.width, h: m.height * .4 };
     const cx = half.x + half.w / 2, cy = half.y + half.h / 2;
-    const cards = [...mat.querySelectorAll(`.zone.${side} .card, #${side}-grave .card, #${side}-banished .card, #${side}-extra .card, #${side}-deck .card, #${side === "op" ? "opHand" : "myHand"} .card`)].filter((c) => c.getBoundingClientRect().width > 4);
+    const cards = [...mat.querySelectorAll(`.zone.${side} .card, #${side}-grave .card, #${side}-banished .card, #${side}-extra .card, #${side}-deck .card, #${side === "op" ? "opHand" : "myHand"} .card, .zone.emz .card[data-side="${side}"]`)].filter((c) => c.getBoundingClientRect().width > 4);
     const t0 = style === "meteor" ? 650 : style === "thunder" ? 700 : style === "vortex" ? 300 : style === "slash" ? 520 : 380;
 
     // --- prelude

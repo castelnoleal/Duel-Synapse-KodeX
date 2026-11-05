@@ -77,14 +77,16 @@ const gs = await guest.evaluate(() => ({ turn: window.__duel.packet.turn, lp: wi
 const ss = await spec.evaluate(() => ({ turn: window.__duel.packet.turn }));
 console.log("host", hs, "guest", gs, "spec", ss);
 // chat
-await guest.click("#sideFab");
-await guest.click('.tabs [data-tab="chat"]');
+// landscape and computers: the Chat tab of the left panel; portrait: the chat bubble
+if (await guest.isVisible('.dock-tabs [data-tab="chat"]')) await guest.click('.dock-tabs [data-tab="chat"]');
+else { await guest.click("#sideFab"); await guest.click('#side .tabs [data-tab="chat"]'); }
 await guest.fill("#chatInput", "gg wp");
 await guest.press("#chatInput", "Enter");
 await host.waitForFunction(() => [...document.querySelectorAll("#chatList li")].some((l) => l.textContent.includes("gg wp")), null, { timeout: 10000 });
 console.log("chat delivered");
 // surrender from guest
 guest.on("dialog", (d) => d.accept());
+if (await guest.isVisible('.dock-tabs [data-tab="opts"]')) await guest.click('.dock-tabs [data-tab="opts"]');
 await guest.click("#surrenderBtn");
 if (await guest.isVisible("#askYes")) await guest.click("#askYes");
 await host.waitForFunction(() => window.__duel.packet.ended, null, { timeout: 15000 });

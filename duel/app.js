@@ -11,6 +11,7 @@ import { Learning } from "./learning.js";
 import * as Sound from "./audio.js";
 import { rulingsFor } from "./rulings.js";
 import { runFinisher, zoneStrike, STYLES } from "./finisher.js";
+import { entrance, attack, ENTRANCES, ATTACKS } from "./moves.js";
 
 const M = C.MSG;
 const $ = (s) => document.querySelector(s);
@@ -82,6 +83,7 @@ function cardImg(code, alt = "") {
   i.alt = alt; i.decoding = "async"; i.referrerPolicy = "no-referrer";
   if (known && known.url) { i.src = known.url; return i; }
   i.classList.add("art-wait");
+  i.src = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";   // blank while the art loads (no broken-picture icon)
   artFor(code, (url) => {
     i.classList.remove("art-wait");
     if (url) { i.src = url; return; }
@@ -447,7 +449,8 @@ function onHostMessage(m) {
       toast(`${S.guest ? S.guest.name : "Your opponent"} wants a rematch.`);
     }
   }
-  if (msg.t === "chat") addChat(m.name, msg.text, true);
+  if (msg.t === "chat") addChat(m.name, msg.text, true, sideOfRole(m.from));
+  if (msg.t === "emote") { showEmote(sideOfRole(m.from), msg.id, m.from); if (m.from === "guest" && S.specs > 0) S.room.send({ to: "spec", m: { ...msg, of: "guest" } }); }
   if (msg.t === "replayreq" && m.from === "guest") sendReplay("guest");
 }
 function showGuest() {
@@ -507,7 +510,8 @@ function onGuestMessage(m) {
   if (msg.t === "start") { if (msg.hostTeam === 0 || msg.hostTeam === 1) S.specHostTeam = msg.hostTeam; if ($("#table").hidden) enterTable(); S.log = []; $("#log").replaceChildren(); $("#feed").replaceChildren(); addLog(`${msg.first} goes first.`, "sys"); $("#result").hidden = true; }
   else if (msg.t === "packet") { if ($("#table").hidden) enterTable(); const t = msg.packet.viewer === 2 ? 0 : msg.packet.viewer; if (t !== S.team) { S.team = t; applySkins(); } onPacket(msg.packet); }
   else if (msg.t === "error") toast(msg.error);
-  else if (msg.t === "chat") addChat(m.name, msg.text, true);
+  else if (msg.t === "chat") addChat(m.name, msg.text, true, sideOfRole(m.from));
+  else if (msg.t === "emote") { const role = msg.of && m.from === "host" ? msg.of : m.from; showEmote(sideOfRole(role), msg.id, role); }
   else if (msg.t === "replay" && typeof msg.b64 === "string" && msg.b64.length < 400000) saveFile(msg.name || "duel.yrp", "data:application/octet-stream;base64," + msg.b64);
   else if (msg.t === "lobby" && S.mode === "guest") $("#joinStatus").textContent = `Joined ${msg.host}'s room. Waiting for them to start…`;
 }
@@ -558,6 +562,7 @@ function duelState(active) {
   if (window.parent !== window) window.parent.postMessage({ kx: "duel", active }, "*");
 }
 function enterTable() {
+  CARD_CACHE.clear();
   $("#lobby").hidden = true; $("#table").hidden = false; $("#result").hidden = true;
   duelState(true); S.unread = 0; badge(); toggleSide(false);
   S.packet = null; S.log = []; S.fullLog = []; $("#feed").replaceChildren(); S.prevLP = [null, null]; S.fxEnded = false; S.turnStartLP = null; S.lastBlow = 0; S.lastBlowBy = [0, 0]; S.finPromise = null;
@@ -579,16 +584,13 @@ function leaveTable() {
 }
 
 function bindTable() {
-  document.querySelectorAll(".tabs [data-tab]").forEach((b) => b.addEventListener("click", () => {
-    document.querySelectorAll(".tabs [data-tab]").forEach((x) => x.setAttribute("aria-selected", String(x === b)));
-    document.querySelectorAll("[data-pane]").forEach((p) => { p.hidden = p.dataset.pane !== b.dataset.tab; });
-  }));
+  document.querySelectorAll(".tabs [data-tab]").forEach((b) => b.addEventListener("click", () => selectTab(b)));
   $("#chatForm").addEventListener("submit", (e) => {
     e.preventDefault();
     const text = $("#chatInput").value.trim();
     if (!text) return;
     $("#chatInput").value = "";
-    addChat(myName(), text, false);
+    addChat(myName(), text, false, "me");
     if (S.room) S.room.send({ to: "all", m: { t: "chat", text } });
   });
   $("#surrenderBtn").addEventListener("click", async () => {
@@ -704,9 +706,22 @@ function zoneId(team, location, seq) {
   return piles[location] ? `${rel}-${piles[location]}` : null;
 }
 
+// Card elements are reused while a card looks the same: a redraw keeps the picture already on screen (no reload,
+// no flicker) and the page doesn't pile up thousands of thrown-away elements over a long duel.
+const CARD_CACHE = new Map();
+// body.at-table while the duel table shows (cheaper for the browser than a :has() rule re-checked on every change)
+new MutationObserver(() => document.body.classList.toggle("at-table", !$("#table").hidden)).observe($("#table"), { attributes: true, attributeFilter: ["hidden"] });
+function cardSig(c, team, location, seq, opts) {
+  return JSON.stringify([c ? [c.code, c.hidden, c.position, c.attack, c.defense, c.link, c.overlays && c.overlays.length, c.counters, c.status & C.STATUS_DISABLED, c.type] : 0, team, location, seq, !!opts.static, S.team]);
+}
 function cardEl(c, team, location, seq, opts = {}) {
+  const ck = key(team, location, seq) + (opts.static ? "s" : ""), sig = cardSig(c, team, location, seq, opts);
+  const hit = opts.reuse && CARD_CACHE.get(ck);
+  if (hit && hit.sig === sig && !hit.el.isConnected && !hit.el.querySelector("img[data-stand]")) { hit.el.classList.remove("act", "selectable", "selected", "picked", "atk-src", "atk-tgt"); return hit.el; }
   const d = el("div", "card");
+  if (opts.reuse) CARD_CACHE.set(ck, { sig, el: d });
   d.dataset.key = key(team, location, seq);
+  d.dataset.side = team === (S.team === 2 ? 0 : S.team) ? "me" : "op";
   if (c && !c.hidden && c.code) { d.dataset.code = c.code; d.dataset.pos = c.position || 0; d.dataset.loc = location; d.dataset.team = team; }
   if (team !== S.team && S.team !== 2) d.classList.add("op-back");
   const pos = c && c.position;
@@ -791,10 +806,11 @@ function render(p) {
     for (const c of [...z.children]) if (!c.classList.contains("lbl")) c.remove();
     z.classList.remove("free", "picked");
   }
+  queueMicrotask(() => { for (const z of document.querySelectorAll("#field .zone")) z.classList.toggle("filled", !!z.querySelector(".card")); });
   for (const t of [0, 1]) {
     const z = st.teams[t];
-    z.mzone.forEach((c, i) => { if (c) document.getElementById(zoneId(t, C.LOCATION_MZONE, i)).append(cardEl(c, t, C.LOCATION_MZONE, i)); });
-    z.szone.forEach((c, i) => { const id = zoneId(t, C.LOCATION_SZONE, i); if (c && id) document.getElementById(id).append(cardEl(c, t, C.LOCATION_SZONE, i)); });
+    z.mzone.forEach((c, i) => { if (c) document.getElementById(zoneId(t, C.LOCATION_MZONE, i)).append(cardEl(c, t, C.LOCATION_MZONE, i, { reuse: true })); });
+    z.szone.forEach((c, i) => { const id = zoneId(t, C.LOCATION_SZONE, i); if (c && id) document.getElementById(id).append(cardEl(c, t, C.LOCATION_SZONE, i, { reuse: true })); });
     const rel = t === me ? "me" : "op";
     for (const [k, loc] of [["grave", C.LOCATION_GRAVE], ["banished", C.LOCATION_REMOVED], ["extra", C.LOCATION_EXTRA]]) {
       const list = z[k];
@@ -802,7 +818,7 @@ function render(p) {
       if (list.length) {
         const top = k === "extra" ? (list.slice().reverse().find((c) => c && !c.hidden && c.position & C.POS_FACEUP) || list[list.length - 1]) : list[list.length - 1];
         const idx = list.indexOf(top);
-        const d = cardEl(top, t, loc, idx, { static: true });
+        const d = cardEl(top, t, loc, idx, { static: true, reuse: k !== "extra" });
         if (k === "extra" && t === me && !(top.position & C.POS_FACEUP)) { d.replaceChildren(); d.className = "card back"; }
         zone.append(d);
         zone.append(el("span", "cnt", String(list.length)));
@@ -818,8 +834,8 @@ function render(p) {
   // hands
   const mh = $("#myHand"), oh = $("#opHand");
   mh.replaceChildren(); oh.replaceChildren();
-  st.teams[me].hand.forEach((c, i) => mh.append(cardEl(c, me, C.LOCATION_HAND, i)));
-  st.teams[op].hand.forEach((c, i) => oh.append(cardEl(c, op, C.LOCATION_HAND, i)));
+  st.teams[me].hand.forEach((c, i) => mh.append(cardEl(c, me, C.LOCATION_HAND, i, { reuse: true })));
+  st.teams[op].hand.forEach((c, i) => oh.append(cardEl(c, op, C.LOCATION_HAND, i, { reuse: true })));
   // chain
   const ch = $("#chain");
   ch.replaceChildren();
@@ -874,7 +890,7 @@ function showInfo(c, team, location, open = true) {
   if (!c || !c.code) return;
   const panel = $("#info");
   if (open === false && !panel.classList.contains("open") && !LANDSCAPE.matches) return;
-  if (open === true) openInfo();
+  if (open === true) { openInfo(); if (LANDSCAPE.matches) selectTab(document.querySelector('.dock-tabs [data-tab="card"]')); }
   const b = $("#infoBody");
   b.replaceChildren();
   fillInfo(b, c, team, location);
@@ -1527,10 +1543,11 @@ function addLog(text, cls = "", codes = []) {
   const code = Number((/\[\[(\d+)\]\]/.exec(text) || [])[1] || 0) || (codes && codes[0]) || 0;
   if (code) { const t = el("span", "lth"); t.append(cardImg(code, "")); li.prepend(t); }
   feed(plain, code, cls);
+  // newest first: the latest actions are always at the top
   const log = $("#log");
-  log.append(li);
-  while (log.children.length > 400) log.firstChild.remove();
-  log.scrollTop = log.scrollHeight;
+  log.prepend(li);
+  while (log.children.length > 250) log.lastChild.remove();
+  log.scrollTop = 0;
 }
 /** Landscape log with card pictures, newest first (Master Duel style). Tap an entry to read the card. */
 function feed(text, code, cls) {
@@ -1548,14 +1565,20 @@ function feed(text, code, cls) {
   f.prepend(d);
   while (f.children.length > 60) f.lastChild.remove();
 }
-function addChat(who, text, fromOther) {
+function addChat(who, text, fromOther, side) {
   const li = el("li"); li.append(el("b", null, who + ": "), String(text).slice(0, 200));
   $("#chatList").append(li); $("#chatList").scrollTop = 1e9;
   S.fullLog.push(`[chat] ${who}: ${text}`);
-  const tab = document.querySelector('.tabs [data-tab="chat"]');
-  const seen = $("#side").classList.contains("open") && tab.getAttribute("aria-selected") === "true";
-  if (!seen) { tab.textContent = "Chat •"; tab.onclick = () => { tab.textContent = "Chat"; }; }
+  const seen = chatVisible();
+  if (!seen) for (const t of document.querySelectorAll('.tabs [data-tab="chat"]')) t.classList.add("unread");
+  if (side) floatChat(side, who, text);
   if (fromOther && !seen) { S.unread = (S.unread || 0) + 1; badge(); notifyChat(who, text); }
+}
+/** Is the chat on screen right now (the side panel's or the landscape panel's Chat tab)? */
+function chatVisible() {
+  const pane = document.querySelector(".chat[data-pane=chat]");
+  if (!pane || pane.hidden) return false;
+  return LANDSCAPE.matches ? !$("#table").hidden : $("#side").classList.contains("open");
 }
 function badge() { const b = $("#sideBadge"); b.hidden = !S.unread; b.textContent = S.unread > 9 ? "9+" : String(S.unread || 0); $("#sideFab").classList.toggle("ping", !!S.unread); $("#sheetChat").classList.toggle("unread", !!S.unread); }
 /** A new chat message while the player isn't looking: vibrate, and a system notification when the app is in the background. */
@@ -1634,9 +1657,9 @@ function toggleSide(open) {
   s.classList.toggle("open", on);
   $("#sideFab").setAttribute("aria-expanded", String(on));
   if (on) {
-    const chatTab = document.querySelector('.tabs [data-tab="chat"]');
-    if (S.unread) chatTab.click();
-    if (chatTab.getAttribute("aria-selected") === "true") { chatTab.textContent = "Chat"; S.unread = 0; badge(); }
+    const chatTab = document.querySelector('#side .tabs [data-tab="chat"]');
+    if (chatTab && S.unread) chatTab.click();
+    if (chatTab && chatTab.getAttribute("aria-selected") === "true") { chatTab.classList.remove("unread"); S.unread = 0; badge(); }
     $("#log").scrollTop = 1e9; $("#chatList").scrollTop = 1e9;
   }
 }
@@ -1761,7 +1784,11 @@ function bigFx(p) {
       case M.SET: Sound.play("set"); break;
       case M.SUMMONING: case M.SPSUMMONING: case M.FLIPSUMMONING: {
         const fx = fxOf(sideOf(e.controller)), boss = isBoss(e.code, fx), sig = fx.signature.has(Number(e.code));
-        if (e.location === C.LOCATION_MZONE) glowZone(e.controller, e.sequence, boss ? "boss-glow" : "summon-glow");
+        if (e.location === C.LOCATION_MZONE) {
+          glowZone(e.controller, e.sequence, boss ? "boss-glow" : "summon-glow");
+          const st = (fx.premium && (fx.entFx[Number(e.code)] || fx.entrance)) || "rise";
+          entrance(st, document.getElementById(zoneId(e.controller, C.LOCATION_MZONE, e.sequence)), { big: boss });
+        }
         if (sig) zoneStrike(fx.sigFx[Number(e.code)] || fx.finisher || "shatter", document.getElementById(zoneId(e.controller, C.LOCATION_MZONE, e.sequence)));
         if (boss) {
           Sound.play("boss");
@@ -1777,7 +1804,18 @@ function bigFx(p) {
         if (sig) splash(e.code, name(e.code), viewerFree ? "Signature card · KodeX Premium" : "Signature card", "boss sig");
         break;
       }
-      case M.ATTACK: { Sound.play("attack"); const a = e.card && lookup(e.card.controller, e.card.location, e.card.sequence); if (a && a.code) { S.lastBlow = Number(a.code); S.lastBlowBy[e.card.controller] = Number(a.code); } break; }
+      case M.ATTACK: {
+        Sound.play("attack");
+        const a = e.card && lookup(e.card.controller, e.card.location, e.card.sequence);
+        if (a && a.code) { S.lastBlow = Number(a.code); S.lastBlowBy[e.card.controller] = Number(a.code); }
+        if (e.card) {
+          const fx = fxOf(sideOf(e.card.controller)), st = (fx.premium && ((a && fx.atkFx[Number(a.code)]) || fx.attack)) || "lunge";
+          const from = document.querySelector(`#field .card[data-key="${key(e.card.controller, e.card.location, e.card.sequence)}"]`);
+          const to = e.target ? document.querySelector(`#field .card[data-key="${key(e.target.controller, e.target.location, e.target.sequence)}"]`) : document.querySelector(`.duelist.${sideOf(1 - e.card.controller)}`);
+          attack(st, from, to, { direct: !e.target });
+        }
+        break;
+      }
       case M.DAMAGE: {
         const big = e.amount >= 2000;
         Sound.play("damage", big);
@@ -1862,11 +1900,22 @@ function cleanFx(v) {
   if (!v || typeof v !== "object" || v.premium !== true) return null;
   const sigFx = {};
   if (v.sigFx && typeof v.sigFx === "object") for (const [k, x] of Object.entries(v.sigFx).slice(0, 60)) if (/^\d{3,10}$/.test(k) && STYLES.includes(x)) sigFx[k] = x;
+  const perCard = (o, list) => { const out = {}; if (o && typeof o === "object") for (const [k, x] of Object.entries(o).slice(0, 80)) if (/^\d{3,10}$/.test(k) && list.includes(x)) out[k] = x; return out; };
   return { premium: true, finisher: STYLES.includes(v.finisher) ? v.finisher : "shatter",
-    signature: Array.isArray(v.signature) ? v.signature.map(Number).filter((n) => n > 0 && n < 1e10).slice(0, 60) : [], sigFx };
+    signature: Array.isArray(v.signature) ? v.signature.map(Number).filter((n) => n > 0 && n < 1e10).slice(0, 60) : [], sigFx,
+    entrance: ENTRANCES.includes(v.entrance) ? v.entrance : "rise", attack: ATTACKS.includes(v.attack) ? v.attack : "lunge",
+    entFx: perCard(v.entFx, ENTRANCES), atkFx: perCard(v.atkFx, ATTACKS) };
+}
+/** KodeX Premium emotes: up to 8 small pictures (animated GIFs welcome). */
+function cleanEmotes(v) {
+  if (!Array.isArray(v)) return [];
+  let total = 0;
+  return v.filter((x) => x && imgOk(x.src) && x.src.length < 200000 && (total += x.src.length) < 460000).slice(0, 8)
+    .map((x, i) => ({ id: "c" + i, name: String(x.name || "Emote " + (i + 1)).slice(0, 24), src: x.src }));
 }
 function cleanPart(k, v) {
   if (k === "fx") return cleanFx(v);
+  if (k === "emotes") { const e = cleanEmotes(v); return e.length ? e : null; }
   if (k === "field") return v && imgOk(v.img) ? { img: v.img, zoom: clampN(v.zoom, 100, 300, 100), x: clampN(v.x, 0, 100, 50), y: clampN(v.y, 0, 100, 50), dim: clampN(v.dim, 0, 90, 35) } : null;
   return SKIN_PARTS.includes(k) && imgOk(v) ? v : null;
 }
@@ -1880,7 +1929,8 @@ function sideSkins() {
 /** Premium effects of the player on `side` ("me"/"op"): theirs travel with their skins, so everyone sees them. */
 function fxOf(side) {
   const f = (sideSkins()[side] || {}).fx;
-  return f ? { premium: true, finisher: f.finisher, signature: new Set(f.signature.map(Number)), sigFx: f.sigFx } : { premium: false, finisher: "", signature: new Set(), sigFx: {} };
+  return f ? { premium: true, finisher: f.finisher, signature: new Set(f.signature.map(Number)), sigFx: f.sigFx, entrance: f.entrance || "rise", attack: f.attack || "lunge", entFx: f.entFx || {}, atkFx: f.atkFx || {} }
+    : { premium: false, finisher: "", signature: new Set(), sigFx: {}, entrance: "rise", attack: "lunge", entFx: {}, atkFx: {} };
 }
 function applySkins() {
   const r = document.documentElement, sk = sideSkins();
@@ -1904,15 +1954,15 @@ function applySkins() {
 }
 function sendSkin(to, skin = S.mySkin, of) {
   if (!S.room) return;
-  for (const k of [...SKIN_PARTS, "fx"]) if (skin[k]) S.room.send({ to, m: { t: "skin", part: k, v: skin[k], of } });
-  S.room.send({ to, m: { t: "skin", part: "done", have: [...SKIN_PARTS, "fx"].filter((k) => skin[k]), of } });
+  for (const k of [...SKIN_PARTS, "fx", "emotes"]) if (skin[k]) S.room.send({ to, m: { t: "skin", part: k, v: skin[k], of } });
+  S.room.send({ to, m: { t: "skin", part: "done", have: [...SKIN_PARTS, "fx", "emotes"].filter((k) => skin[k]), of } });
 }
 function onSkin(m, msg) {
   let role = m.from;
   if (msg.of && m.from === "host") role = msg.of;   // the host passes the guest's skins on to spectators
   if (role !== "host" && role !== "guest") return;
   const cur = S.peerSkins[role];
-  if (msg.part === "done") { const have = Array.isArray(msg.have) ? msg.have : []; for (const k of [...SKIN_PARTS, "fx"]) if (!have.includes(k)) delete cur[k]; }
+  if (msg.part === "done") { const have = Array.isArray(msg.have) ? msg.have : []; for (const k of [...SKIN_PARTS, "fx", "emotes"]) if (!have.includes(k)) delete cur[k]; }
   else { const v = cleanPart(msg.part, msg.v); if (v) cur[msg.part] = v; }
   applySkins();
 }
@@ -1929,7 +1979,10 @@ window.addEventListener("message", (e) => {
   S.finisher = S.premium && STYLES.includes(d.finisher) ? d.finisher : "";
   S.sigFx = {};
   if (S.premium && d.sigFx && typeof d.sigFx === "object") for (const [k, v] of Object.entries(d.sigFx)) if (/^\d{3,10}$/.test(k) && STYLES.includes(v)) S.sigFx[Number(k)] = v;
-  if (S.premium) S.mySkin.fx = { premium: true, finisher: S.finisher || "shatter", signature: [...S.signature], sigFx: Object.fromEntries(Object.entries(S.sigFx)) };
+  if (S.premium) S.mySkin.fx = cleanFx({ premium: true, finisher: S.finisher || "shatter", signature: [...S.signature], sigFx: S.sigFx, entrance: d.entrance, attack: d.attack, entFx: d.entFx, atkFx: d.atkFx });
+  S.myEmotes = S.premium ? cleanEmotes(d.emotes) : [];
+  if (S.myEmotes.length) S.mySkin.emotes = S.myEmotes;
+  renderEmotes(); applyView();
   applySkins();
   if (S.room && (S.mode === "host" || S.mode === "guest")) sendSkin("others");
 });
@@ -1939,4 +1992,127 @@ window.addEventListener("message", (e) => {
   const d = e.data;
   if (d && d.kx === "audio" && d.premium === true) Sound.setCustom(d);
 });
+
+// ----- panels: in landscape and on computers the left panel has tabs (Card, Log, Chat, Options), like a desktop
+// duel client, so everything is one click away and nothing covers the field. In portrait the log and chat live in
+// the bubble panel instead. The same elements move between the two, so nothing is duplicated.
+function selectTab(b) {
+  if (!b) return;
+  const box = b.closest(".info, .side") || document;
+  box.querySelectorAll(".tabs [data-tab]").forEach((x) => x.setAttribute("aria-selected", String(x === b)));
+  box.querySelectorAll("[data-pane]").forEach((p) => { p.hidden = p.dataset.pane !== b.dataset.tab; });
+  if (b.dataset.tab === "chat") {
+    b.classList.remove("unread"); S.unread = 0; badge();
+    const l = $("#chatList"); l.scrollTop = 1e9;
+    if (box.classList.contains("info") && matchMedia("(pointer: fine)").matches) $("#chatInput").focus({ preventScroll: true });
+  }
+  if (b.dataset.tab === "log") $("#log").scrollTop = 0;
+}
+function dockLayout() {
+  const info = $("#info"), side = $("#side"), log = $("#log"), chat = document.querySelector(".chat[data-pane=chat]"), acts = document.querySelector(".side-actions");
+  if (LANDSCAPE.matches) {
+    if (log.parentNode === info) return;
+    info.append(log, chat, acts);
+    acts.dataset.pane = "opts";
+    toggleSide(false);
+    selectTab(info.querySelector('.dock-tabs [aria-selected="true"]') || info.querySelector(".dock-tabs [data-tab]"));
+  } else {
+    if (log.parentNode === side) return;
+    side.append(log, chat, acts);
+    delete acts.dataset.pane; acts.hidden = false;
+    $("#infoBody").hidden = false;
+    selectTab(side.querySelector('.tabs [aria-selected="true"]') || side.querySelector(".tabs [data-tab]"));
+  }
+}
+LANDSCAPE.addEventListener("change", dockLayout);
+dockLayout();
+
+// ----- field view options (kept on this device) -----
+const VIEW = Object.assign({ mode: "tilt", compactOp: true, floatChat: true }, load("duel:view", {}));
+function applyView() {
+  const b = document.body;
+  b.classList.toggle("view-flat", VIEW.mode === "flat");
+  b.classList.toggle("view-wide", VIEW.mode === "wide");
+  b.classList.toggle("op-compact", !!VIEW.compactOp);
+  document.querySelectorAll("#viewSeg [data-view]").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.view === VIEW.mode)));
+  $("#viewCompactOp").checked = !!VIEW.compactOp;
+  $("#viewFloatChat").checked = !!VIEW.floatChat;
+  $("#viewFloatChat").closest(".toggle").hidden = !S.premium;
+}
+document.querySelectorAll("#viewSeg [data-view]").forEach((x) => x.addEventListener("click", () => { VIEW.mode = x.dataset.view; save("duel:view", VIEW); applyView(); }));
+$("#viewCompactOp").addEventListener("change", (e) => { VIEW.compactOp = e.target.checked; save("duel:view", VIEW); applyView(); });
+$("#viewFloatChat").addEventListener("change", (e) => { VIEW.floatChat = e.target.checked; save("duel:view", VIEW); });
+applyView();
+
+// ----- emotes: a set for everyone; KodeX Premium players add their own pictures (animated GIFs too) -----
+const BASE_EMOTES = [["hi", "👋", "Hi"], ["gg", "🤝", "Good game"], ["nice", "👍", "Nice"], ["wow", "😮", "Wow"], ["think", "🤔", "Hmm…"], ["oops", "😅", "Oops"], ["fire", "🔥", "Let's go"], ["gl", "🍀", "Good luck"]];
+S.myEmotes = [];
+let emoteAt = 0;
+function sideOfRole(role) {
+  if (S.mode === "host") return role === "host" ? "me" : "op";
+  if (S.mode === "guest") return role === "guest" ? "me" : "op";
+  if (S.mode === "spec") { const hostSide = S.specHostTeam === S.team ? "me" : "op"; return role === "host" ? hostSide : hostSide === "me" ? "op" : "me"; }
+  return role === "host" ? "me" : "op";
+}
+function emoteFor(id, role) {
+  const b = BASE_EMOTES.find((x) => x[0] === id);
+  if (b) return { text: b[1], name: b[2] };
+  const list = role === undefined || (S.mode === "solo") ? S.myEmotes : (sideOfRole(role) === "me" && S.mode !== "spec" ? S.myEmotes : (S.peerSkins[role] && S.peerSkins[role].emotes) || []);
+  const c = list.find((x) => x.id === id);
+  return c ? { src: c.src, name: c.name } : null;
+}
+function renderEmotes() {
+  const box = $("#emotePick");
+  if (!box) return;
+  box.replaceChildren();
+  for (const [id, t, n] of BASE_EMOTES) { const b = el("button", "em", t); b.type = "button"; b.title = n; b.setAttribute("aria-label", n); b.dataset.id = id; box.append(b); }
+  if (S.myEmotes.length) {
+    box.append(el("div", "em-sep", "Your emotes"));
+    for (const e of S.myEmotes) { const b = el("button", "em img"); b.type = "button"; b.title = e.name; b.setAttribute("aria-label", e.name); b.dataset.id = e.id; const i = el("img"); i.src = e.src; i.alt = ""; b.append(i); box.append(b); }
+  } else if (!S.premium) box.append(el("div", "em-sep up", "Your own emotes and GIFs: KodeX Premium"));
+}
+function sendEmote(id) {
+  const now = Date.now();
+  if (now - emoteAt < 1500) return;
+  emoteAt = now;
+  showEmote("me", id, S.mode === "guest" ? "guest" : "host");
+  if (S.room && S.mode !== "spec") S.room.send({ to: "all", m: { t: "emote", id } });
+}
+/** An emote or a chat line floating by the player's box for a few seconds. */
+function floatAt(side, node, ms) {
+  const box = document.querySelector(`.duelist.${side}`);
+  if (!box || $("#table").hidden) return;
+  let lay = $("#sayFx"); if (!lay) { lay = el("div", "say-fx"); lay.id = "sayFx"; lay.setAttribute("aria-live", "polite"); document.body.append(lay); }
+  for (const old of lay.querySelectorAll(`.say.${side}`)) old.remove();
+  const r = box.getBoundingClientRect(), w = el("div", "say " + side);
+  w.append(node);
+  const top = side === "op" ? r.bottom + 8 : r.top - 8;
+  Object.assign(w.style, { left: Math.round(Math.min(Math.max(8, r.left + 10), innerWidth - 230)) + "px", top: Math.round(top) + "px" });
+  lay.append(w);
+  setTimeout(() => { w.classList.add("out"); setTimeout(() => w.remove(), 400); }, ms);
+}
+function showEmote(side, id, role) {
+  const e = emoteFor(String(id || ""), role);
+  if (!e) return;
+  const n = el("div", "say-emote");
+  if (e.src) { const i = el("img"); i.src = e.src; i.alt = e.name; n.append(i); } else n.append(el("span", "em-big", e.text));
+  n.append(el("small", null, e.name));
+  floatAt(side, n, 2600);
+}
+function floatChat(side, who, text) {
+  const senderPremium = !!((sideSkins()[side] || {}).fx);
+  if (!(S.premium ? VIEW.floatChat : senderPremium)) return;
+  const n = el("div", "say-chat"); n.append(el("b", null, who), el("span", null, String(text).slice(0, 120)));
+  floatAt(side, n, 4200);
+}
+$("#emoteBtn").addEventListener("click", (e) => {
+  e.stopPropagation();
+  const p = $("#emotePick"), on = p.hidden;
+  if (on) renderEmotes();
+  p.hidden = !on; $("#emoteBtn").setAttribute("aria-expanded", String(on));
+  if (on) { const r = $("#emoteBtn").getBoundingClientRect(); p.style.left = Math.max(8, Math.min(r.left, innerWidth - 268)) + "px"; p.style.bottom = Math.round(innerHeight - r.top + 8) + "px"; }
+});
+$("#emotePick").addEventListener("click", (e) => { const b = e.target.closest("[data-id]"); if (!b) return; sendEmote(b.dataset.id); $("#emotePick").hidden = true; $("#emoteBtn").setAttribute("aria-expanded", "false"); });
+document.addEventListener("click", (e) => { if (!e.target.closest("#emotePick, #emoteBtn")) { $("#emotePick").hidden = true; $("#emoteBtn").setAttribute("aria-expanded", "false"); } });
+renderEmotes();
 if (window.parent !== window) window.parent.postMessage({ kx: "ready" }, "*");
