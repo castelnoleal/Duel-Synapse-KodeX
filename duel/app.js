@@ -565,6 +565,7 @@ function enterTable() {
   CARD_CACHE.clear();
   $("#lobby").hidden = true; $("#table").hidden = false; $("#result").hidden = true;
   duelState(true); S.unread = 0; badge(); toggleSide(false);
+  trackReset();
   S.packet = null; S.log = []; S.fullLog = []; $("#feed").replaceChildren(); S.prevLP = [null, null]; S.fxEnded = false; S.turnStartLP = null; S.lastBlow = 0; S.lastBlowBy = [0, 0]; S.finPromise = null;
   $("#log").replaceChildren(); $("#feed").replaceChildren();
   buildField();
@@ -766,6 +767,7 @@ function onPacket(p) {
   const prev = S.packet;
   S.packet = p;
   if (p.log && p.log.length) for (const l of p.log) addLog("Script: " + l, "sys");
+  trackEvents(p);
   for (const e of p.events) logEvent(e, p);
   render(p, prev);
   fxEvents(p);
@@ -1648,6 +1650,7 @@ function showResult(p) {
   $("#rematchBtn").hidden = S.mode === "spec";
   $("#rematchBtn").textContent = S.mode === "guest" ? "Ask for a rematch" : "Rematch";
   addLog(`${title}${p.ended.reason ? ` — ${p.ended.reason}` : ""}`, "turn");
+  trackEnd(p);
   Promise.resolve(S.finPromise).then(() => setTimeout(() => { $("#result").hidden = false; S.finPromise = null; }, 250));
 }
 
@@ -1992,6 +1995,37 @@ window.addEventListener("message", (e) => {
   const d = e.data;
   if (d && d.kx === "audio" && d.premium === true) Sound.setCustom(d);
 });
+
+
+// ----- testing data for the Synapse Deck Analyzer (KodeX): what each of your duels with a deck looked like -----
+// Kept on this device ("duel:stats", by deck) and sent to the KodeX app when the Arena runs inside it.
+function deckKey(d) { const a = (d && d.main ? d.main : []).map(Number).sort((x, y) => x - y).join(","); let h = 0; for (let i = 0; i < a.length; i++) h = (h * 31 + a.charCodeAt(i)) | 0; return "d" + (h >>> 0).toString(36); }
+function trackReset() { S.track = { myTurns: 0, firstPlays: 0, used: {}, drawn: {}, done: false }; }
+function trackEvents(p) {
+  const T = S.track; if (!T || S.mode === "spec") return;
+  const me = S.team, bump = (o, c) => { c = Number(c); if (c) o[c] = (o[c] || 0) + 1; };
+  for (const e of p.events) {
+    if (e.type === M.NEW_TURN) { if (p.turn === 1) T.first = p.turnPlayer === me; if (p.turnPlayer === me) T.myTurns++; }
+    else if ((e.type === M.SUMMONING || e.type === M.SPSUMMONING || e.type === M.FLIPSUMMONING || e.type === M.CHAINING) && e.controller === me) { bump(T.used, e.code); if (T.myTurns <= 1 && p.turnPlayer === me) T.firstPlays++; }
+    else if (e.type === M.DRAW && e.player === me) for (const c of e.drawn || []) bump(T.drawn, c.code);
+  }
+}
+function trackEnd(p) {
+  const T = S.track; if (!T || T.done || S.mode === "spec" || !S.deck) return;
+  T.done = true;
+  const me = S.team, w = p.ended.winner, start = S.turnStartLP, full = options().lp;
+  const res = { at: Date.now(), win: w === me, draw: !(w === 0 || w === 1), turns: p.turn || 0, dead: T.myTurns >= 1 && T.firstPlays === 0,
+    otk: w === me && !!start && start[1 - me] >= full && p.turnPlayer === me, first: !!T.first, vs: S.mode === "solo" ? "ai" : "online",
+    used: T.used, drawn: T.drawn };
+  const key = deckKey(S.deck), all = load("duel:stats", {});
+  const st = all[key] || { name: S.deck.name || "Deck", games: [] };
+  st.name = S.deck.name || st.name; st.games.push(res); st.games = st.games.slice(-200);
+  all[key] = st;
+  const keys = Object.keys(all); if (keys.length > 40) delete all[keys[0]];
+  save("duel:stats", all);
+  if (window.parent !== window) window.parent.postMessage({ kx: "stats", key, deck: { name: S.deck.name || "", main: S.deck.main.map(Number) }, result: res }, "*");
+}
+trackReset();
 
 // ----- panels: in landscape and on computers the left panel has tabs (Card, Log, Chat, Options), like a desktop
 // duel client, so everything is one click away and nothing covers the field. In portrait the log and chat live in
