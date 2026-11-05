@@ -1,6 +1,8 @@
 // Synapse AI learning, page side: keeps this device's play book, merges the shared book from
 // kodex.meiocg.org for the decks in a duel, sends new lines back anonymously, and runs practice
 // games for a newly loaded deck in a background worker.
+// Offline, everything is learned on this device and queued; as soon as the device is back online the queue is
+// sent and the shared book for the last decks is fetched again, so both books end up merged.
 import { SITE } from "./site.js";
 import { Book } from "./engine/learn.js";
 
@@ -16,7 +18,8 @@ const store = {
 export const Learning = {
   book: new Book(store.get(KEY, null)),
   shared: new Book(),
-  outbox: store.get(OUTBOX, { seq: [], pick: [], resp: [] }),
+  outbox: Object.assign({ seq: [], pick: [], resp: [], lines: [] }, store.get(OUTBOX, {})),
+  lastCodes: [],
   saveTimer: 0,
   sending: false,
   lastSend: 0,
@@ -28,8 +31,8 @@ export const Learning = {
   add(rows, source) {
     if (!rows) return;
     this.book.mergeRows(rows);
-    if (this.share && source !== "shared") for (const k of ["seq", "pick", "resp"]) this.outbox[k].push(...(rows[k] || []));
-    for (const k of ["seq", "pick", "resp"]) if (this.outbox[k].length > MAX_OUTBOX) this.outbox[k] = this.outbox[k].slice(-MAX_OUTBOX);
+    if (this.share && source !== "shared") for (const k of ["seq", "pick", "resp", "lines"]) this.outbox[k].push(...(rows[k] || []));
+    for (const k of ["seq", "pick", "resp", "lines"]) if (this.outbox[k].length > MAX_OUTBOX) this.outbox[k] = this.outbox[k].slice(-MAX_OUTBOX);
     clearTimeout(this.saveTimer);
     this.saveTimer = setTimeout(() => this.save(), 800);
   },
@@ -38,19 +41,20 @@ export const Learning = {
     if (!store.set(KEY, this.book.toJSON())) { this.book.prune(MAX_LOCAL / 2); store.set(KEY, this.book.toJSON()); }
     store.set(OUTBOX, this.outbox);
     // Batch uploads: at most every 20 s while playing (the page also sends when a duel ends or the tab is hidden).
-    const queued = this.outbox.seq.length + this.outbox.pick.length + this.outbox.resp.length;
+    const queued = this.outbox.seq.length + this.outbox.pick.length + this.outbox.resp.length + this.outbox.lines.length;
     if (queued > 400 || Date.now() - this.lastSend > 20000) this.flush();
   },
   /** Send queued lines to the shared book (anonymous card codes and counts only). */
   async flush() {
     if (this.sending || !this.share || !navigator.onLine) return;
-    const take = { seq: this.outbox.seq.slice(0, 500), pick: this.outbox.pick.slice(0, 500), resp: this.outbox.resp.slice(0, 500) };
-    if (!take.seq.length && !take.pick.length && !take.resp.length) return;
+    const take = { seq: this.outbox.seq.slice(0, 500), pick: this.outbox.pick.slice(0, 500), resp: this.outbox.resp.slice(0, 500), lines: this.outbox.lines.slice(0, 150) };
+    if (!take.seq.length && !take.pick.length && !take.resp.length && !take.lines.length) return;
     this.sending = true; this.lastSend = Date.now();
     try {
       const r = await fetch(API + "/learn", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(take), keepalive: true });
       if (r.ok) {
-        for (const k of ["seq", "pick", "resp"]) this.outbox[k] = this.outbox[k].slice(take[k].length);
+        for (const k of ["seq", "pick", "resp", "lines"]) this.outbox[k] = this.outbox[k].slice(take[k].length);
+        if (this.outbox.seq.length + this.outbox.pick.length + this.outbox.resp.length + this.outbox.lines.length) setTimeout(() => this.flush(), 1500);
         store.set(OUTBOX, this.outbox);
       }
     } catch { /* offline: keep them for later */ } finally { this.sending = false; }
@@ -58,6 +62,7 @@ export const Learning = {
   /** Fetch what every player has taught for these cards (gives up quickly so the duel never waits long). */
   async fetchShared(codes, ms = 2500) {
     const list = [...new Set(codes.map(Number))].filter((c) => c > 0).slice(0, 200);
+    if (list.length) this.lastCodes = list;
     if (!list.length || !navigator.onLine) return;
     try {
       const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), ms);
@@ -101,5 +106,6 @@ export const Learning = {
   stopPractice() { if (this.trainer) { try { this.trainer.terminate(); } catch { /* gone */ } this.trainer = null; } },
 };
 
-addEventListener("online", () => Learning.flush());
+// back online: send what was learned offline, then take in what everyone else taught meanwhile
+addEventListener("online", async () => { await Learning.flush(); if (Learning.lastCodes.length) Learning.fetchShared(Learning.lastCodes, 6000); });
 addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") { clearTimeout(Learning.saveTimer); Learning.save(); Learning.flush(); } });
