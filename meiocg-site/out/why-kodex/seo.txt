@@ -1,0 +1,4 @@
+Page URL: https://meiocg.org/why-kodex
+Title: Why KodeX: OCG Card Rulings, Deck Builder, Scanner & Duel Arena | Meta Insider OCG
+Description: KodeX by Meta Insider OCG: OCG card search with official rulings, a card scanner, deck builder with OCG legality check, live prices and the Duel Synapse Arena.
+Social image: https://kodex.meiocg.org/og/why-kodex.png

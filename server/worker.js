@@ -324,6 +324,9 @@ export default {
       }
 
       if (url.pathname === "/meiocglogo.png") return withHeaders(await githubFile("meiocglogo.png", env, 86400));
+      // Social share images for meiocg.org pages (deck pages, Why KodeX).
+      const og = url.pathname.match(/^\/og\/([a-z0-9-]{1,60})\.png$/);
+      if (og) return withHeaders(await githubFile(`assets/og/${og[1]}.png`, env, 86400), { "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" });
       if (url.pathname === "/assets/meiocg-watermark.svg") return withHeaders(await githubFile("assets/meiocg-watermark.svg", env, 86400));
 
       return json({ error: "Not found" }, 404);
