@@ -74,6 +74,45 @@ const SFX = {
   },
   otk(t) { SFX.boss(t); [1046.5, 1318.5, 1568, 2093].forEach((f, i) => tone(f, t + 0.9 + i * 0.09, { type: "square", d: 0.3, peak: 0.07 })); },
 };
+// ---- sound emotes: short original sounds in the style of well-known meme sounds, all synthesised here
+const MEME = {
+  boom(t) { tone(48, t, { type: "sine", a: 0.004, d: 1.3, peak: 0.9, glide: 0.55 }); noise(t, { d: 0.5, peak: 0.4, type: "lowpass", f: 600, f2: 80 }); tone(96, t, { type: "triangle", d: 0.6, peak: 0.25, glide: 0.5 }); },
+  airhorn(t) { for (const [d, len] of [[0, 0.16], [0.2, 0.16], [0.4, 0.7]]) for (const f of [440, 554, 660]) tone(f, t + d, { type: "sawtooth", a: 0.01, d: len, peak: 0.07, detune: Math.random() * 14 - 7 }); },
+  sadtrom(t) { [[392, 0], [370, 0.45], [349, 0.9]].forEach(([f, d]) => tone(f, t + d, { type: "sawtooth", a: 0.03, d: 0.38, peak: 0.12 })); tone(330, t + 1.35, { type: "sawtooth", a: 0.03, d: 1.2, peak: 0.12, glide: 0.94 }); },
+  rimshot(t) { noise(t, { d: 0.08, peak: 0.35, f: 1800, q: 2 }); tone(180, t, { d: 0.1, peak: 0.25 }); noise(t + 0.22, { d: 0.08, peak: 0.35, f: 1800, q: 2 }); tone(160, t + 0.22, { d: 0.1, peak: 0.25 }); noise(t + 0.48, { d: 0.9, peak: 0.25, type: "highpass", f: 6000 }); },
+  dramatic(t) { [[294, 0, 0.28], [311, 0.38, 0.28], [262, 0.8, 1.4]].forEach(([f, d, l]) => { tone(f, t + d, { type: "sawtooth", a: 0.01, d: l, peak: 0.13 }); tone(f / 2, t + d, { type: "square", a: 0.01, d: l, peak: 0.06 }); }); },
+  crickets(t) { for (let i = 0; i < 6; i++) for (let j = 0; j < 3; j++) tone(4400, t + i * 0.42 + j * 0.05, { type: "sine", d: 0.03, peak: 0.06 }); },
+  bonk(t) { tone(900, t, { type: "square", d: 0.06, peak: 0.12, glide: 0.4 }); noise(t, { d: 0.12, peak: 0.3, f: 1200, q: 4 }); tone(240, t, { type: "sine", d: 0.25, peak: 0.25, glide: 0.7 }); },
+  honk(t) { tone(330, t, { type: "square", a: 0.01, d: 0.35, peak: 0.12 }); tone(336, t, { type: "sawtooth", a: 0.01, d: 0.35, peak: 0.08 }); },
+  applause(t) { for (let i = 0; i < 40; i++) noise(t + Math.random() * 1.6, { d: 0.05, peak: 0.12 + Math.random() * 0.1, f: 1500 + Math.random() * 2500, q: 1.5 }); },
+  scratch(t) { noise(t, { d: 0.18, peak: 0.35, f: 600, f2: 3000, q: 3 }); noise(t + 0.2, { d: 0.25, peak: 0.35, f: 3000, f2: 400, q: 3 }); },
+  riser(t) { tone(200, t, { type: "sawtooth", a: 1.6, d: 0.2, peak: 0.12, glide: 6 }); noise(t, { d: 1.8, peak: 0.15, type: "bandpass", f: 400, f2: 6000 }); },
+  levelup(t) { [523.3, 659.3, 784, 1046.5, 1318.5].forEach((f, i) => tone(f, t + i * 0.07, { type: "square", d: 0.12, peak: 0.07 })); },
+  buzzer(t) { tone(110, t, { type: "sawtooth", a: 0.01, d: 0.8, peak: 0.2 }); tone(116, t, { type: "square", a: 0.01, d: 0.8, peak: 0.1 }); },
+  tada(t) { [[523.3, 0], [659.3, 0.1], [784, 0.2], [1046.5, 0.3]].forEach(([f, d]) => bell(f, t + d, 0.15, 1.1)); },
+};
+export const MEME_SOUNDS = Object.keys(MEME);
+/** A sound emote by id. */
+export function meme(id) {
+  if (!prefs.sfx) return;
+  const c = ac(); if (!c || c.state !== "running" || !MEME[id]) return;
+  MEME[id](c.currentTime + 0.01);
+}
+// ---- the players' own clips (card voices, emote sounds): data: URLs, decoded once
+const clips = new Map();
+export async function clip(url, vol = 1) {
+  if (!prefs.sfx || typeof url !== "string" || !url.startsWith("data:audio/")) return;
+  const c = ac(); if (!c || c.state !== "running") return;
+  let buf = clips.get(url);
+  if (!buf) {
+    try { const b64 = url.slice(url.indexOf(",") + 1), bin = atob(b64), arr = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i); buf = await c.decodeAudioData(arr.buffer); }
+    catch { return; }
+    if (clips.size > 40) clips.delete(clips.keys().next().value);
+    clips.set(url, buf);
+  }
+  const s = c.createBufferSource(), g = c.createGain(); g.gain.value = vol; s.buffer = buf; s.connect(g).connect(sfxBus); s.start();
+}
+
 /** Plays a named effect (or the player's own sound for it, in KodeX Premium). */
 export function play(name, arg) {
   if (!prefs.sfx) return;
