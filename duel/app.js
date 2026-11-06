@@ -12,7 +12,7 @@ import * as Sound from "./audio.js";
 import { rulingsFor } from "./rulings.js";
 import { runFinisher, zoneStrike, STYLES } from "./finisher.js";
 import { entrance, attack, ENTRANCES, ATTACKS } from "./moves.js";
-import { staple, finale, ace, FINALES, ACE_STYLES } from "./cardfx.js";
+import { staple, finale, ace, SHOWS, pickShow, SHOW_MIN, SHOW_MAX } from "./cardfx.js";
 
 const M = C.MSG;
 const $ = (s) => document.querySelector(s);
@@ -50,9 +50,13 @@ function cardStandIn(code) {
 // settling on a designed stand-in, which is tried again later.
 const ART = new Map();          // code -> { url } | { fail: time } | { wait: [callbacks] }
 const artQueue = []; let artBusy = 0;
+// Pictures saved on the phone by the KodeX app (its offline card database): used first, no internet needed.
+const LOCAL_PICS = { base: "", ids: new Set() };
+function localPic(code) { return LOCAL_PICS.base && LOCAL_PICS.ids.has(Number(code)) ? LOCAL_PICS.base + Number(code) + ".jpg" : ""; }
 function artSources(code) {
   const c = S.db && S.db.get(code);
-  const t = [imgUrl(code), `https://images.ygoprodeck.com/images/cards_small/${code}.jpg`, `https://images.ygoprodeck.com/images/cards/${code}.jpg`];
+  const local = [localPic(code), c && c.alias && Math.abs(c.alias - code) < 20 ? localPic(c.alias) : ""].filter(Boolean);
+  const t = [...local, imgUrl(code), `https://images.ygoprodeck.com/images/cards_small/${code}.jpg`, `https://images.ygoprodeck.com/images/cards/${code}.jpg`];
   if (c && c.alias && Math.abs(c.alias - code) < 20) t.push(imgUrl(c.alias), `https://images.ygoprodeck.com/images/cards/${c.alias}.jpg`);
   return [...new Set(t)];
 }
@@ -639,6 +643,8 @@ function bindTable() {
   });
   $("#rematchBtn").addEventListener("click", rematch);
   $("#sideFab").addEventListener("click", () => toggleSide());
+  // landscape: the duel log and the options are in the left panel, behind this button
+  $("#panelBtn").addEventListener("click", (e) => { e.stopPropagation(); const i = $("#info"); if (i.classList.contains("open")) { closeInfo(); return; } openInfo(); selectTab(document.querySelector('.dock-tabs [data-tab="log"]')); });
   $("#sheetChat").addEventListener("click", () => toggleSide());
   $("#sideClose").addEventListener("click", () => toggleSide(false));
   $("#replayBtn").addEventListener("click", saveReplay);
@@ -721,6 +727,7 @@ function buildField() {
   for (const [lbl, bit, title] of [["DP", C.PHASE.DRAW, "Draw Phase"], ["SP", C.PHASE.STANDBY, "Standby Phase"], ["M1", C.PHASE.MAIN1, "Main Phase 1"],
     ["BP", C.PHASE.BATTLE_START | C.PHASE.BATTLE_STEP | C.PHASE.DAMAGE | C.PHASE.DAMAGE_CAL | C.PHASE.BATTLE, "Battle Phase"], ["M2", C.PHASE.MAIN2, "Main Phase 2"], ["EP", C.PHASE.END, "End Phase"]]) {
     const b = el("button", null, lbl); b.type = "button"; b.title = title; b.dataset.bits = bit; b.dataset.k = lbl;
+    b.dataset.long = { DP: "Draw", SP: "Standby", M1: "Main 1", BP: "Battle", M2: "Main 2", EP: "End Turn" }[lbl];
     b.addEventListener("click", () => phaseClick(lbl));
     ph.append(b);
   }
@@ -801,13 +808,41 @@ S.pq = []; S.holdUntil = 0; let pqTimer = 0;
 function hold(ms) { S.holdUntil = Math.max(S.holdUntil, Date.now() + ms); }
 function onPacket(p) {
   if (S.pq.length || Date.now() < S.holdUntil) { S.pq.push(p); pumpPackets(); return; }
+  if (effectFinale(p)) { S.pq.push(p); pumpPackets(); return; }
   applyPacket(p);
 }
 function pumpPackets() {
   clearTimeout(pqTimer);
   const wait = S.holdUntil - Date.now();
   if (wait > 0) { pqTimer = setTimeout(pumpPackets, wait + 20); return; }
-  while (S.pq.length) { applyPacket(S.pq.shift()); if (Date.now() < S.holdUntil) { pqTimer = setTimeout(pumpPackets, S.holdUntil - Date.now() + 20); return; } }
+  while (S.pq.length) {
+    if (effectFinale(S.pq[0])) { pqTimer = setTimeout(pumpPackets, S.holdUntil - Date.now() + 20); return; }
+    applyPacket(S.pq.shift());
+    if (Date.now() < S.holdUntil) { pqTimer = setTimeout(pumpPackets, S.holdUntil - Date.now() + 20); return; }
+  }
+}
+/** A winning blow that isn't an attack (a burn Spell or Trap, a monster effect): the finale plays before the damage
+ *  shows, for the card that dealt it. Battle damage already had its finale when the attack was declared. */
+function effectFinale(p) {
+  if (!p || p.efChecked || !S.packet || !S.packet.state || !p.events) return false;
+  p.efChecked = true;
+  if (S.lastFinaleAt && Date.now() - S.lastFinaleAt < 9000) return false;
+  const lp = S.packet.state.teams.map((t) => t.lp), dmg = [0, 0];
+  const DMG = C.PHASE.DAMAGE | C.PHASE.DAMAGE_CAL;
+  let src = 0, battle = !!((S.packet.phase & DMG) || (p.phase & DMG));
+  for (const e of p.events) {
+    if (e.type === M.CHAINING || e.type === M.CHAIN_SOLVING && e.code) src = Number(e.code) || src;
+    if (e.type === M.BATTLE || e.type === M.ATTACK || e.type === M.DAMAGE_STEP_START) battle = true;
+    if (e.type === M.DAMAGE && (e.player === 0 || e.player === 1)) dmg[e.player] += e.amount || 0;
+  }
+  const loser = dmg[0] && dmg[0] >= lp[0] ? 0 : dmg[1] && dmg[1] >= lp[1] ? 1 : -1;
+  if (loser < 0 || battle) return false;
+  const by = 1 - loser, code = src || S.lastBlowBy[by] || S.lastBlow;
+  if (!code) return false;
+  const sh = finaleOf(by, code);
+  hold(sh.ms + 200); S.lastFinaleAt = Date.now() + sh.ms;
+  finale(sh.style, { ms: sh.ms, src: artUrl(code), title: name(code), line: `${name(code)} deals the final blow` });
+  return true;
 }
 function applyPacket(p) {
   const prev = S.packet;
@@ -833,6 +868,7 @@ function render(p) {
   $("#turnNo").textContent = `Turn ${p.turn}`;
   document.querySelector(".duelist.me").classList.toggle("active", !p.ended && p.turnPlayer === me);
   document.querySelector(".duelist.op").classList.toggle("active", !p.ended && p.turnPlayer === op);
+  document.body.classList.toggle("op-turn", !p.ended && p.turnPlayer === op);
   $("#loading").hidden = true;
   const lpMax = Math.max(options().lp, 1);
   for (const [t, id] of [[me, "me"], [op, "op"]]) {
@@ -1238,6 +1274,16 @@ function markActions() {
     }
   }
 }
+/** What an activation does, from its description id: the card's own text for that effect ("Special Summon 1 …"),
+ *  or "Effect 2" when the card has no text for it. Empty when there's nothing to say. */
+function effectText(code, description, location) {
+  if (!description || description === "0") return "";
+  const t = fdesc(S.db.desc(description), code, location);
+  const m = /\(effect (\d+)\)$/.exec(t);
+  if (m) { const d = S.db.get(Number(code)), multi = d && d.strs && d.strs.filter(Boolean).length > 1; return multi || Number(m[1]) > 1 ? `Effect ${m[1]}` : ""; }
+  if (/^#\d+$/.test(t)) return "";
+  return t;
+}
 function activateLabel(a) {
   const d = a.description && a.description !== "0" ? fdesc(S.db.desc(a.description), a.code, a.location) : "";
   return d && !/^#/.test(d) && !d.endsWith("(effect 1)") ? `Activate: ${d}` : "Activate";
@@ -1275,8 +1321,18 @@ function chainPrompt(msg) {
   if (S.chainSkip && !msg.forced) { send({ t: msg.type, index: null }); return; }
   const chain = S.packet.state.chain;
   const last = chain.length ? chain[chain.length - 1] : null;
-  openSheet(msg.forced ? "Activate an effect" : "Chain a card or effect?", last ? `Chain ${chain.length}: ${name(last.code)}` : "");
+  openSheet(msg.forced ? "Activate an effect" : "Chain a card or effect?", last ? `Chain ${chain.length}: ${name(last.code)}${effectText(last.code, last.description, last.location) ? " · " + effectText(last.code, last.description, last.location) : ""}` : "");
   const body = $("#sheetBody");
+  if (chain.length) {
+    const ol = el("ol", "chain-list"); ol.setAttribute("aria-label", "The chain so far");
+    chain.forEach((c, i) => {
+      const li = el("li", c.controller === S.team ? "me" : "op"), th = el("span", "th"); th.append(cardImg(c.code, ""));
+      const tx = el("span"); tx.append(el("strong", null, name(c.code))); const ef = effectText(c.code, c.description, c.location); if (ef) tx.append(el("em", null, ef));
+      li.append(el("b", null, String(i + 1)), th, tx); li.addEventListener("click", () => showInfo({ code: c.code }, c.controller, c.location, true));
+      ol.append(li);
+    });
+    body.append(ol);
+  }
   msg.selects.forEach((c, i) => {
     const o = optCard(c, activateLabel(c).replace(/^Activate: /, ""));
     o.querySelector(".card").addEventListener("click", (e) => { e.stopPropagation(); send({ t: msg.type, index: i }); });
@@ -1652,7 +1708,7 @@ function logEvent(e, p) {
     case M.SPSUMMONING: addLog(`${pn(e.controller)} Special Summoned ${cn(e.code)}`); break;
     case M.FLIPSUMMONING: addLog(`${pn(e.controller)} Flip Summoned ${cn(e.code)}`); break;
     case M.SET: addLog(`${pn(e.controller)} Set a card`); break;
-    case M.CHAINING: S.lastHintCode = e.code; addLog(`Chain ${e.chain_size}: ${pn(e.controller)} activated ${cn(e.code)}`, "chain"); break;
+    case M.CHAINING: { S.lastHintCode = e.code; const ef = effectText(e.code, e.description, e.location); addLog(`Chain ${e.chain_size}: ${pn(e.controller)} activated ${cn(e.code)}${ef ? " · " + ef : ""}`, "chain"); break; }
     case M.CHAIN_NEGATED: addLog(`Chain ${e.chain_size} was negated`, "chain"); break;
     case M.CHAIN_DISABLED: addLog(`Chain ${e.chain_size}'s effect was negated`, "chain"); break;
     case M.DRAW: addLog(`${pn(e.player)} drew ${e.drawn.length === 1 ? (e.drawn[0].code ? cn(e.drawn[0].code) : "1 card") : e.drawn.length + " cards"}`); break;
@@ -1785,6 +1841,7 @@ function runFx() {
   card.append(cardImg(e.code, name(e.code)), el("b", null, String(e.chain_size)));
   const cap = el("div", "chain-cap");
   cap.append(el("strong", null, `Chain ${e.chain_size}`), el("span", null, `${e.controller === S.team && S.mode !== "spec" ? "You" : f.name} activated ${name(e.code)}`));
+  const ef = effectText(e.code, e.description, e.location); if (ef) cap.append(el("span", "eff", ef));
   card.addEventListener("click", () => showInfo({ code: e.code }, e.controller, e.location, true));
   const wrap = el("div", "chain-show"); wrap.append(card, cap);
   box.replaceChildren(wrap);
@@ -1802,7 +1859,7 @@ S.sigFx = {};                 // KodeX Premium: finishing-move style per signatu
 S.finisher = "";              // KodeX Premium: the player's finishing move
 const reduceMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 function isBoss(code, fx) {
-  if (fx && fx.signature.has(Number(code))) return true;
+  if (fx && fx.signature.has(cc(code))) return true;
   const c = S.db && S.db.get(code);
   if (!c || !(c.type & C.TYPE.MONSTER)) return false;
   const lv = c.level & 0xff;
@@ -1836,14 +1893,14 @@ function bigFx(p) {
       case M.DRAW: Sound.play("draw"); break;
       case M.SET: Sound.play("set"); break;
       case M.SUMMONING: case M.SPSUMMONING: case M.FLIPSUMMONING: {
-        const fx = fxOf(sideOf(e.controller)), boss = isBoss(e.code, fx), sig = fx.signature.has(Number(e.code));
+        const fx = fxOf(sideOf(e.controller)), boss = isBoss(e.code, fx), sig = fx.signature.has(cc(e.code));
         if (e.location === C.LOCATION_MZONE) {
           glowZone(e.controller, e.sequence, boss ? "boss-glow" : "summon-glow");
-          const st = (fx.premium && (fx.entFx[Number(e.code)] || fx.entrance)) || "rise";
+          const st = (fx.premium && (fx.entFx[cc(e.code)] || fx.entrance)) || "rise";
           entrance(st, document.getElementById(zoneId(e.controller, C.LOCATION_MZONE, e.sequence)), { big: boss });
         }
-        if (sig) zoneStrike(fx.sigFx[Number(e.code)] || fx.finisher || "shatter", document.getElementById(zoneId(e.controller, C.LOCATION_MZONE, e.sequence)));
-        if (fx.aces.has(Number(e.code))) showAce(e.code, e.controller, fx);
+        if (sig) zoneStrike(fx.sigFx[cc(e.code)] || fx.finisher || "shatter", document.getElementById(zoneId(e.controller, C.LOCATION_MZONE, e.sequence)));
+        if (fx.aces.has(cc(e.code))) showAce(e.code, e.controller, fx);
         else if (boss) {
           Sound.play("boss");
           splash(e.code, name(e.code), sig ? (viewerFree ? "Signature summon · KodeX Premium" : "Signature summon") : e.type === M.SPSUMMONING ? "Special Summon" : "Summon", sig ? "boss sig" : "boss");
@@ -1854,11 +1911,11 @@ function bigFx(p) {
       case M.CHAINING:
       {
         S.lastBlow = Number(e.code); S.lastBlowBy[e.controller] = Number(e.code);
-        const fx = fxOf(sideOf(e.controller)), sig = fx.signature.has(Number(e.code));
+        const fx = fxOf(sideOf(e.controller)), sig = fx.signature.has(cc(e.code));
         if (!cardVoice(e.controller, e.code)) Sound.play(sig ? "boss" : e.chain_size > 1 ? "chain" : "activate", e.chain_size);
-        if (fx.aces.has(Number(e.code))) showAce(e.code, e.controller, fx);
+        if (fx.aces.has(cc(e.code))) showAce(e.code, e.controller, fx);
         else if (sig) splash(e.code, name(e.code), viewerFree ? "Signature card · KodeX Premium" : "Signature card", "boss sig");
-        if (!fx.aces.has(Number(e.code))) staple(name(e.code), document.getElementById(zoneId(e.controller, e.location, e.sequence)) || document.querySelector(`.duelist.${sideOf(e.controller)}`));
+        if (!fx.aces.has(cc(e.code))) staple(name(e.code), document.getElementById(zoneId(e.controller, e.location, e.sequence)) || document.querySelector(`.duelist.${sideOf(e.controller)}`));
         break;
       }
       case M.ATTACK: {
@@ -1866,14 +1923,14 @@ function bigFx(p) {
         const a = e.card && lookup(e.card.controller, e.card.location, e.card.sequence);
         if (a && a.code) { S.lastBlow = Number(a.code); S.lastBlowBy[e.card.controller] = Number(a.code); }
         if (e.card) {
-          const fx = fxOf(sideOf(e.card.controller)), st = (fx.premium && ((a && fx.atkFx[Number(a.code)]) || fx.attack)) || "lunge";
+          const fx = fxOf(sideOf(e.card.controller)), st = (fx.premium && ((a && fx.atkFx[cc(a.code)]) || fx.attack)) || "lunge";
           const from = document.querySelector(`#field .card[data-key="${key(e.card.controller, e.card.location, e.card.sequence)}"]`);
           const to = e.target ? document.querySelector(`#field .card[data-key="${key(e.target.controller, e.target.location, e.target.sequence)}"]`) : document.querySelector(`.duelist.${sideOf(1 - e.card.controller)}`);
           const lethal = lethalAttack(p, e, a);
           if (lethal) {
-            const f2 = fxOf(sideOf(e.card.controller)), style = (f2.premium && f2.finale) || "menacing";
-            hold(3500);
-            finale(style, { src: artUrl(a.code), title: name(a.code), line: e.target ? `${name(a.code)} attacks for the win` : `${name(a.code)} attacks directly for the win` })
+            const sh = finaleOf(e.card.controller, a.code);
+            hold(sh.ms + 200); S.lastFinaleAt = Date.now() + sh.ms;
+            finale(sh.style, { ms: sh.ms, src: artUrl(a.code), title: name(a.code), line: e.target ? `${name(a.code)} attacks for the win` : `${name(a.code)} attacks directly for the win` })
               .then(() => attack(st, from, to, { direct: !e.target }));
           } else attack(st, from, to, { direct: !e.target });
         }
@@ -1897,7 +1954,7 @@ function bigFx(p) {
       // The finishing move: the loser's half of the field breaks and their cards are torn up.
       // The winner's own move: a KodeX Premium player's choice shows on everyone's screen.
       const wfx = fxOf(sideOf(w)), blow = S.lastBlowBy[w] || S.lastBlow;
-      const style = (wfx.premium && (wfx.sigFx[blow] || wfx.finisher)) || "shatter";
+      const style = (wfx.premium && (wfx.sigFx[cc(blow)] || wfx.finisher)) || "shatter";
       const side = loser === me ? "me" : "op";
       if (wfx.premium && viewerFree) setTimeout(() => toast(`${p.names[w]} finished with a KodeX Premium move: ${style[0].toUpperCase() + style.slice(1)}`), 2400);
       Sound.play("finish");
@@ -1959,6 +2016,7 @@ boot();
 const SKIN_PARTS = ["sleeve", "xsleeve", "field"];
 const imgOk = (u) => typeof u === "string" && u.length < 480000 && /^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(u);
 const clampN = (v, a, b, d) => { v = Number(v); return Number.isFinite(v) ? Math.min(b, Math.max(a, v)) : d; };
+const SHOW_OK = [...SHOWS, "random"];
 function cleanFx(v) {
   if (!v || typeof v !== "object" || v.premium !== true) return null;
   const sigFx = {};
@@ -1968,7 +2026,8 @@ function cleanFx(v) {
     signature: Array.isArray(v.signature) ? v.signature.map(Number).filter((n) => n > 0 && n < 1e10).slice(0, 60) : [], sigFx,
     entrance: ENTRANCES.includes(v.entrance) ? v.entrance : "rise", attack: ATTACKS.includes(v.attack) ? v.attack : "lunge",
     entFx: perCard(v.entFx, ENTRANCES), atkFx: perCard(v.atkFx, ATTACKS),
-    finale: FINALES.includes(v.finale) ? v.finale : "menacing", aceStyle: ACE_STYLES.includes(v.aceStyle) ? v.aceStyle : "spotlight",
+    finale: SHOW_OK.includes(v.finale) ? v.finale : "menacing", aceStyle: SHOW_OK.includes(v.aceStyle) ? v.aceStyle : "spotlight",
+    finaleMs: Math.round(clampN(v.finaleMs, SHOW_MIN, SHOW_MAX, 3300)), showFx: perCard(v.showFx, SHOW_OK),
     aces: Array.isArray(v.aces) ? v.aces.map(Number).filter((n) => n > 0 && n < 1e10).slice(0, 12) : [] };
 }
 // KodeX Premium media: pictures up to ~4.5 MB (HD animated GIFs), sounds up to ~900 KB, only data: URLs.
@@ -2009,11 +2068,14 @@ function sideSkins() {
   return { me: S.mySkin, op: {} };
 }
 /** Premium effects of the player on `side` ("me"/"op"): theirs travel with their skins, so everyone sees them. */
+/** A card's main code: alternate artworks count as the card itself (choices made for a card follow every artwork). */
+const cc = (code) => { const n = Number(code); try { return S.db ? S.db.main(n) : n; } catch (e) { return n; } };
+const ccKeys = (o) => { const out = {}; for (const [k, v] of Object.entries(o || {})) { out[k] = v; out[cc(k)] = v; } return out; };
 function fxOf(side) {
   const f = (sideSkins()[side] || {}).fx;
-  return f ? { premium: true, finisher: f.finisher, signature: new Set(f.signature.map(Number)), sigFx: f.sigFx, entrance: f.entrance || "rise", attack: f.attack || "lunge", entFx: f.entFx || {}, atkFx: f.atkFx || {},
-      finale: f.finale || "menacing", aceStyle: f.aceStyle || "spotlight", aces: new Set((f.aces || []).map(Number)) }
-    : { premium: false, finisher: "", signature: new Set(), sigFx: {}, entrance: "rise", attack: "lunge", entFx: {}, atkFx: {}, finale: "menacing", aceStyle: "spotlight", aces: new Set() };
+  return f ? { premium: true, finisher: f.finisher, signature: new Set(f.signature.map(cc)), sigFx: ccKeys(f.sigFx), entrance: f.entrance || "rise", attack: f.attack || "lunge", entFx: ccKeys(f.entFx), atkFx: ccKeys(f.atkFx),
+      finale: f.finale || "menacing", aceStyle: f.aceStyle || "spotlight", aces: new Set((f.aces || []).map(cc)), finaleMs: f.finaleMs || 3300, showFx: ccKeys(f.showFx) }
+    : { premium: false, finisher: "", signature: new Set(), sigFx: {}, entrance: "rise", attack: "lunge", entFx: {}, atkFx: {}, finale: "menacing", aceStyle: "spotlight", aces: new Set(), finaleMs: 3300, showFx: {} };
 }
 function applySkins() {
   const r = document.documentElement, sk = sideSkins();
@@ -2086,7 +2148,7 @@ window.addEventListener("message", (e) => {
   S.finisher = S.premium && STYLES.includes(d.finisher) ? d.finisher : "";
   S.sigFx = {};
   if (S.premium && d.sigFx && typeof d.sigFx === "object") for (const [k, v] of Object.entries(d.sigFx)) if (/^\d{3,10}$/.test(k) && STYLES.includes(v)) S.sigFx[Number(k)] = v;
-  if (S.premium) S.mySkin.fx = cleanFx({ premium: true, finisher: S.finisher || "shatter", signature: [...S.signature], sigFx: S.sigFx, entrance: d.entrance, attack: d.attack, entFx: d.entFx, atkFx: d.atkFx, finale: d.finale, aces: d.aces, aceStyle: d.aceStyle });
+  if (S.premium) S.mySkin.fx = cleanFx({ premium: true, finisher: S.finisher || "shatter", signature: [...S.signature], sigFx: S.sigFx, entrance: d.entrance, attack: d.attack, entFx: d.entFx, atkFx: d.atkFx, finale: d.finale, aces: d.aces, aceStyle: d.aceStyle, finaleMs: d.finaleMs, showFx: d.showFx });
   S.myEmotes = S.premium ? cleanEmotes(d.emotes) : [];
   S.mySounds = S.premium ? cleanSounds(d.sounds) : [];
   const vo = S.premium ? cleanVoices(d.voices) : null;
@@ -2101,6 +2163,10 @@ window.addEventListener("message", (e) => {
   if (window.parent === window || e.source !== window.parent) return;
   const d = e.data;
   if (d && d.kx === "audio" && d.premium === true) Sound.setCustom(d);
+  if (d && d.kx === "pics" && typeof d.base === "string" && /^https:\/\/appassets\.androidplatform\.net\/castel-files\/[\w/.-]*\/$/.test(d.base) && Array.isArray(d.ids)) {
+    LOCAL_PICS.base = d.base; LOCAL_PICS.ids = new Set(d.ids.map(Number).filter((n) => n > 0 && n < 1e10));
+    for (const [k, r] of ART) if (r && (r.fail || r.url) && localPic(k)) ART.delete(k);   // look again: the phone may have it now
+  }
 });
 
 
@@ -2324,18 +2390,26 @@ function lethalAttack(p, e, a) {
   return a.attack - (t.attack || 0) >= lp;
 }
 /** KodeX Premium Ace card: shown big before its effect resolves; everyone sees it. */
+/** The showdown a player gets before their winning blow: the card's own choice, else their default (which may be
+ *  "random"; every screen picks the same one). KodeX free: Menacing, 3.3 s. */
+function finaleOf(controller, code) {
+  const f = fxOf(sideOfTeam(controller)), seed = Number(code) ^ ((S.packet && S.packet.turn) || 0) * 7919;
+  if (!f.premium) return { style: "menacing", ms: 3300 };
+  return { style: pickShow(f.showFx[cc(code)] || f.finale, seed), ms: f.finaleMs || 3300 };
+}
 function showAce(code, controller, fx) {
-  const side = sideOf(controller), who = (S.packet && S.packet.names && S.packet.names[controller]) || "";
-  hold(2700);
+  const side = sideOfTeam(controller), who = (S.packet && S.packet.names && S.packet.names[controller]) || "";
+  const style = pickShow(fx.showFx[cc(code)] || fx.aceStyle, Number(code) ^ ((S.packet && S.packet.turn) || 0) * 104729 ^ (S.aceN = (S.aceN || 0) + 1));
+  hold(2900);
   Sound.play("boss");
-  ace(fx.aceStyle, { src: artUrl(code), title: name(code), owner: who, premiumNote: viewerFreeNow() && side === "op" ? "Ace cards · KodeX Premium" : "" });
+  ace(style, { src: artUrl(code), title: name(code), owner: who, premiumNote: viewerFreeNow() && side === "op" ? "Ace cards · KodeX Premium" : "" });
 }
 const viewerFreeNow = () => !S.premium;
 /** KodeX Premium card voices: the player's own sound when their chosen card is activated or summoned. */
 function cardVoice(controller, code) {
   const side = sideOfTeam(controller), sk = sideSkins()[side] || {};
   if (side === "op" && (MUTE.opp || MUTE.voices)) return false;
-  const v = sk.voices && sk.voices[Number(code)];
+  const v = sk.voices && (sk.voices[Number(code)] || sk.voices[cc(code)] || Object.entries(sk.voices).find(([k]) => cc(k) === cc(code))?.[1]);
   if (!v) return false;
   Sound.clip(v); return true;
 }

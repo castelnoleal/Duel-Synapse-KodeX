@@ -24,7 +24,7 @@
 <script type="module">
 import { runFinisher, zoneStrike, STYLES } from "./finisher.js";
 import { entrance, attack, ENTRANCES, ATTACKS } from "./moves.js";
-import { finale, ace, staple, FINALES, ACE_STYLES } from "./cardfx.js";
+import { finale, ace, staple, SHOWS, SHOW_NAMES, pickShow } from "./cardfx.js";
 const f = document.getElementById("field");
 const KINDS = ["effect", "spell", "trap", "fusion", "synchro", "xyz", "link", "normal"];
 const NAMES = ["Synapse Dragon", "Meta Field", "Insider Trap", "Fusion Core", "Tuner Wing", "Rank Knight", "Link Circuit", "Duelist"];
@@ -45,19 +45,25 @@ function build() {
   return sig;
 }
 // #shatter (a finishing move), #entrance:portal or #attack:beam
-// #shatter (a finishing move), #entrance:portal, #attack:beam, #finale:rush, #ace:radiant, #staple:Ash Blossom & Joyous Spring
+// #shatter (a finishing move), #entrance:portal, #attack:beam, #finale:rush, #finale:domain:5000 (ms), #ace:radiant, #ace:random,
+// #staple:Ash Blossom & Joyous Spring
 const h = decodeURIComponent(location.hash.slice(1));
-const [kind, name] = h.includes(":") ? [h.slice(0, h.indexOf(":")), h.slice(h.indexOf(":") + 1)] : ["finish", h];
+let [kind, name] = h.includes(":") ? [h.slice(0, h.indexOf(":")), h.slice(h.indexOf(":") + 1)] : ["finish", h];
+let showMs = 0;
+if ((kind === "finale" || kind === "ace") && /:\d+$/.test(name)) { showMs = Number(name.slice(name.lastIndexOf(":") + 1)); name = name.slice(0, name.lastIndexOf(":")); }
+const randomShow = (kind === "finale" || kind === "ace") && name === "random";
 const style = kind === "entrance" ? (ENTRANCES.includes(name) ? name : "rise") : kind === "attack" ? (ATTACKS.includes(name) ? name : "lunge")
-  : kind === "finale" ? (FINALES.includes(name) ? name : "menacing") : kind === "ace" ? (ACE_STYLES.includes(name) ? name : "spotlight") : kind === "staple" ? name : STYLES.includes(name) ? name : "shatter";
-document.getElementById("cap").textContent = style + ({ entrance: " · entrance", attack: " · attack", finale: " · winning attack", ace: " · Ace card", staple: "" }[kind] ?? " · finishing move");
+  : kind === "finale" ? (SHOWS.includes(name) ? name : "menacing") : kind === "ace" ? (SHOWS.includes(name) ? name : "spotlight") : kind === "staple" ? name : STYLES.includes(name) ? name : "shatter";
+document.getElementById("cap").textContent = (randomShow ? "Random" : SHOW_NAMES[style] || style) + ({ entrance: " · entrance", attack: " · attack", finale: " · winning attack", ace: " · Ace card", staple: "" }[kind] ?? " · finishing move");
 const demoArt = () => { const c = document.createElement("canvas"); c.width = 236; c.height = 344; const g = c.getContext("2d"), gr = g.createLinearGradient(0, 0, 236, 344); gr.addColorStop(0, "#3347f0"); gr.addColorStop(.6, "#7a4fd6"); gr.addColorStop(1, "#f0b429"); g.fillStyle = gr; g.fillRect(0, 0, 236, 344); g.fillStyle = "#ffffffcc"; g.font = "bold 120px sans-serif"; g.textAlign = "center"; g.fillText("★", 118, 220); return c.toDataURL(); };
 async function loopShow() {
   for (;;) {
     build();
     await wait(400);
-    if (kind === "finale") { await finale(style, { src: demoArt(), title: "Your Ace Monster", line: "attacks for the win" }); await wait(500); }
-    else if (kind === "ace") { await ace(style, { src: demoArt(), title: "Your Ace Card", owner: "You" }); await wait(500); }
+    const st = randomShow ? pickShow("random", Math.random() * 1e9) : style;
+    if (randomShow) document.getElementById("cap").textContent = "Random · " + SHOW_NAMES[st];
+    if (kind === "finale") { await finale(st, { ms: showMs, src: demoArt(), title: "Your Ace Card", line: "the winning blow" }); await wait(500); }
+    else if (kind === "ace") { await ace(st, { src: demoArt(), title: "Your Ace Card", owner: "You" }); await wait(500); }
     else { staple(style, null); await wait(2400); }
   }
 }

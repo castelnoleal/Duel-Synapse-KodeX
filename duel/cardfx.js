@@ -3,8 +3,19 @@
 //  • finale(style): a 3+ second dramatic, comic-style beat before an attack that wins the duel
 //  • ace(): a KodeX Premium "Ace card" shown big on screen before its effect resolves
 // Only transforms and opacity are animated; everything sits on one fixed layer that ignores taps.
-export const FINALES = ["menacing", "rush", "timestop", "freeze"];
-export const ACE_STYLES = ["spotlight", "menacing", "radiant"];
+// Showdowns: one set of styles for the winning-attack finale and for Ace cards (any card type).
+export const SHOWS = ["menacing", "rush", "timestop", "freeze", "domain", "allout", "impact", "destiny", "finalblow", "powerup", "beam", "spotlight", "radiant"];
+export const SHOW_NAMES = { menacing: "Menacing", rush: "Rush", timestop: "Time Stop", freeze: "Freeze Frame", domain: "Domain Expansion", allout: "All-Out Attack",
+  impact: "Impact Frame", destiny: "Destiny Draw", finalblow: "Final Blow", powerup: "Power Up", beam: "Energy Blast", spotlight: "Spotlight", radiant: "Radiant" };
+export const FINALES = SHOWS, ACE_STYLES = SHOWS;
+export const SHOW_MIN = 3000, SHOW_MAX = 5000;
+/** "random" (or an unknown name) becomes one of the styles. `seed` makes every player's screen pick the same one. */
+export function pickShow(style, seed = 0, allowed = SHOWS) {
+  if (allowed.includes(style)) return style;
+  if (style !== "random") return allowed[0];
+  let h = (Number(seed) || 0) >>> 0; h = Math.imul(h ^ (h >>> 15), 2246822519) >>> 0; h = Math.imul(h ^ (h >>> 13), 3266489917) >>> 0;
+  return allowed[(h ^ (h >>> 16)) % allowed.length];
+}
 const rnd = (a, b) => a + Math.random() * (b - a);
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const px = (n) => Math.round(n) + "px";
@@ -17,6 +28,12 @@ function layer() {
 }
 function div(cls, css, text) { const d = document.createElement("div"); d.className = cls; if (css) for (const [k, v] of Object.entries(css)) { if (k.startsWith("--")) d.style.setProperty(k, v); else d.style[k] = v; } if (text != null) d.textContent = text; return d; }
 const later = (n, ms) => setTimeout(() => n.remove(), ms);
+/** el.animate, with the easing applied between each pair of keyframes (in the options it would bend the whole
+ *  timeline, so "hold" keyframes would be skipped and things would fade early). */
+function A(el, frames, opts = {}) {
+  const { easing, ...o } = typeof opts === "number" ? { duration: opts } : opts;
+  return el.animate(easing ? frames.map((f) => ({ easing, ...f })) : frames, o);
+}
 
 // ---------------------------------------------------------------- staples
 // kind: how the particles move. glyph: what they are. word: the stamp. col: the colour of the moment.
@@ -91,7 +108,7 @@ function stamp(L, word, sub, col, big) {
   s.append(div("cf-word", null, word));
   if (sub) s.append(div("cf-sub", null, sub));
   L.append(s); later(s, 1900);
-  s.animate([{ transform: "translate(-50%,-50%) scale(2.6) rotate(-8deg)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(.94) rotate(-6deg)", opacity: 1, offset: .16 }, { transform: "translate(-50%,-50%) scale(1) rotate(-6deg)", opacity: 1, offset: .8 }, { transform: "translate(-50%,-50%) scale(1.06) rotate(-6deg)", opacity: 0 }], { duration: 1800, easing: "cubic-bezier(.2,.9,.3,1)", fill: "both" });
+  A(s, [{ transform: "translate(-50%,-50%) scale(2.6) rotate(-8deg)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(.94) rotate(-6deg)", opacity: 1, offset: .16 }, { transform: "translate(-50%,-50%) scale(1) rotate(-6deg)", opacity: 1, offset: .8 }, { transform: "translate(-50%,-50%) scale(1.06) rotate(-6deg)", opacity: 0 }], { duration: 1800, easing: "cubic-bezier(.2,.9,.3,1)", fill: "both" });
 }
 function glyphs(L, spec, from) {
   const W = innerWidth, H = innerHeight, n = spec.many || 18, g = spec.glyph;
@@ -113,7 +130,7 @@ function glyphs(L, spec, from) {
 }
 function overlay(L, spec, at) {
   const W = innerWidth, H = innerHeight, c = spec.col;
-  const add = (cls, css, kf, opt) => { const d = div(cls, { "--c": c, ...css }); L.append(d); later(d, (opt.duration || 1200) + (opt.delay || 0) + 100); d.animate(kf, { fill: "both", ...opt }); return d; };
+  const add = (cls, css, kf, opt) => { const d = div(cls, { "--c": c, ...css }); L.append(d); later(d, (opt.duration || 1200) + (opt.delay || 0) + 100); A(d, kf, { fill: "both", ...opt }); return d; };
   switch (spec.kind) {
     case "veil": add("cf-veil", {}, [{ transform: "translateX(-110%) skewX(-12deg)", opacity: .9 }, { transform: "translateX(0) skewX(-12deg)", opacity: .75, offset: .45 }, { transform: "translateX(110%) skewX(-12deg)", opacity: 0 }], { duration: 1300, easing: "cubic-bezier(.5,0,.3,1)" }); break;
     case "cross": for (const r of [45, -45]) add("cf-slash", { transform: `translate(-50%,-50%) rotate(${r}deg)` }, [{ transform: `translate(-50%,-50%) rotate(${r}deg) scaleX(0)`, opacity: 1 }, { transform: `translate(-50%,-50%) rotate(${r}deg) scaleX(1)`, opacity: 1, offset: .35 }, { transform: `translate(-50%,-50%) rotate(${r}deg) scaleX(1)`, opacity: 0 }], { duration: 1100, delay: r > 0 ? 0 : 160, easing: "cubic-bezier(.2,.9,.2,1)" }); break;
@@ -141,10 +158,10 @@ export function staple(name, at) {
   return true;
 }
 
-// ---------------------------------------------------------------- the finale (3.2 s) before a winning attack
+// ---------------------------------------------------------------- showdowns (finale before a winning blow, Ace cards)
 function speedLines(L, col, ms) {
   const s = div("cf-speed", { "--c": col }); L.append(s); later(s, ms);
-  s.animate([{ opacity: 0 }, { opacity: 1, offset: .08 }, { opacity: 1, offset: .9 }, { opacity: 0 }], { duration: ms, fill: "both" });
+  A(s, [{ opacity: 0 }, { opacity: 1, offset: .08 }, { opacity: 1, offset: .9 }, { opacity: 0 }], { duration: ms, fill: "both" });
   return s;
 }
 function bigCard(L, src, title, cls, ms) {
@@ -158,71 +175,152 @@ function sfx(L, txt, n, col, ms) {
   for (let i = 0; i < n; i++) {
     const g = div("cf-sfx", { color: col, left: (i % 2 ? rnd(66, 90) : rnd(4, 26)) + "%", top: rnd(8, 78) + "%", fontSize: `clamp(30px, ${rnd(7, 12).toFixed(1)}vmin, 110px)` }, txt);
     L.append(g); later(g, ms);
-    g.animate([{ transform: "scale(.4) rotate(-12deg)", opacity: 0 }, { transform: "scale(1) rotate(-8deg)", opacity: 1, offset: .12 }, { transform: "scale(1.04) rotate(-8deg) translateY(-6px)", opacity: 1, offset: .55 }, { transform: "scale(1) rotate(-8deg)", opacity: 1, offset: .9 }, { transform: "scale(1.1) rotate(-8deg)", opacity: 0 }], { duration: ms - 300, delay: i * 120, fill: "both", easing: "ease-out" });
+    A(g, [{ transform: "scale(.4) rotate(-12deg)", opacity: 0 }, { transform: "scale(1) rotate(-8deg)", opacity: 1, offset: .12 }, { transform: "scale(1.04) rotate(-8deg) translateY(-6px)", opacity: 1, offset: .55 }, { transform: "scale(1) rotate(-8deg)", opacity: 1, offset: .9 }, { transform: "scale(1.1) rotate(-8deg)", opacity: 0 }], { duration: ms - 300, delay: i * 120, fill: "both", easing: "ease-out" });
   }
 }
-/** The finale: resolves after ~3.3 s, then the winning attack plays. */
-export function finale(style, { src = "", title = "", line = "" } = {}) {
-  return new Promise((done) => {
-    if (reduced()) { done(); return; }
-    style = FINALES.includes(style) ? style : "menacing";
-    const L = layer(), T = 3300, root = document.body;
-    const veil = div("cf-veil-all " + style); L.append(veil); later(veil, T);
-    veil.animate([{ opacity: 0 }, { opacity: 1, offset: .08 }, { opacity: 1, offset: .9 }, { opacity: 0 }], { duration: T, fill: "both" });
-    root.classList.add("cf-hold", "cf-" + style);
-    if (style === "menacing") {
-      speedLines(L, "#f0b429", T);
-      sfx(L, "ゴゴゴゴ", 6, "#c48bff", T);
-      const h = bigCard(L, src, title, "menacing", T);
-      h.animate([{ transform: "translate(-50%,-50%) scale(.6) rotate(-4deg)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(1) rotate(-4deg)", opacity: 1, offset: .15 }, { transform: "translate(-50%,-50%) scale(1.06) rotate(-4deg)", opacity: 1, offset: .85 }, { transform: "translate(-50%,-50%) scale(1.4) rotate(-4deg)", opacity: 0 }], { duration: T, fill: "both" });
-    } else if (style === "rush") {
-      speedLines(L, "#ff5a3a", T);
-      const h = bigCard(L, src, title, "rush", T);
-      h.animate([{ transform: "translate(-50%,-50%) scale(.7)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 1, offset: .1 }, { transform: "translate(-52%,-49%) scale(1.02)", offset: .3 }, { transform: "translate(-48%,-51%) scale(1.02)", offset: .5 }, { transform: "translate(-50%,-50%) scale(1.05)", opacity: 1, offset: .88 }, { transform: "translate(-50%,-50%) scale(1.5)", opacity: 0 }], { duration: T, fill: "both" });
-      for (let i = 0; i < 28; i++) setTimeout(() => {
-        const f = div("cf-fist", { left: rnd(10, 90) + "%", top: rnd(12, 88) + "%" }, i % 3 ? "✊" : "💥"); L.append(f); later(f, 520);
-        f.animate([{ transform: "translate(-50%,-50%) scale(.3)", opacity: 1 }, { transform: "translate(-50%,-50%) scale(1.5)", opacity: 0 }], { duration: 480, easing: "ease-out", fill: "both" });
-      }, 300 + i * 85);
-      sfx(L, "ドドドド", 4, "#ffcf5a", T);
-      const r = div("cf-rushword", null, "RUSH! RUSH! RUSH!"); L.append(r); later(r, T);
-      r.animate([{ transform: "translateX(100%)" }, { transform: "translateX(-100%)" }], { duration: T, easing: "linear" });
-    } else if (style === "timestop") {
-      const w = div("cf-tswave"); L.append(w); later(w, T);
-      w.animate([{ transform: "translate(-50%,-50%) scale(0)", opacity: 1 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 1, offset: .25 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 1, offset: .8 }, { transform: "translate(-50%,-50%) scale(0)", opacity: 0 }], { duration: T, easing: "cubic-bezier(.3,0,.3,1)", fill: "both" });
-      const clock = div("cf-clock", null, "🕰"); L.append(clock); later(clock, T);
-      clock.animate([{ transform: "translate(-50%,-50%) scale(0) rotate(0)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(1) rotate(0)", opacity: 1, offset: .25 }, { transform: "translate(-50%,-50%) scale(1) rotate(30deg)", opacity: 1, offset: .5 }, { transform: "translate(-50%,-50%) scale(1) rotate(60deg)", opacity: 1, offset: .75 }, { transform: "translate(-50%,-50%) scale(1.6) rotate(90deg)", opacity: 0 }], { duration: T, easing: "steps(12)", fill: "both" });
-      const t = div("cf-tsword", null, "TIME STOP"); L.append(t); later(t, T);
-      t.animate([{ opacity: 0, letterSpacing: ".6em" }, { opacity: 1, letterSpacing: ".18em", offset: .3 }, { opacity: 1, offset: .85 }, { opacity: 0 }], { duration: T, fill: "both" });
-      setTimeout(() => root.classList.add("cf-frozen"), 800);
-    } else if (style === "freeze") {
-      setTimeout(() => root.classList.add("cf-sepia"), 600);
-      const h = bigCard(L, src, title, "freeze", T);
-      h.animate([{ transform: "translate(-50%,-50%) scale(.8)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 1, offset: .15 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 1, offset: .9 }, { opacity: 0 }], { duration: T, fill: "both" });
-      const a = div("cf-tbc"); a.append(div("cf-tbc-t", null, "TO BE CONTINUED")); L.append(a); later(a, T);
-      a.animate([{ transform: "translateX(-120%)" }, { transform: "translateX(-120%)", offset: .25 }, { transform: "translateX(0)", offset: .4 }, { transform: "translateX(0)" }], { duration: T, easing: "cubic-bezier(.2,.9,.3,1)", fill: "both" });
-    }
-    if (line) { const c = div("cf-line", null, line); L.append(c); later(c, T); c.animate([{ opacity: 0, transform: "translate(-50%, 20px)" }, { opacity: 1, transform: "translate(-50%, 0)", offset: .2 }, { opacity: 1, offset: .88 }, { opacity: 0 }], { duration: T, fill: "both" }); }
-    setTimeout(() => { root.classList.remove("cf-hold", "cf-" + style, "cf-frozen", "cf-sepia"); done(); }, T);
-  });
+/** Big title text across the screen. */
+function word(L, txt, cls, T, at = .3, top = "62%") {
+  const t = div("cf-word2 " + (cls || ""), { top }, txt); L.append(t); later(t, T);
+  A(t, [{ opacity: 0, transform: "scale(1.6)" }, { opacity: 0, transform: "scale(1.6)", offset: Math.max(0, at - .08) }, { opacity: 1, transform: "scale(1)", offset: at }, { opacity: 1, transform: "scale(1.02)", offset: .88 }, { opacity: 0, transform: "scale(1.08)" }], { duration: T, fill: "both", easing: "cubic-bezier(.2,.9,.3,1)" });
+  return t;
 }
+const heroIn = (h, T, from = "scale(.6)", hold = "scale(1.05)") => A(h, [{ transform: `translate(-50%,-50%) ${from}`, opacity: 0 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 1, offset: .14 }, { transform: `translate(-50%,-50%) ${hold}`, opacity: 1, offset: .86 }, { transform: "translate(-50%,-50%) scale(1.4)", opacity: 0 }], { duration: T, fill: "both", easing: "cubic-bezier(.2,.9,.3,1)" });
+const at = (ms, f) => setTimeout(f, ms);
 
-// ---------------------------------------------------------------- KodeX Premium Ace cards
-/** The Ace card on the big screen (~2.6 s). */
-export function ace(style, { src = "", title = "", owner = "", premiumNote = "" } = {}) {
+/** One showdown. kind "finale" (before the winning blow) or "ace" (an Ace card before it resolves). Resolves when done. */
+export function show(style, { kind = "finale", src = "", title = "", line = "", owner = "", premiumNote = "", ms = 0 } = {}) {
   return new Promise((done) => {
     if (reduced()) { done(); return; }
-    style = ACE_STYLES.includes(style) ? style : "spotlight";
-    const L = layer(), T = 2600;
-    const bg = div("cf-ace-bg " + style); L.append(bg); later(bg, T);
-    bg.animate([{ opacity: 0 }, { opacity: 1, offset: .1 }, { opacity: 1, offset: .88 }, { opacity: 0 }], { duration: T, fill: "both" });
-    if (style === "menacing") sfx(L, "ゴゴゴ", 4, "#c48bff", T);
-    if (style === "radiant") { const r = div("cf-rays", { left: "50%", top: "46%", "--c": "#ffe08a" }); L.append(r); later(r, T); r.animate([{ transform: "translate(-50%,-50%) scale(.3) rotate(0)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(1.2) rotate(40deg)", opacity: 1, offset: .3 }, { transform: "translate(-50%,-50%) scale(1.4) rotate(90deg)", opacity: 0 }], { duration: T, fill: "both" }); }
-    speedLines(L, style === "radiant" ? "#ffe08a" : style === "menacing" ? "#c48bff" : "#8d99ff", T);
-    const h = bigCard(L, src, title, "ace " + style, T);
-    h.animate([{ transform: "translate(-50%,-50%) perspective(900px) rotateY(-70deg) scale(.5)", opacity: 0 }, { transform: "translate(-50%,-50%) perspective(900px) rotateY(8deg) scale(1.05)", opacity: 1, offset: .22 }, { transform: "translate(-50%,-50%) perspective(900px) rotateY(0) scale(1)", opacity: 1, offset: .35 }, { transform: "translate(-50%,-50%) perspective(900px) rotateY(0) scale(1.04)", opacity: 1, offset: .86 }, { transform: "translate(-50%,-50%) perspective(900px) rotateY(0) scale(1.35)", opacity: 0 }], { duration: T, fill: "both", easing: "cubic-bezier(.2,.9,.3,1)" });
-    const tag = div("cf-ace-tag", null, "ACE CARD" + (owner ? " · " + owner : "")); L.append(tag); later(tag, T);
-    tag.animate([{ opacity: 0, transform: "translate(-50%, -10px)" }, { opacity: 1, transform: "translate(-50%, 0)", offset: .25 }, { opacity: 1, offset: .86 }, { opacity: 0 }], { duration: T, fill: "both" });
-    if (premiumNote) { const n = div("cf-line", null, premiumNote); L.append(n); later(n, T); }
-    setTimeout(done, T);
+    style = SHOWS.includes(style) ? style : "menacing";
+    const T = Math.round(Math.min(SHOW_MAX, Math.max(kind === "ace" ? 2400 : SHOW_MIN, ms || (kind === "ace" ? 2800 : 3300))));
+    const L = layer(), root = document.body, cls = ["cf-hold", "cf-" + style];
+    const veil = div("cf-veil-all " + style); L.append(veil); later(veil, T);
+    A(veil, [{ opacity: 0 }, { opacity: 1, offset: .08 }, { opacity: 1, offset: .9 }, { opacity: 0 }], { duration: T, fill: "both" });
+    root.classList.add(...cls);
+    const flag = (c, from, to) => { at(from, () => root.classList.add(c)); cls.push(c); if (to) at(to, () => root.classList.remove(c)); };
+    let h;
+    switch (style) {
+      case "menacing":
+        speedLines(L, "#f0b429", T); sfx(L, "ゴゴゴゴ", 6, "#c48bff", T);
+        h = bigCard(L, src, title, "menacing", T); A(h, [{ transform: "translate(-50%,-50%) scale(.6) rotate(-4deg)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(1) rotate(-4deg)", opacity: 1, offset: .15 }, { transform: "translate(-50%,-50%) scale(1.06) rotate(-4deg)", opacity: 1, offset: .85 }, { transform: "translate(-50%,-50%) scale(1.4) rotate(-4deg)", opacity: 0 }], { duration: T, fill: "both" });
+        break;
+      case "rush": {
+        speedLines(L, "#ff5a3a", T);
+        h = bigCard(L, src, title, "rush", T); A(h, [{ transform: "translate(-50%,-50%) scale(.7)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 1, offset: .1 }, { transform: "translate(-52%,-49%) scale(1.02)", offset: .3 }, { transform: "translate(-48%,-51%) scale(1.02)", offset: .5 }, { transform: "translate(-50%,-50%) scale(1.05)", opacity: 1, offset: .88 }, { transform: "translate(-50%,-50%) scale(1.5)", opacity: 0 }], { duration: T, fill: "both" });
+        const n = Math.round((T - 700) / 85);
+        for (let i = 0; i < n; i++) at(300 + i * 85, () => { const f = div("cf-fist", { left: rnd(10, 90) + "%", top: rnd(12, 88) + "%" }, i % 3 ? "✊" : "💥"); L.append(f); later(f, 520); A(f, [{ transform: "translate(-50%,-50%) scale(.3)", opacity: 1 }, { transform: "translate(-50%,-50%) scale(1.5)", opacity: 0 }], { duration: 480, easing: "ease-out", fill: "both" }); });
+        sfx(L, "ドドドド", 4, "#ffcf5a", T);
+        const r = div("cf-rushword", null, "RUSH! RUSH! RUSH!"); L.append(r); later(r, T); A(r, [{ transform: "translateX(100%)" }, { transform: "translateX(-100%)" }], { duration: T, easing: "linear" });
+        break;
+      }
+      case "timestop": {
+        const w = div("cf-tswave"); L.append(w); later(w, T);
+        A(w, [{ transform: "translate(-50%,-50%) scale(0)", opacity: 1 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 1, offset: .25 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 1, offset: .8 }, { transform: "translate(-50%,-50%) scale(0)", opacity: 0 }], { duration: T, easing: "cubic-bezier(.3,0,.3,1)", fill: "both" });
+        const clock = div("cf-clock", null, "🕰"); L.append(clock); later(clock, T);
+        A(clock, [{ transform: "translate(-50%,-50%) scale(0) rotate(0)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(1) rotate(0)", opacity: 1, offset: .25 }, { transform: "translate(-50%,-50%) scale(1) rotate(30deg)", opacity: 1, offset: .5 }, { transform: "translate(-50%,-50%) scale(1) rotate(60deg)", opacity: 1, offset: .75 }, { transform: "translate(-50%,-50%) scale(1.6) rotate(90deg)", opacity: 0 }], { duration: T, easing: "steps(12)", fill: "both" });
+        const t = div("cf-tsword", null, "TIME STOP"); L.append(t); later(t, T);
+        A(t, [{ opacity: 0, letterSpacing: ".6em" }, { opacity: 1, letterSpacing: ".18em", offset: .3 }, { opacity: 1, offset: .85 }, { opacity: 0 }], { duration: T, fill: "both" });
+        flag("cf-frozen", 800);
+        break;
+      }
+      case "freeze": {
+        flag("cf-sepia", 600);
+        h = bigCard(L, src, title, "freeze", T); A(h, [{ transform: "translate(-50%,-50%) scale(.8)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 1, offset: .15 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 1, offset: .9 }, { opacity: 0 }], { duration: T, fill: "both" });
+        const a = div("cf-tbc"); a.append(div("cf-tbc-t", null, "TO BE CONTINUED")); L.append(a); later(a, T);
+        A(a, [{ transform: "translateX(-120%)" }, { transform: "translateX(-120%)", offset: .25 }, { transform: "translateX(0)", offset: .4 }, { transform: "translateX(0)" }], { duration: T, easing: "cubic-bezier(.2,.9,.3,1)", fill: "both" });
+        break;
+      }
+      case "domain": {
+        // the screen is swallowed by a void that opens from the centre; a sigil turns behind the card
+        const v = div("cf-void"); L.append(v); later(v, T);
+        A(v, [{ clipPath: "circle(0% at 50% 46%)" }, { clipPath: "circle(0% at 50% 46%)", offset: .06 }, { clipPath: "circle(150% at 50% 46%)", offset: .32 }, { clipPath: "circle(150% at 50% 46%)", opacity: 1, offset: .9 }, { clipPath: "circle(150% at 50% 46%)", opacity: 0 }], { duration: T, fill: "both", easing: "cubic-bezier(.6,0,.2,1)" });
+        for (const [k, dir] of [["a", 1], ["b", -1], ["c", 1]]) { const s = div("cf-sigil " + k); L.append(s); later(s, T); A(s, [{ transform: "translate(-50%,-50%) scale(.2) rotate(0)", opacity: 0 }, { transform: `translate(-50%,-50%) scale(1) rotate(${dir * 90}deg)`, opacity: 1, offset: .35 }, { transform: `translate(-50%,-50%) scale(1.05) rotate(${dir * 240}deg)`, opacity: 1, offset: .88 }, { transform: `translate(-50%,-50%) scale(1.3) rotate(${dir * 280}deg)`, opacity: 0 }], { duration: T, fill: "both" }); }
+        h = bigCard(L, src, title, "domain", T); heroIn(h, T, "scale(.3)");
+        word(L, "DOMAIN EXPANSION", "domain", T, .34, "7%");
+        break;
+      }
+      case "allout": {
+        // comic panels slam in, red and black, with a cut-out title
+        for (let i = 0; i < 5; i++) { const p = div("cf-panel p" + i); if (src) p.style.backgroundImage = `url("${src}")`; L.append(p); later(p, T); A(p, [{ transform: `translateX(${i % 2 ? 130 : -130}%) skewX(-14deg)`, opacity: 0 }, { transform: "translateX(0) skewX(-14deg)", opacity: 1, offset: .08 + i * .05 }, { transform: "translateX(0) skewX(-14deg)", opacity: 1, offset: .86 }, { transform: `translateX(${i % 2 ? -40 : 40}%) skewX(-14deg)`, opacity: 0 }], { duration: T, fill: "both", easing: "cubic-bezier(.2,.9,.3,1)" }); }
+        const t = div("cf-cutout"); "ALL-OUT ATTACK".split("").forEach((ch, i) => { const b = document.createElement("b"); b.textContent = ch; b.style.setProperty("--r", `${(i * 37 % 13) - 6}deg`); t.append(b); });
+        L.append(t); later(t, T); A(t, [{ transform: "translate(-50%,-50%) scale(2.4) rotate(-8deg)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(2.4) rotate(-8deg)", opacity: 0, offset: .3 }, { transform: "translate(-50%,-50%) scale(1) rotate(-6deg)", opacity: 1, offset: .38 }, { transform: "translate(-50%,-50%) scale(1.04) rotate(-6deg)", opacity: 1, offset: .9 }, { transform: "translate(-50%,-50%) scale(1.2) rotate(-6deg)", opacity: 0 }], { duration: T, fill: "both", easing: "cubic-bezier(.2,.9,.3,1)" });
+        flag("cf-redshift", T * .3, T * .9);
+        break;
+      }
+      case "impact": {
+        // anime impact frames: the picture flips to black and white for a few frames at each hit
+        h = bigCard(L, src, title, "impact", T); heroIn(h, T, "scale(1.6)", "scale(1.03)");
+        const hits = [.18, .3, .42, .62];
+        for (const k of hits) { flag("cf-inv", T * k, T * k + 90); at(T * k + 140, () => root.classList.add("cf-inv")); at(T * k + 210, () => root.classList.remove("cf-inv")); at(T * k, () => { const c = div("cf-crack", { left: rnd(25, 75) + "%", top: rnd(25, 70) + "%", rotate: rnd(0, 180) + "deg" }); L.append(c); later(c, 700); A(c, [{ transform: "translate(-50%,-50%) scale(.2)", opacity: 1 }, { transform: "translate(-50%,-50%) scale(1.3)", opacity: 0 }], { duration: 650, easing: "ease-out", fill: "both" }); }); }
+        speedLines(L, "#ffffff", T);
+        word(L, "IMPACT", "impact", T, .64, "5%");
+        break;
+      }
+      case "destiny": {
+        // a single card shoots up from the deck in a trail of gold, then the card is revealed
+        const c = div("cf-drawcard"); L.append(c); later(c, T);
+        A(c, [{ transform: "translate(-50%, 60vh) rotate(0) scale(.6)", opacity: 0 }, { transform: "translate(-50%, 0) rotate(720deg) scale(1)", opacity: 1, offset: .3 }, { transform: "translate(-50%, 0) rotateY(90deg) scale(1.1)", opacity: 1, offset: .38 }, { transform: "translate(-50%, 0) rotateY(90deg) scale(1.1)", opacity: 0, offset: .39 }, { opacity: 0 }], { duration: T, fill: "both", easing: "cubic-bezier(.3,.7,.3,1)" });
+        for (let i = 0; i < 26; i++) at(rnd(0, T * .35), () => { const s = div("cf-spark", { left: rnd(40, 60) + "%", top: rnd(30, 90) + "%" }, "✦"); L.append(s); later(s, 900); A(s, [{ transform: "scale(.2)", opacity: 1 }, { transform: `translate(${rnd(-80, 80)}px, ${rnd(-120, -20)}px) scale(1.2)`, opacity: 0 }], { duration: 850, easing: "ease-out", fill: "both" }); });
+        at(T * .38, () => { const f = div("cf-flash"); L.append(f); later(f, 500); A(f, [{ opacity: .9 }, { opacity: 0 }], { duration: 480, fill: "both" }); });
+        const r = div("cf-rays", { left: "50%", top: "46%", "--c": "#ffe08a" }); L.append(r); later(r, T); A(r, [{ transform: "translate(-50%,-50%) scale(.3)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(.3)", opacity: 0, offset: .37 }, { transform: "translate(-50%,-50%) scale(1.3) rotate(40deg)", opacity: 1, offset: .5 }, { transform: "translate(-50%,-50%) scale(1.5) rotate(90deg)", opacity: 0 }], { duration: T, fill: "both" });
+        h = bigCard(L, src, title, "destiny", T); A(h, [{ transform: "translate(-50%,-50%) rotateY(-90deg)", opacity: 0 }, { transform: "translate(-50%,-50%) rotateY(-90deg)", opacity: 0, offset: .38 }, { transform: "translate(-50%,-50%) rotateY(0) scale(1.06)", opacity: 1, offset: .48 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 1, offset: .88 }, { transform: "translate(-50%,-50%) scale(1.3)", opacity: 0 }], { duration: T, fill: "both", easing: "cubic-bezier(.2,.9,.3,1)" });
+        word(L, "DESTINY DRAW", "destiny", T, .5, "7%");
+        break;
+      }
+      case "finalblow": {
+        // slow zoom in on the card, focus lines, a white flash, then the K.O.
+        const st = div("cf-starburst"); L.append(st); later(st, T); A(st, [{ transform: "translate(-50%,-50%) scale(.2) rotate(0)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(1) rotate(20deg)", opacity: 1, offset: .2 }, { transform: "translate(-50%,-50%) scale(1.1) rotate(60deg)", opacity: 1, offset: .7 }, { transform: "translate(-50%,-50%) scale(1.8) rotate(80deg)", opacity: 0 }], { duration: T, fill: "both" });
+        speedLines(L, "#9fe2ff", T);
+        h = bigCard(L, src, title, "finalblow", T); A(h, [{ transform: "translate(-50%,-50%) scale(.9)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 1, offset: .1 }, { transform: "translate(-50%,-50%) scale(1.22)", opacity: 1, offset: .62 }, { transform: "translate(-50%,-50%) scale(1.22)", opacity: 1, offset: .9 }, { transform: "translate(-50%,-50%) scale(1.6)", opacity: 0 }], { duration: T, fill: "both", easing: "cubic-bezier(.5,0,.9,.6)" });
+        at(T * .62, () => { const f = div("cf-flash"); L.append(f); later(f, 600); A(f, [{ opacity: 1 }, { opacity: 0 }], { duration: 560, fill: "both" }); });
+        word(L, "FINAL BLOW", "finalblow", T, .2, "6%");
+        word(L, "K.O.!", "ko", T, .64, "calc(46% - .5em)");
+        break;
+      }
+      case "powerup": {
+        // a golden aura bursts around the card, the ground shakes and sparks rise
+        const au = div("cf-aura"); L.append(au); later(au, T); A(au, [{ transform: "translate(-50%,-50%) scale(.4)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 1, offset: .2 }, { transform: "translate(-50%,-50%) scale(1.08)", opacity: 1, offset: .5 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 1, offset: .86 }, { transform: "translate(-50%,-50%) scale(1.5)", opacity: 0 }], { duration: T, fill: "both" });
+        h = bigCard(L, src, title, "powerup", T); heroIn(h, T, "scale(.8) translateY(40px)", "scale(1.08)");
+        for (let i = 0; i < Math.round(T / 90); i++) at(rnd(200, T - 500), () => { const s = div("cf-ember", { left: rnd(30, 70) + "%" }); L.append(s); later(s, 1100); A(s, [{ transform: "translateY(0) scale(1)", opacity: 1 }, { transform: `translate(${rnd(-30, 30)}px, -${rnd(30, 60)}vh) scale(.3)`, opacity: 0 }], { duration: 1050, easing: "ease-out", fill: "both" }); });
+        for (let i = 0; i < 3; i++) at(T * (.25 + i * .18), () => { const b = div("cf-bolt", { left: rnd(25, 75) + "%", "--c": "#ffe066" }); L.append(b); later(b, 500); A(b, [{ opacity: 0 }, { opacity: 1, offset: .15 }, { opacity: .2, offset: .4 }, { opacity: 1, offset: .55 }, { opacity: 0 }], { duration: 480 }); });
+        flag("cf-quake", T * .2, T * .75);
+        word(L, "POWER UP!", "powerup", T, .3, "7%");
+        break;
+      }
+      case "beam": {
+        // energy gathers into a ball, then a beam crosses the whole screen
+        const orb = div("cf-orb"); L.append(orb); later(orb, T); A(orb, [{ transform: "translate(-50%,-50%) scale(0)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 1, offset: .42 }, { transform: "translate(-50%,-50%) scale(1.2)", opacity: 1, offset: .5 }, { transform: "translate(-50%,-50%) scale(.4)", opacity: 0, offset: .6 }, { opacity: 0 }], { duration: T, fill: "both", easing: "ease-in" });
+        for (let i = 0; i < 22; i++) at(rnd(100, T * .4), () => { const a = rnd(0, Math.PI * 2), d = rnd(28, 48); const s = div("cf-mote", { left: "50%", top: "46%" }); L.append(s); later(s, 700); A(s, [{ transform: `translate(${Math.cos(a) * d}vmin, ${Math.sin(a) * d}vmin)`, opacity: 0 }, { opacity: 1, offset: .3 }, { transform: "translate(0,0)", opacity: 0 }], { duration: 650, easing: "ease-in", fill: "both" }); });
+        const bm = div("cf-beam"); L.append(bm); later(bm, T); A(bm, [{ transform: "translateY(-50%) scaleX(0) scaleY(.2)", opacity: 0 }, { transform: "translateY(-50%) scaleX(0) scaleY(.2)", opacity: 0, offset: .5 }, { transform: "translateY(-50%) scaleX(1) scaleY(1)", opacity: 1, offset: .58 }, { transform: "translateY(-50%) scaleX(1) scaleY(1.15)", opacity: 1, offset: .86 }, { transform: "translateY(-50%) scaleX(1) scaleY(0)", opacity: 0 }], { duration: T, fill: "both" });
+        h = bigCard(L, src, title, "beam", T); A(h, [{ transform: "translate(-50%,-50%) scale(.6)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 1, offset: .14 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 1, offset: .48 }, { transform: "translate(-50%,-50%) scale(.7)", opacity: 0, offset: .56 }, { opacity: 0 }], { duration: T, fill: "both" });
+        flag("cf-quake", T * .55, T * .85);
+        word(L, "FULL POWER", "beam", T, .58, "78%");
+        break;
+      }
+      case "radiant": {
+        const r = div("cf-rays", { left: "50%", top: "46%", "--c": "#ffe08a" }); L.append(r); later(r, T); A(r, [{ transform: "translate(-50%,-50%) scale(.3) rotate(0)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(1.2) rotate(40deg)", opacity: 1, offset: .3 }, { transform: "translate(-50%,-50%) scale(1.4) rotate(90deg)", opacity: 0 }], { duration: T, fill: "both" });
+        speedLines(L, "#ffe08a", T);
+        h = bigCard(L, src, title, "radiant", T); heroIn(h, T, "perspective(900px) rotateY(-70deg) scale(.5)");
+        break;
+      }
+      default: { // spotlight
+        const sp = div("cf-spot"); L.append(sp); later(sp, T); A(sp, [{ opacity: 0, transform: "translateX(-50%) scaleX(.2)" }, { opacity: 1, transform: "translateX(-50%) scaleX(1)", offset: .2 }, { opacity: 1, offset: .86 }, { opacity: 0 }], { duration: T, fill: "both" });
+        speedLines(L, "#8d99ff", T);
+        h = bigCard(L, src, title, "spotlight", T);
+        A(h, [{ transform: "translate(-50%,-50%) perspective(900px) rotateY(-70deg) scale(.5)", opacity: 0 }, { transform: "translate(-50%,-50%) perspective(900px) rotateY(8deg) scale(1.05)", opacity: 1, offset: .22 }, { transform: "translate(-50%,-50%) perspective(900px) rotateY(0) scale(1)", opacity: 1, offset: .35 }, { transform: "translate(-50%,-50%) perspective(900px) rotateY(0) scale(1.04)", opacity: 1, offset: .86 }, { transform: "translate(-50%,-50%) perspective(900px) rotateY(0) scale(1.35)", opacity: 0 }], { duration: T, fill: "both", easing: "cubic-bezier(.2,.9,.3,1)" });
+      }
+    }
+    if (kind === "ace") {
+      if (h) h.classList.add("ace");
+      const tag = div("cf-ace-tag", null, "ACE CARD" + (owner ? " · " + owner : "")); L.append(tag); later(tag, T);
+      A(tag, [{ opacity: 0, transform: "translate(-50%, -10px)" }, { opacity: 1, transform: "translate(-50%, 0)", offset: .25 }, { opacity: 1, offset: .86 }, { opacity: 0 }], { duration: T, fill: "both" });
+    }
+    const note = line || premiumNote;
+    if (note) { const c = div("cf-line", null, note); L.append(c); later(c, T); A(c, [{ opacity: 0, transform: "translate(-50%, 20px)" }, { opacity: 1, transform: "translate(-50%, 0)", offset: .2 }, { opacity: 1, offset: .88 }, { opacity: 0 }], { duration: T, fill: "both" }); }
+    at(T, () => { root.classList.remove(...cls); done(); });
   });
 }
+/** The finale before a winning blow (3 to 5 s), then the blow plays. */
+export const finale = (style, o = {}) => show(style, { ...o, kind: "finale" });
+/** An Ace card on the big screen before its effect resolves. */
+export const ace = (style, o = {}) => show(style, { ...o, kind: "ace" });

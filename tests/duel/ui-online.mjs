@@ -85,7 +85,9 @@ await host.waitForFunction(() => [...document.querySelectorAll("#chatList li")].
 console.log("chat delivered");
 // surrender from guest
 guest.on("dialog", (d) => d.accept());
-if (await guest.isVisible('.dock-tabs [data-tab="opts"]')) { await guest.click("#sideFab"); await guest.click('.dock-tabs [data-tab="opts"]'); }
+// landscape: Options are in the left panel (behind the ☰ button on phones and tablets, always open on big screens)
+if (await guest.isVisible("#panelBtn")) { if (await guest.isVisible("#side")) await guest.click("#sideClose"); await guest.click("#panelBtn"); await guest.click('.dock-tabs [data-tab="opts"]'); }
+else if (await guest.isVisible('.dock-tabs [data-tab="opts"]')) { if (await guest.isVisible("#side")) await guest.click("#sideClose"); await guest.click('.dock-tabs [data-tab="opts"]'); }
 await guest.click("#surrenderBtn");
 if (await guest.isVisible("#askYes")) await guest.click("#askYes");
 await host.waitForFunction(() => window.__duel.packet.ended, null, { timeout: 15000 });

@@ -773,3 +773,108 @@ body.view-flat .arena .mat { transform: none !important; }
 .replay-bar .rb-pos { font-variant-numeric: tabular-nums; color: #9aa4bd; font-size: 12px; min-width: 52px; text-align: center; }
 @media (max-width: 420px) { .replay-bar .rb-t, .replay-bar .rb-pos { display: none; } }
 body.replaying #table { padding-top: 54px; }
+
+/* ---------- v57 landscape: Master Duel layout ----------
+   The field sits in the middle of the screen, big and tilted. Your hand rises from the bottom edge over the field,
+   the opponent's hand peeks from the top. Your Life Points: bottom-left. Theirs: top-right. The phase is one round
+   button on the right (it offers Battle / Main 2 / End Turn when you can move on). Card details slide in from the
+   left when you tap a card (on large screens they stay open on the left). Prompts open over the left side. */
+@media (orientation: landscape) and (min-width: 640px) {
+  :root, .embed {
+    --R: clamp(150px, 19vw, 280px);
+    --L: clamp(240px, 30vw, 340px);
+    --z: clamp(28px, min(calc((100vh - 10px) / 6.15), calc((100vw - 2 * var(--R) - 28px) / 7.45)), 132px);
+    --zh: var(--z); --ch: calc(var(--z) * .92);
+  }
+  @supports (height: 100dvh) { :root, .embed { --z: clamp(28px, min(calc((100dvh - 10px) / 6.15), calc((100vw - 2 * var(--R) - 28px) / 7.45)), 132px); } }
+  #table { display: grid; height: 100vh; height: 100dvh; padding: 8px 10px; gap: 6px 10px; overflow: hidden;
+    grid-template-columns: var(--R) minmax(0, 1fr) var(--R);
+    grid-template-rows: auto minmax(0, 1fr) auto minmax(0, 1fr) auto;
+    grid-template-areas: "stat ohand opp" "feed mat ." "feed mat turn" "feed mat ." "me hand fab"; }
+  .embed #table { grid-template-rows: minmax(40px, auto) auto minmax(0, 1fr) auto minmax(0, 1fr) auto;
+    grid-template-areas: "stat ohand ." "feed mat opp" "feed mat ." "feed mat turn" "feed mat ." "me hand fab"; }
+  .arena { display: contents; }
+  /* the field */
+  .arena .mat-wrap { grid-area: 1 / 2 / -2 / 3; justify-self: center; align-self: end; margin-bottom: calc(var(--ch) * -.42); z-index: 1; }
+  .arena .mat { transform: perspective(1300px) rotateX(24deg); transform-origin: 50% 62%; box-shadow: inset 0 0 70px #000b, 0 40px 80px #000c; }
+  body.view-flat .arena .mat-wrap { margin-bottom: calc(var(--ch) * -.2); }
+  /* hands */
+  .arena #opHand { grid-area: ohand; z-index: 2; align-self: start; justify-self: center; width: min(100%, calc(var(--z) * 6.4)); min-height: 0; height: calc(var(--ch) * .38); padding: 0; align-items: flex-start; overflow: visible; margin-top: -8px; }
+  .op-hand .card { width: calc(var(--cw) * .58); height: calc(var(--ch) * .58); transform: translateY(-34%); }
+  .arena #myHand { grid-area: hand; z-index: 7; align-self: end; justify-self: center; width: min(100%, calc(var(--z) * 7.8)); min-height: 0; height: calc(var(--ch) * .8); padding: 0; margin-bottom: -8px; align-items: flex-start; overflow: visible; }
+  .my-hand .card { width: calc(var(--cw) * 1.16); height: calc(var(--ch) * 1.16); margin: 0 1px; --lift: 0px; box-shadow: 0 10px 24px #000c; }
+  .my-hand .card:hover, .my-hand .card:focus-visible, .my-hand .card.act:active { --lift: calc(var(--ch) * -.42); }
+  .my-hand .card.act { --lift: calc(var(--ch) * -.1); }
+  /* Life Points: corner plates */
+  .arena .duelist { width: 100%; min-width: 0; height: auto; padding: 7px 10px 8px; gap: 9px; border-radius: 16px; z-index: 3;
+    background: linear-gradient(135deg, #182152f0, #0c0f1ff0 70%); border: 1px solid #3347f066; box-shadow: 0 10px 30px #0008, inset 0 1px 0 #ffffff14; }
+  .arena .duelist.op { grid-area: opp; align-self: start; background: linear-gradient(225deg, #3a1420f0, #0c0f1ff0 70%); border-color: #e0566b55; }
+  .arena .duelist.me { grid-area: me; align-self: end; height: auto; padding: 7px 10px 8px; gap: 9px; }
+  .arena .duelist .avatar { display: grid; width: 34px; height: 34px; border-radius: 50%; font-size: 14px; }
+  .arena .duelist.me .avatar { width: 34px; height: 34px; font-size: 14px; }
+  .arena .duelist .who b, .arena .duelist.me .who b { font-size: 12.5px; }
+  .arena .duelist .who span, .arena .duelist.me .who span { font-size: 10.5px; }
+  .arena .duelist .lp, .arena .duelist.me .lp { flex-direction: column; align-items: flex-end; gap: 4px; }
+  .arena .duelist .lp-num, .arena .duelist.me .lp-num { font-size: clamp(19px, 2.5vw, 30px); font-weight: 900; letter-spacing: -.02em; text-shadow: 0 0 18px #6f7dff66; }
+  .arena .duelist.op .lp-num { text-shadow: 0 0 18px #e0566b66; }
+  .arena .duelist .lp-bar, .arena .duelist.me .lp-bar { width: clamp(56px, 7vw, 110px); height: 5px; }
+  .arena .duelist.active { box-shadow: 0 0 0 2px var(--a), 0 0 28px #6f7dff66; }
+  .arena .duelist.op.active { box-shadow: 0 0 0 2px #e0566b, 0 0 28px #e0566b55; }
+  body.op-compact .arena .duelist.op { height: auto; }
+  /* the phase button */
+  .arena .turnbar { grid-area: turn; flex-direction: column; align-items: flex-end; gap: 6px; z-index: 4; }
+  .arena .turn-no { text-align: right; min-width: 0; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #aab3d6; }
+  .arena .phases { display: flex; flex-direction: column; align-items: flex-end; gap: 7px; padding: 0; border: 0; background: none; border-radius: 0; }
+  .arena .phases button { display: none; font-size: 0; }
+  .arena .phases button::before { content: attr(data-long); font-size: 12.5px; }
+  .arena .phases button.now { display: grid; place-items: center; order: -1; width: clamp(58px, 6.6vw, 78px); height: clamp(58px, 6.6vw, 78px); min-width: 0; border-radius: 50%; padding: 0;
+    background: radial-gradient(circle at 50% 35%, #2c3aa8, #121842 70%); color: #fff; box-shadow: 0 0 0 2px #6f7dff, 0 0 0 6px #6f7dff22, 0 10px 26px #000a; }
+  .arena .phases button.now::before { font-size: clamp(11px, 1.25vw, 14px); font-weight: 900; letter-spacing: .04em; line-height: 1.05; text-align: center; padding: 0 6px; }
+  body.op-turn .arena .phases button.now { background: radial-gradient(circle at 50% 35%, #8a2a3a, #2a0e16 70%); box-shadow: 0 0 0 2px #e0566b, 0 0 0 6px #e0566b22, 0 10px 26px #000a; }
+  .arena .phases button.go { display: block; min-height: 38px; min-width: 0; width: clamp(96px, 10vw, 130px); padding: 0 12px; border-radius: 999px; animation: none;
+    background: linear-gradient(90deg, #3347f0, #7a4fd6); color: #fff; box-shadow: 0 6px 18px #3347f066, inset 0 1px 0 #ffffff33; cursor: pointer; }
+  .arena .phases button.go[data-k="EP"] { background: linear-gradient(90deg, #b8860b, #f0b429); color: #1a1405; box-shadow: 0 6px 18px #f0b42955; }
+  .arena .phases button.go::before { font-weight: 900; letter-spacing: .06em; text-transform: uppercase; font-size: 12px; }
+  /* what's happening */
+  .arena #status { grid-area: stat; align-self: start; z-index: 4; font-size: 12px; line-height: 1.35; padding: 7px 10px; border-radius: 12px; background: #10142acc; border: 1px solid var(--line); text-align: left;
+    display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+  #feed { grid-area: feed; display: flex; z-index: 3; background: none; border: 0; padding: 0; mask-image: linear-gradient(#000 70%, transparent); -webkit-mask-image: linear-gradient(#000 70%, transparent); }
+  #feed .fd { background: #10142ab8; }
+  /* card details: a drawer from the left */
+  #info { grid-area: auto; position: fixed; left: 8px; top: 8px; bottom: 8px; width: var(--L); z-index: 46; transform: translateX(-112%); opacity: 0; pointer-events: none;
+    box-shadow: 0 20px 60px #000c; transition: transform .24s cubic-bezier(.2,.8,.2,1), opacity .2s; }
+  #info.open { transform: none; opacity: 1; pointer-events: auto; }
+  #info { background: linear-gradient(180deg, #151b3d, #0e1228); border-color: #3347f055; }
+  #info .close-info { display: grid; right: 8px; top: 8px; }
+  #info .dock-tabs { padding-right: 46px; }
+  /* buttons: panel (log & options), emotes, chat */
+  #table > .panel-fab, #table > .emote-fab, #table > .side-fab { grid-area: fab; position: relative; inset: auto; align-self: end; width: 44px; height: 44px; z-index: 8; }
+  #table > .panel-fab { justify-self: start; display: grid; }
+  #table > .emote-fab { justify-self: center; }
+  #table > .side-fab { justify-self: end; }
+  .sheet { left: 8px; bottom: 76px; width: min(var(--L), 46vw); }
+  .side { left: 8px !important; top: 8px; bottom: 8px; width: var(--L) !important; }
+}
+/* large screens: the details stay open on the left, like the computer version of Master Duel */
+@media (orientation: landscape) and (min-width: 1500px) and (min-height: 800px) {
+  :root, .embed { --R: clamp(300px, 21vw, 380px); --L: var(--R); }
+  #table { grid-template-areas: "stat ohand opp" "info mat feed" "info mat turn" "info mat ." "me hand fab"; }
+  .embed #table { grid-template-areas: "stat ohand ." "info mat opp" "info mat feed" "info mat turn" "info mat ." "me hand fab"; }
+  #info { grid-area: info; position: relative; inset: auto; left: auto; top: auto; bottom: auto; width: auto; transform: none; opacity: 1; pointer-events: auto; box-shadow: none; z-index: 2; min-height: 0; }
+  #info .close-info { display: none; }
+  #info .dock-tabs { padding-right: 6px; }
+  #table > .panel-fab { display: none; }
+  #table > .emote-fab { justify-self: start; }
+  .sheet { width: var(--L); }
+}
+.panel-fab { display: none; position: fixed; width: 44px; height: 44px; border-radius: 50%; place-items: center; border: 1px solid var(--line-2); background: #141a3a; color: var(--text); box-shadow: 0 8px 22px #0009; }
+.panel-fab:hover { background: #1d2450; }
+@media (orientation: landscape) and (min-width: 640px) and (max-height: 460px) {
+  .arena #status { -webkit-line-clamp: 3; font-size: 11px; padding: 5px 8px; }
+  .arena .duelist { padding: 5px 8px; gap: 7px; border-radius: 13px; }
+  .arena .duelist .avatar, .arena .duelist.me .avatar { width: 26px; height: 26px; font-size: 12px; }
+  .arena .duelist .who span { display: none; }
+  .arena .phases button.go { min-height: 32px; }
+  #table > .panel-fab, #table > .emote-fab, #table > .side-fab { width: 40px; height: 40px; }
+  #table { padding: 6px 8px; }
+}
