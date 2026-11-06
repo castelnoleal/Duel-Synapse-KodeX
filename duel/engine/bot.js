@@ -3,7 +3,7 @@
 //  - "random":  plays legal moves at random (useful for stress-testing decks and the engine)
 //  - "smart":   Synapse AI (smart.js) plays to win; anything it can't judge falls back to safe defaults
 import { smartAnswer } from "./smart.js";
-import { MSG, IDLE, BATTLE_ACT, POS_FACEUP_ATTACK, POS_FACEUP_DEFENSE, POS_FACEDOWN_DEFENSE, POS_FACEDOWN_ATTACK } from "./constants.js";
+import { MSG, IDLE, BATTLE_ACT, POS_FACEUP_ATTACK, POS_FACEUP_DEFENSE, POS_FACEDOWN_DEFENSE, POS_FACEDOWN_ATTACK, LOCATION_MZONE } from "./constants.js";
 import { isDeclarable, placesFromMask, findSum } from "./rules.js";
 
 const pick = (a, rnd) => a[Math.floor(rnd() * a.length)];
@@ -69,9 +69,21 @@ export function botAnswer(msg, { mode = "passive", db, rnd = Math.random, view =
     case MSG.SELECT_DISFIELD: {
       const free = placesFromMask(msg.field_mask, msg.player);
       const own = free.filter((p) => p.player === msg.player);
-      const pool = msg.type === MSG.SELECT_DISFIELD ? (free.filter((p) => p.player !== msg.player).length ? free.filter((p) => p.player !== msg.player) : free) : (own.length ? own : free);
+      let pool = msg.type === MSG.SELECT_DISFIELD ? (free.filter((p) => p.player !== msg.player).length ? free.filter((p) => p.player !== msg.player) : free) : (own.length ? own : free);
+      // Real zones first (Main Monster Zones, Spell & Trap Zones, Field Zone); Extra Monster Zones and the old
+      // Pendulum Zone slots only when nothing else is left, since the engine can reject them.
+      const usual = (p) => (p.location === LOCATION_MZONE ? p.sequence < 5 : p.sequence < 6);
+      pool = [...pool.filter(usual), ...pool.filter((p) => !usual(p))];
       const out = [];
-      for (let i = 0; i < msg.count && pool.length; i++) out.push(pool.splice(passive ? 0 : Math.floor(rnd() * pool.length), 1)[0]);
+      if (retry) {
+        // the last choice was refused: walk through every candidate in turn instead of repeating it
+        const r = retry % Math.max(1, pool.length);
+        pool = [...pool.slice(r), ...pool.slice(0, r)];
+        for (let i = 0; i < msg.count && pool.length; i++) out.push(pool.shift());
+        return { t: msg.type, places: out };
+      }
+      const n = pool.filter(usual).length || pool.length;
+      for (let i = 0; i < msg.count && pool.length; i++) out.push(pool.splice(passive ? 0 : Math.floor(rnd() * Math.min(n - i > 0 ? n - i : pool.length, pool.length)), 1)[0]);
       return { t: msg.type, places: out };
     }
     case MSG.SELECT_POSITION: {

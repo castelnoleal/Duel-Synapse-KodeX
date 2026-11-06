@@ -252,11 +252,14 @@ export default {
         });
       }
 
-      const art = url.pathname.match(/^\/img\/([0-9]{3,10})\.jpg$/);
+      // /img/ID.jpg: the small picture (lists, the Arena). /img/full/ID.jpg: the full picture (offline card databases,
+      // same size desktop duel clients keep in their "pics" folder).
+      const art = url.pathname.match(/^\/img\/(full\/)?([0-9]{3,10})\.jpg$/);
       if (art) {
         // Card art comes from YGOPRODeck, which throttles bursts: retry a few times and only cache real pictures
         // (a cached error would keep a card broken for weeks). "v=2" skips error entries cached by the first release.
-        const sources = [`https://images.ygoprodeck.com/images/cards_small/${art[1]}.jpg?v=2`, `https://images.ygoprodeck.com/images/cards/${art[1]}.jpg?v=2`];
+        const id = art[2], small = `https://images.ygoprodeck.com/images/cards_small/${id}.jpg?v=2`, full = `https://images.ygoprodeck.com/images/cards/${id}.jpg?v=2`;
+        const sources = art[1] ? [full, small] : [small, full];
         let upstream = null;
         for (let attempt = 0; attempt < 3 && !(upstream && upstream.ok); attempt++) {
           if (attempt) await new Promise((r) => setTimeout(r, 300 * attempt));

@@ -374,3 +374,72 @@ body.at-table .blob { animation-duration: 60s; }
 body.cf-frozen .arena, body.cf-frozen #table > :not(.card-fx) { filter: grayscale(1) contrast(1.15); }
 body.cf-sepia .arena, body.cf-sepia #table > :not(.card-fx) { filter: sepia(.85) contrast(1.05); }
 @media (prefers-reduced-motion: reduce) { .card-fx * { animation: none !important; } }
+
+/* ---------- v57 showdowns: shared by the winning-blow finale and Ace cards ---------- */
+.cf-word2 { left: 0; right: 0; text-align: center; font: 900 italic clamp(30px, 9vmin, 92px)/1 "Chakra Petch", system-ui, sans-serif; letter-spacing: .04em; color: #fff; -webkit-text-stroke: 2px #0c0f1f; paint-order: stroke fill; text-shadow: 4px 4px 0 #0c0f1f, 0 0 28px var(--wc, #8d99ff); white-space: nowrap; }
+.cf-word2.domain { --wc: #b46bff; letter-spacing: .14em; font-style: normal; }
+.cf-word2.impact { --wc: #fff; color: #0c0f1f; -webkit-text-stroke: 3px #fff; font-size: clamp(44px, 14vmin, 140px); }
+.cf-word2.destiny { --wc: #ffd46b; color: #fff4cf; }
+.cf-word2.finalblow { --wc: #9fe2ff; font-size: clamp(22px, 6vmin, 60px); letter-spacing: .2em; }
+.cf-word2.ko { --wc: #ff4d6a; color: #ffe066; font-size: clamp(56px, 18vmin, 180px); }
+.cf-word2.powerup { --wc: #ffb347; color: #ffe066; }
+.cf-word2.beam { --wc: #7fe0ff; color: #e9fbff; }
+.cf-veil-all.domain { background: #05030d; }
+.cf-veil-all.allout { background: radial-gradient(ellipse at 50% 50%, #8a0a1a88, #0a0204ee 72%); }
+.cf-veil-all.impact { background: #0c0f1fcc; }
+.cf-veil-all.destiny { background: radial-gradient(ellipse at 50% 40%, #3b2a0a88, #07090ff0 70%); }
+.cf-veil-all.finalblow { background: radial-gradient(ellipse at 50% 46%, #0b3a6a99, #050812f2 72%); }
+.cf-veil-all.powerup { background: radial-gradient(ellipse at 50% 55%, #6b4a0a99, #0c0802f0 72%); }
+.cf-veil-all.beam { background: radial-gradient(ellipse at 50% 46%, #0a3a5a99, #03070ef2 72%); }
+.cf-veil-all.spotlight { background: radial-gradient(ellipse at 50% 45%, #1b2a8a99 10%, #0c0f1ff0 72%); }
+.cf-veil-all.radiant { background: radial-gradient(ellipse at 50% 45%, #6b5a1a99 10%, #0c0f1ff0 72%); }
+.cf-void { inset: 0; background: radial-gradient(circle at 50% 46%, #2a0a4a 0%, #0a0414 45%, #000 80%); }
+.cf-sigil { left: 50%; top: 46%; border-radius: 50%; }
+.cf-sigil.a { width: 86vmin; height: 86vmin; border: 3px solid #b46bff; box-shadow: 0 0 40px #b46bff, inset 0 0 40px #b46bff66; background: repeating-conic-gradient(#b46bff33 0 2deg, transparent 2deg 15deg); -webkit-mask: radial-gradient(circle, transparent 60%, #000 61%); mask: radial-gradient(circle, transparent 60%, #000 61%); }
+.cf-sigil.b { width: 64vmin; height: 64vmin; border: 2px dashed #e0c3ff; }
+.cf-sigil.c { width: 46vmin; height: 46vmin; background: conic-gradient(from 0deg, transparent 0 40deg, #b46bff55 40deg 50deg, transparent 50deg 160deg, #b46bff55 160deg 170deg, transparent 170deg 280deg, #b46bff55 280deg 290deg, transparent 290deg); border-radius: 50%; }
+.cf-hero.domain img { box-shadow: 0 0 0 4px #0c0f1f, 0 0 60px #b46bff, 0 0 140px #5a1aa8; }
+.cf-panel { top: 0; bottom: 0; width: 26vw; background: #1a0004 center / cover no-repeat; border-left: 6px solid #0a0002; border-right: 6px solid #fff; filter: grayscale(1) contrast(1.6) brightness(.9); mix-blend-mode: normal; box-shadow: 0 0 0 3px #e0102a inset; }
+.cf-panel.p0 { left: -4vw; } .cf-panel.p1 { left: 18vw; } .cf-panel.p2 { left: 40vw; } .cf-panel.p3 { left: 62vw; } .cf-panel.p4 { left: 84vw; }
+.cf-panel::after { content: ""; position: absolute; inset: 0; background: linear-gradient(160deg, #e0102acc, #0a0002aa 60%); mix-blend-mode: multiply; }
+.cf-cutout { left: 50%; top: 48%; display: flex; flex-wrap: nowrap; gap: 2px; white-space: nowrap; }
+.cf-cutout b { display: inline-block; font: 900 clamp(26px, 8vmin, 80px)/1 "Chakra Petch", system-ui, sans-serif; padding: .08em .14em; background: #fff; color: #0a0002; transform: rotate(var(--r)); box-shadow: 4px 4px 0 #e0102a; }
+.cf-cutout b:nth-child(3n) { background: #e0102a; color: #fff; box-shadow: 4px 4px 0 #0a0002; }
+.cf-cutout b:nth-child(4n+1) { background: #0a0002; color: #fff; font-style: italic; }
+.cf-cutout b:nth-child(4) { width: .4em; background: none; box-shadow: none; }
+.cf-cutout b:nth-child(8) { width: .4em; background: none; box-shadow: none; }
+.cf-hero.impact img { box-shadow: 0 0 0 4px #fff, 0 0 0 10px #0c0f1f, 0 30px 60px #000c; }
+.cf-crack { width: 46vmin; height: 46vmin; background: repeating-conic-gradient(#fff 0 2deg, transparent 2deg 22deg); -webkit-mask: radial-gradient(circle, #000 10%, transparent 64%); mask: radial-gradient(circle, #000 10%, transparent 64%); }
+.cf-drawcard { left: 50%; top: 30%; width: clamp(90px, 22vmin, 200px); aspect-ratio: 59/86; border-radius: 8px; background: url("./assets/meiocg-192.webp") center / 55% no-repeat, radial-gradient(circle at 50% 45%, #1b3a6a, #0c1426 62%, #070b16); border: 3px solid #ffd46b; box-shadow: 0 0 40px #ffd46b, 0 0 90px #f0b429; }
+.cf-spark { color: #ffe08a; font-size: clamp(14px, 3vmin, 26px); text-shadow: 0 0 12px #ffd46b; }
+.cf-hero.destiny img { box-shadow: 0 0 0 4px #0c0f1f, 0 0 60px #ffd46b, 0 0 140px #f0b429; }
+.cf-starburst { left: 50%; top: 46%; width: 150vmax; height: 150vmax; background: repeating-conic-gradient(#9fe2ff44 0 4deg, transparent 4deg 12deg); -webkit-mask: radial-gradient(circle, transparent 8%, #000 30%, transparent 70%); mask: radial-gradient(circle, transparent 8%, #000 30%, transparent 70%); }
+.cf-hero.finalblow img { box-shadow: 0 0 0 4px #fff, 0 0 60px #9fe2ff, 0 0 140px #2b7fff; }
+.cf-aura { left: 50%; top: 46%; width: clamp(220px, 60vmin, 560px); height: clamp(300px, 80vmin, 720px); border-radius: 50% 50% 46% 46% / 60% 60% 40% 40%; background: radial-gradient(ellipse at 50% 60%, #fff8 0, #ffe066cc 20%, #ffb34788 45%, transparent 70%); filter: blur(6px); animation: cfFlicker .18s steps(2) infinite; }
+@keyframes cfFlicker { 50% { filter: blur(9px) brightness(1.2); } }
+.cf-ember { bottom: 0; width: 8px; height: 18px; border-radius: 50%; background: radial-gradient(#fff, #ffe066 40%, #ff8a3a 80%); box-shadow: 0 0 12px #ffb347; }
+.cf-hero.powerup img { box-shadow: 0 0 0 4px #0c0f1f, 0 0 60px #ffe066, 0 0 140px #ffb347; }
+.cf-orb { left: 50%; top: 46%; width: clamp(120px, 34vmin, 320px); aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle, #fff 0, #c9f4ff 25%, #3ac8ff 55%, transparent 72%); box-shadow: 0 0 80px #3ac8ff, 0 0 160px #2b7fff; }
+.cf-mote { width: 10px; height: 10px; margin: -5px; border-radius: 50%; background: #c9f4ff; box-shadow: 0 0 14px #3ac8ff; }
+.cf-beam { left: 0; right: 0; top: 46%; height: clamp(90px, 30vmin, 300px); transform-origin: 50% 50%; background: linear-gradient(180deg, transparent, #3ac8ff88 18%, #c9f4ff 40%, #fff 50%, #c9f4ff 60%, #3ac8ff88 82%, transparent); box-shadow: 0 0 80px #3ac8ff; }
+.cf-hero.beam img { box-shadow: 0 0 0 4px #0c0f1f, 0 0 60px #3ac8ff, 0 0 140px #2b7fff; }
+.cf-spot { left: 50%; top: 0; width: 70vmin; height: 100vh; background: linear-gradient(180deg, #c9d2ff66, transparent 85%); clip-path: polygon(40% 0, 60% 0, 100% 100%, 0 100%); }
+.cf-hero.spotlight img { box-shadow: 0 0 0 4px #0c0f1f, 0 0 60px #8d99ff, 0 0 120px #3347f0; }
+.cf-hero.radiant img { box-shadow: 0 0 0 4px #0c0f1f, 0 0 60px #ffe08a, 0 0 140px #f0b429; }
+body.cf-inv .arena, body.cf-inv #table > :not(.card-fx), body.cf-inv .card-fx .cf-hero { filter: invert(1) grayscale(1) contrast(2); }
+body.cf-redshift .arena, body.cf-redshift #table > :not(.card-fx) { filter: grayscale(1) sepia(1) hue-rotate(-50deg) saturate(4) contrast(1.2); }
+body.cf-quake .arena, body.cf-quake #table > :not(.card-fx) { animation: cfQuake .12s linear infinite; }
+@keyframes cfQuake { 25% { transform: translate(3px, -2px); } 50% { transform: translate(-3px, 2px); } 75% { transform: translate(2px, 3px); } }
+
+/* ---------- v57: the effect being activated ---------- */
+.chain-cap .eff { display: block; max-width: min(78vw, 420px); margin-top: 4px; padding: 6px 10px; border-radius: 10px; background: #0c0f1fd9; border: 1px solid #8be1ff55; color: #e7f6ff; font-size: 13px; font-weight: 700; line-height: 1.3; text-align: center; }
+.chain-cap .eff::before { content: "Effect"; display: block; font-size: 9.5px; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; color: var(--a2, #8be1ff); margin-bottom: 2px; }
+.chain-list { display: grid; gap: 6px; margin: 0 0 10px; padding: 0; list-style: none; }
+.chain-list li { display: grid; grid-template-columns: 26px 34px minmax(0, 1fr); gap: 8px; align-items: center; padding: 6px 8px; border-radius: 10px; background: #ffffff08; border: 1px solid var(--line, #ffffff1a); font-size: 12.5px; line-height: 1.3; cursor: pointer; }
+.chain-list li.op { border-left: 3px solid #e0566b; } .chain-list li.me { border-left: 3px solid #6f7dff; }
+.chain-list li > b { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--a2, #8be1ff); color: #04101f; font-weight: 900; font-size: 12px; }
+.chain-list li .th { width: 34px; aspect-ratio: 59/86; border-radius: 3px; overflow: hidden; background: #1b2147; }
+.chain-list li .th img, .chain-list li .th .nm { width: 100%; height: 100%; object-fit: cover; font-size: 0; }
+.chain-list li span { min-width: 0; } .chain-list li strong { display: block; font-size: 12.5px; } .chain-list li em { display: block; font-style: normal; color: var(--a2, #8be1ff); font-weight: 700; }
+.fd .ef { display: block; color: var(--a2, #8be1ff); font-weight: 700; font-size: 10.5px; }
+.cf-hero.ace ~ .cf-ace-tag, .cf-ace-tag { top: auto; bottom: 15vh; }

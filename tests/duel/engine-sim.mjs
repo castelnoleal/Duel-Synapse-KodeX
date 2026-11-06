@@ -48,7 +48,7 @@ for (let d = 0; d < N; d++) {
   while (!host.ended) {
     if (!host.pending) throw new Error("No pending prompt and duel not ended");
     const { player, msg } = host.pending;
-    const ans = botAnswer(msg, { mode, db, rnd });
+    const ans = botAnswer(msg, { mode, db, rnd, retry: retries });
     if (!ans) throw new Error("Bot could not answer " + MSG_NAME[msg.type]);
     const before = host.seq;
     const err = host.respond(player, ans);
