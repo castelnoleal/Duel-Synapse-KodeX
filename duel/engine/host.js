@@ -61,12 +61,24 @@ export class DuelHost {
     core.cards = (code) => this.db.engine(code);
     core.scripts = (name) => this.scripts.get(name);
     core.onLog = (text, type) => { if (type === 0 || type === 1) this.log.push(text); };
-    const p = { lp: this.opt.lp, start: this.opt.start, draw: this.opt.draw };
+    const R = this.opt.replay;   // a replay file being re-run: its own seed, options, deck order and answers
+    if (R) { this.seed = R.seed; this.flags = () => R.params.flags; }
+    const p = R ? { lp: R.params.lp, start: R.params.start, draw: R.params.draw } : { lp: this.opt.lp, start: this.opt.start, draw: this.opt.draw };
     this.duel = core.createDuel({ seed: this.seed, flags: this.flags(), players: [p, p] });
     // Everything a replay needs to re-run this duel (see replayFile()).
     this.rec = { seed: this.seed, flags: this.flags(), p, decks: [], responses: [], time: Math.floor(Date.now() / 1000) };
     core.loadScript(this.duel, "constant.lua");
     core.loadScript(this.duel, "utility.lua");
+    if (R) {
+      for (const code of R.rules || []) core.newCard(this.duel, { team: 0, code, location: 0, position: C.POS_FACEDOWN_DEFENSE });
+      R.decks.forEach((d, team) => {
+        for (const code of d.main) core.newCard(this.duel, { team, code, location: C.LOCATION_DECK, position: C.POS_FACEDOWN_DEFENSE });
+        for (const code of d.extra) core.newCard(this.duel, { team, code, location: C.LOCATION_EXTRA, position: C.POS_FACEDOWN_DEFENSE });
+      });
+      core.startDuel(this.duel);
+      this.run();
+      return;
+    }
     this.decks.forEach((d, team) => {
       // Shuffle before handing the deck to the core (the core does not).
       // With "noShuffle" (test hands) the list order is the draw order.
@@ -118,6 +130,15 @@ export class DuelHost {
     try { bytes = encodeResponse(resp); } catch (e) { return String(e.message || e); }
     this.pending = null;
     if (this.rec && bytes.length <= 255) this.rec.responses.push(Uint8Array.from(bytes));
+    this.core.setResponse(this.duel, bytes);
+    this.run();
+    return null;
+  }
+
+  /** Replays: the recorded answer bytes, as they are. */
+  respondRaw(bytes) {
+    if (this.ended || !this.pending) return "No question to answer";
+    this.pending = null;
     this.core.setResponse(this.duel, bytes);
     this.run();
     return null;
@@ -183,6 +204,7 @@ export class DuelHost {
   // Views
   visible(card, viewer, team, location) {
     if (!card) return false;
+    if (viewer === 3) return true;                 // replays: every card face up
     const faceup = !!(card.position & C.POS_FACEUP);
     switch (location) {
       case C.LOCATION_MZONE: case C.LOCATION_SZONE: return faceup || viewer === team;
@@ -252,7 +274,7 @@ export class DuelHost {
   }
 
   maskCode(viewer, code, controller, location, position) {
-    if (viewer === controller) return code;
+    if (viewer === controller || viewer === 3) return code;
     if (location & (C.LOCATION_GRAVE | C.LOCATION_OVERLAY)) return code;
     if (location & (C.LOCATION_DECK | C.LOCATION_HAND)) return 0;
     if (position & C.POS_FACEDOWN) return 0;
@@ -260,6 +282,7 @@ export class DuelHost {
   }
 
   filterEvent(e, viewer) {
+    if (viewer === 3) return e.type === M.HINT && e.hint_type === C.HINT.SELECTMSG ? null : e;
     switch (e.type) {
       case M.HINT: {
         const own = [C.HINT.EVENT, C.HINT.MESSAGE, C.HINT.SELECTMSG, C.HINT.EFFECT].includes(e.hint_type);
@@ -301,7 +324,7 @@ export class DuelHost {
     const raw = this.duel ? this.snapshotRaw() : null;
     this.seq++;
     const log = this.log.splice(0);
-    for (let v = 0; v < 3; v++) {
+    for (const v of this.opt.replay ? [3] : [0, 1, 2]) {
       const ev = events.map((e) => this.filterEvent(e, v)).filter(Boolean);
       const packet = {
         kind: "update", seq: this.seq, viewer: v, turn: this.turn, turnPlayer: this.turnPlayer, phase: this.phase,

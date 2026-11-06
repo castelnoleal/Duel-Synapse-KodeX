@@ -7,6 +7,7 @@ import { botAnswer } from "./engine/bot.js";
 import { observe } from "./engine/smart.js";
 import { Book, Recorder, comboHints } from "./engine/learn.js";
 import { practice } from "./engine/trainer.js";
+import { readReplay } from "./engine/replayfile.js";
 
 let core, db, store, host, bots = {}, mems = {}, retries = {}, lastReplay = null, lastNames = null;
 // Synapse AI learning: the play book for this duel's decks, card-text combo links, and a recorder for people's plays.
@@ -69,8 +70,30 @@ async function init(base) {
   post({ t: "ready", version: core.version.join(".") });
 }
 
+// Replay files: the recorded answers are fed back one at a time, at the chosen speed.
+let rp = null;
+function replayStep() {
+  if (!rp || !host || host.ended) return;
+  clearTimeout(rp.timer);
+  if (rp.paused) return;
+  if (!host.pending) return;
+  rp.timer = setTimeout(() => {
+    if (!rp || !host || host.ended || rp.paused || !host.pending) return;
+    if (rp.i >= rp.r.responses.length) { host.finish(-1, "End of the replay", []); return; }
+    host.respondRaw(rp.r.responses[rp.i++]);
+  }, rp.once ? 0 : Math.round((C_PROMPT_DELAY[host.pending.msg.type] || 520) / rp.speed));
+  rp.once = false;
+}
+const C_PROMPT_DELAY = { 11: 900, 10: 800, 16: 380, 12: 420, 13: 420 };   // idle and battle commands linger a little longer
+
 function emit(viewer, packet) {
   post({ t: "packet", viewer, packet });
+  if (rp && viewer === 3) {
+    if (packet.events.some((e) => e.type === 1)) { host.finish(-1, "The replay went out of step here: it was recorded with different card scripts.", []); return; }
+    post({ t: "replaypos", i: rp.i, n: rp.r.responses.length });
+    replayStep();
+    return;
+  }
   const bot = bots[viewer];
   if (rec && viewer < 2 && !bot) rec.observe(viewer, packet);          // a person's seat (solo player, or either player online)
   if (rec && viewer === 2) {                                           // once per update: hand finished turns to the page
@@ -110,6 +133,26 @@ self.onmessage = async (ev) => {
       await store.preload(codes, (done, total) => post({ t: "progress", done, total }));
       host = new DuelHost({ core, db, scripts: store, decks: m.decks, names: m.names, options: m.options, emit });
       host.start();
+    } else if (m.cmd === "playReplay") {
+      if (host) { host.destroy(); host = null; }
+      bots = {}; mems = {}; retries = {}; rec = null;
+      let r;
+      try { r = readReplay(new Uint8Array(m.bytes)); } catch (e) { post({ t: "replayerr", error: String(e.message || e) }); return; }
+      r.decks = r.decks.map((d) => ({ main: d.main, extra: d.extra }));
+      const codes = [...r.rules, ...r.decks.flatMap((d) => [...d.main, ...d.extra])];
+      const unknown = [...new Set(codes)].filter((c) => !db.has(c));
+      core.missing.clear();
+      await store.preload(codes.filter((c) => db.has(c)), (done, total) => post({ t: "progress", done, total }));
+      rp = { r, i: 0, speed: m.speed || 1, paused: false, timer: 0 };
+      post({ t: "replayinfo", names: r.names, kind: r.kind, turns: r.turns || 0, answers: r.responses.length, unknown: unknown.length, time: r.time });
+      host = new DuelHost({ core, db, scripts: store, decks: r.decks, names: r.names, options: { replay: r }, emit });
+      host.start();
+    } else if (m.cmd === "replayCtl") {
+      if (!rp) return;
+      if (m.speed) rp.speed = m.speed;
+      if (typeof m.paused === "boolean") rp.paused = m.paused;
+      if (m.step) { rp.paused = true; rp.once = true; clearTimeout(rp.timer); if (host && host.pending && !host.ended) { if (rp.i >= rp.r.responses.length) host.finish(-1, "End of the replay", []); else host.respondRaw(rp.r.responses[rp.i++]); } return; }
+      replayStep();
     } else if (m.cmd === "respond") {
       if (!host) return;
       // Record a person's choice against the board it was made on.
@@ -133,6 +176,7 @@ self.onmessage = async (ev) => {
       const bytes = host ? host.replayFile() : lastReplay;
       post({ t: "replay", bytes, names: host ? host.names : lastNames });
     } else if (m.cmd === "stop") {
+      if (rp) { clearTimeout(rp.timer); rp = null; }
       if (rec) { const rows = rec.flush(); if (hasRows(rows)) post({ t: "learn", rows, source: "play" }); rec = null; }
       if (host) { lastReplay = host.replayFile(); lastNames = host.names; host.destroy(); }
       host = null;

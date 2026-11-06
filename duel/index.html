@@ -104,6 +104,7 @@
             <div id="testHand" class="test-hand"></div>
           </details>
           <button class="btn primary wide" id="soloStart" type="button" disabled>Start playtest</button>
+          <label class="btn ghost wide replay-open" id="replayOpen"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M10 9l5 3-5 3z"/></svg><span>Watch a replay file (.yrp / .yrpX)</span><input type="file" id="replayFile" accept=".yrp,.yrpx,.yrpX,application/octet-stream" hidden></label>
         </div>
 
         <div class="pane" data-pane="host" id="hostMode" hidden>
@@ -155,7 +156,6 @@
     <div class="tabs dock-tabs" role="tablist" aria-label="Duel panel">
       <button role="tab" aria-selected="true" data-tab="card" type="button">Card</button>
       <button role="tab" aria-selected="false" data-tab="log" type="button">Log</button>
-      <button role="tab" aria-selected="false" data-tab="chat" type="button">Chat</button>
       <button role="tab" aria-selected="false" data-tab="opts" type="button" aria-label="Options">⚙</button>
     </div>
     <div id="infoBody" class="info-body" data-pane="card"><div class="empty-state small"><img src="./assets/meiocg-192.webp" alt="" width="56" height="56"><p>Select a card</p><small>Tap or hover any card to read it here</small></div></div>
@@ -184,6 +184,14 @@
     <div id="loading" class="loading" hidden><img src="./assets/meiocg-192.webp" alt="" width="64" height="64"><span id="loadingText">Preparing duel…</span></div>
   </section>
 
+  <div id="replayBar" class="replay-bar" hidden role="toolbar" aria-label="Replay">
+    <b class="rb-t">Replay</b>
+    <button type="button" class="rb-b" id="rbPlay" aria-label="Pause">❚❚</button>
+    <button type="button" class="rb-b" id="rbStep" aria-label="Next step">▶|</button>
+    <span class="rb-speed" role="radiogroup" aria-label="Speed"><button type="button" data-sp="0.5">½×</button><button type="button" data-sp="1" aria-pressed="true">1×</button><button type="button" data-sp="2">2×</button><button type="button" data-sp="4">4×</button></span>
+    <span class="rb-pos" id="rbPos"></span>
+    <button type="button" class="rb-b" id="rbExit" aria-label="Close the replay">×</button>
+  </div>
   <button id="emoteBtn" class="emote-fab" type="button" aria-label="Emotes" aria-expanded="false" aria-controls="emotePick"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0"/><path d="M9 9.5h.01M15 9.5h.01"/></svg></button>
   <div id="emotePick" class="emote-pick" hidden role="menu" aria-label="Emotes"></div>
   <button id="sideFab" class="side-fab" type="button" aria-label="Log and chat" aria-expanded="false" aria-controls="side"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-5.1A8 8 0 1 1 21 12z"/><path d="M8.5 10.5h7M8.5 13.5h4.5"/></svg><i id="sideBadge" hidden>0</i></button>
@@ -202,6 +210,14 @@
       <label class="toggle"><input type="checkbox" id="skipChains"><span>Auto-skip chain prompts</span></label>
       <label class="toggle"><input type="checkbox" id="musicOn"><span>Music</span></label>
       <label class="toggle"><input type="checkbox" id="sfxOn"><span>Sounds</span></label>
+      <div class="view-opts mute-opts" role="group" aria-label="Mute">
+        <span class="vo-l">Mute</span>
+        <label class="toggle"><input type="checkbox" id="mute-opp"><span>Opponent (chat, emotes, sounds)</span></label>
+        <label class="toggle"><input type="checkbox" id="mute-chat"><span>Chat</span></label>
+        <label class="toggle"><input type="checkbox" id="mute-emotes"><span>Emotes</span></label>
+        <label class="toggle"><input type="checkbox" id="mute-voices"><span>Card voices &amp; emote sounds</span></label>
+        <button type="button" class="btn ghost" id="muteAll">Mute all</button>
+      </div>
       <div class="view-opts" role="group" aria-label="Field view">
         <span class="vo-l">Field view</span>
         <div class="seg" id="viewSeg"><button type="button" data-view="tilt">Tilted</button><button type="button" data-view="flat">Flat</button><button type="button" data-view="wide">Large field</button></div>

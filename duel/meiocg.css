@@ -321,3 +321,56 @@ body.at-table .blob { animation-duration: 60s; }
 .mv-impact.beam { background: radial-gradient(circle, #fff 0 12%, #b9c2ff 30%, #3347f088 50%, transparent 70%); }
 .mv-impact.claw { background: radial-gradient(circle, #fff 0 8%, #ff3a5088 40%, transparent 70%); }
 .mv-impact.phantom { background: radial-gradient(circle, #fff 0 10%, #c8b3ff 30%, #7a4fd688 50%, transparent 70%); }
+
+/* ---------- card moments (cardfx.js): staples, the finale, Ace cards ---------- */
+.card-fx { position: fixed; inset: 0; pointer-events: none; z-index: 62; overflow: hidden; }
+.card-fx > * { position: fixed; pointer-events: none; will-change: transform, opacity; }
+.cf-p { left: 0; top: 0; font-size: clamp(18px, 3.4vmin, 34px); line-height: 1; text-shadow: 0 0 10px currentColor; }
+.cf-stamp { left: 50%; top: 44%; display: grid; justify-items: center; gap: 4px; padding: 10px 26px 12px; border: 4px solid var(--c); border-radius: 14px; background: #0c0f1fd9;
+  box-shadow: 0 0 0 3px #0c0f1f, 0 0 30px var(--c), inset 0 0 22px color-mix(in srgb, var(--c) 40%, transparent); }
+.cf-word { font: 900 clamp(26px, 7.5vmin, 66px)/1 "Chakra Petch", system-ui, sans-serif; letter-spacing: .04em; color: #fff; text-shadow: 0 0 18px var(--c), 3px 3px 0 #000; white-space: nowrap; }
+.cf-sub { font: 800 clamp(10px, 1.8vmin, 14px)/1 "Chakra Petch", system-ui, sans-serif; letter-spacing: .22em; text-transform: uppercase; color: var(--c); }
+.cf-veil { inset: 0; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--c) 45%, transparent) 30%, #ffffff55 50%, color-mix(in srgb, var(--c) 45%, transparent) 70%, transparent); }
+.cf-slash { left: 50%; top: 50%; width: 140vmax; height: 14px; border-radius: 7px; background: var(--c); box-shadow: 0 0 30px var(--c), 0 0 0 4px #ffffffcc inset; transform-origin: 50% 50%; }
+.cf-ring { width: 70vmin; height: 70vmin; border-radius: 50%; border: 6px dashed var(--c); box-shadow: 0 0 40px var(--c), inset 0 0 40px var(--c); }
+.cf-ring.vortex { border-style: solid; border-width: 10px; border-color: var(--c) transparent var(--c) transparent; }
+.cf-bolt { top: 0; width: 6px; height: 100vh; margin-left: -3px; background: linear-gradient(#fff, var(--c)); box-shadow: 0 0 24px var(--c), 0 0 60px var(--c); clip-path: polygon(40% 0, 100% 30%, 30% 45%, 100% 70%, 0 100%, 60% 60%, 0 45%, 70% 25%); width: 60px; margin-left: -30px; }
+.cf-flash { inset: 0; background: #fff; mix-blend-mode: screen; }
+.cf-wave { width: 220vmax; height: 220vmax; border-radius: 50%; background: radial-gradient(circle, transparent 40%, color-mix(in srgb, var(--c) 55%, transparent) 50%, transparent 62%); }
+.cf-rays { width: 120vmin; height: 120vmin; border-radius: 50%; background: repeating-conic-gradient(color-mix(in srgb, var(--c) 55%, transparent) 0 5deg, transparent 5deg 18deg); -webkit-mask: radial-gradient(circle, #000 15%, transparent 68%); mask: radial-gradient(circle, #000 15%, transparent 68%); }
+.cf-sun { top: 0; width: 40vmin; height: 40vmin; border-radius: 50%; background: radial-gradient(circle, #fff, #ffd46b 35%, #ff6a2a 70%, transparent 72%); box-shadow: 0 0 80px #ff8a3a; }
+.cf-big { font-size: clamp(80px, 26vmin, 220px); line-height: 1; filter: drop-shadow(0 0 30px var(--c)); }
+.cf-cardfan { width: clamp(70px, 16vmin, 130px); aspect-ratio: 59/86; border-radius: 8px; background: linear-gradient(160deg, #2b37a8, #7a4fd6 60%, #f0b429); border: 3px solid #fff; box-shadow: 0 0 26px var(--c); transform-origin: 50% 120%; }
+.cf-kaiju { inset: 0; display: grid; place-items: center; font-size: 70vmin; filter: brightness(0) drop-shadow(0 0 30px var(--c)); opacity: .8; }
+/* finale */
+.cf-veil-all { inset: 0; background: radial-gradient(ellipse at 50% 45%, transparent 20%, #0c0f1fd0 75%); }
+.cf-veil-all.menacing { background: radial-gradient(ellipse at 50% 45%, #3b1a6b88 10%, #0c0f1fe6 75%), repeating-radial-gradient(circle at 50% 45%, transparent 0 6px, #c48bff14 6px 7px); }
+.cf-veil-all.rush { background: radial-gradient(ellipse at 50% 45%, #6b1a1a88 10%, #0c0f1fe6 75%); }
+.cf-veil-all.timestop { background: #0c0f1f55; }
+.cf-veil-all.freeze { background: #2a1a0a55; }
+.cf-speed { inset: -20%; background: repeating-conic-gradient(from 0deg at 50% 45%, var(--c) 0 .6deg, transparent .6deg 6deg); -webkit-mask: radial-gradient(circle at 50% 45%, transparent 18%, #000 60%); mask: radial-gradient(circle at 50% 45%, transparent 18%, #000 60%); opacity: .5; animation: cfSpin 6s linear infinite; }
+@keyframes cfSpin { to { transform: rotate(360deg); } }
+.cf-hero { left: 50%; top: 46%; display: grid; justify-items: center; gap: 10px; }
+.cf-hero img { width: clamp(120px, 34vmin, 300px); aspect-ratio: 59/86; object-fit: cover; border-radius: 12px; border: 3px solid #fff; box-shadow: 0 0 0 4px #0c0f1f, 0 0 50px #c48bff, 0 30px 60px #000c; }
+.cf-hero.rush img { box-shadow: 0 0 0 4px #0c0f1f, 0 0 50px #ff5a3a, 0 30px 60px #000c; }
+.cf-hero.freeze img { filter: sepia(.8) contrast(1.1); }
+.cf-hero.ace.spotlight img { box-shadow: 0 0 0 4px #0c0f1f, 0 0 60px #8d99ff, 0 0 120px #3347f0; }
+.cf-hero.ace.radiant img { box-shadow: 0 0 0 4px #0c0f1f, 0 0 60px #ffe08a, 0 0 140px #f0b429; }
+.cf-hero-t { font: 900 italic clamp(20px, 5.6vmin, 50px)/1.05 "Chakra Petch", system-ui, sans-serif; color: #fff; text-align: center; max-width: 92vw; letter-spacing: .02em;
+  -webkit-text-stroke: 2px #0c0f1f; paint-order: stroke fill; text-shadow: 4px 4px 0 #f0b429, 0 0 30px #c48bff; transform: skewX(-8deg); }
+.cf-sfx { position: fixed; font: 900 italic 60px/1 "Chakra Petch", system-ui, sans-serif; -webkit-text-stroke: 2px #0c0f1f; paint-order: stroke fill; text-shadow: 4px 4px 0 #0c0f1f, 0 0 20px currentColor; white-space: nowrap; }
+.cf-fist { font-size: clamp(36px, 10vmin, 90px); filter: drop-shadow(0 0 10px #ff5a3a); }
+.cf-rushword { left: 0; right: 0; top: 70%; text-align: center; font: 900 italic clamp(30px, 9vmin, 84px)/1 "Chakra Petch", system-ui, sans-serif; color: #ffcf5a; -webkit-text-stroke: 2px #0c0f1f; paint-order: stroke fill; white-space: nowrap; }
+.cf-tswave { left: 50%; top: 50%; width: 260vmax; height: 260vmax; border-radius: 50%; background: #fff; mix-blend-mode: difference; }
+.cf-clock { left: 50%; top: 40%; font-size: clamp(80px, 24vmin, 200px); }
+.cf-tsword { left: 0; right: 0; top: 62%; text-align: center; font: 900 clamp(34px, 10vmin, 96px)/1 "Chakra Petch", system-ui, sans-serif; color: #fff; text-shadow: 0 0 30px #8d99ff, 4px 4px 0 #000; }
+.cf-tbc { left: 3vw; bottom: 8vh; display: flex; align-items: center; height: clamp(44px, 9vmin, 76px); padding: 0 34px 0 18px; background: #3b2a12; border: 3px solid #e8c46a; clip-path: polygon(0 0, 88% 0, 100% 50%, 88% 100%, 0 100%); }
+.cf-tbc-t { font: 900 italic clamp(16px, 4.2vmin, 36px)/1 "Chakra Petch", system-ui, sans-serif; color: #f6e2a8; letter-spacing: .06em; white-space: nowrap; }
+.cf-line { left: 50%; bottom: 8vh; transform: translateX(-50%); font: 800 clamp(13px, 2.6vmin, 20px)/1.2 "Chakra Petch", system-ui, sans-serif; letter-spacing: .14em; text-transform: uppercase; color: #ffe9a8; text-shadow: 0 0 12px #000, 0 2px 0 #000; white-space: nowrap; }
+.cf-ace-bg { inset: 0; background: radial-gradient(ellipse at 50% 45%, #1b2a8a99 10%, #0c0f1ff0 72%); }
+.cf-ace-bg.menacing { background: radial-gradient(ellipse at 50% 45%, #3b1a6b99 10%, #0c0f1ff0 72%); }
+.cf-ace-bg.radiant { background: radial-gradient(ellipse at 50% 45%, #6b5a1a99 10%, #0c0f1ff0 72%); }
+.cf-ace-tag { left: 50%; top: 9vh; padding: 6px 16px; border-radius: 999px; background: linear-gradient(90deg, #3347f0, #7a4fd6, #f0b429); color: #fff; font: 900 clamp(11px, 2vmin, 15px)/1 "Chakra Petch", system-ui, sans-serif; letter-spacing: .24em; box-shadow: 0 0 24px #7a4fd6; }
+body.cf-frozen .arena, body.cf-frozen #table > :not(.card-fx) { filter: grayscale(1) contrast(1.15); }
+body.cf-sepia .arena, body.cf-sepia #table > :not(.card-fx) { filter: sepia(.85) contrast(1.05); }
+@media (prefers-reduced-motion: reduce) { .card-fx * { animation: none !important; } }

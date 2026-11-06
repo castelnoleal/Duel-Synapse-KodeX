@@ -24,6 +24,7 @@
 <script type="module">
 import { runFinisher, zoneStrike, STYLES } from "./finisher.js";
 import { entrance, attack, ENTRANCES, ATTACKS } from "./moves.js";
+import { finale, ace, staple, FINALES, ACE_STYLES } from "./cardfx.js";
 const f = document.getElementById("field");
 const KINDS = ["effect", "spell", "trap", "fusion", "synchro", "xyz", "link", "normal"];
 const NAMES = ["Synapse Dragon", "Meta Field", "Insider Trap", "Fusion Core", "Tuner Wing", "Rank Knight", "Link Circuit", "Duelist"];
@@ -44,9 +45,22 @@ function build() {
   return sig;
 }
 // #shatter (a finishing move), #entrance:portal or #attack:beam
-const [kind, name] = location.hash.slice(1).includes(":") ? location.hash.slice(1).split(":") : ["finish", location.hash.slice(1)];
-const style = kind === "entrance" ? (ENTRANCES.includes(name) ? name : "rise") : kind === "attack" ? (ATTACKS.includes(name) ? name : "lunge") : STYLES.includes(name) ? name : "shatter";
-document.getElementById("cap").textContent = style + (kind === "entrance" ? " · entrance" : kind === "attack" ? " · attack" : " · finishing move");
+// #shatter (a finishing move), #entrance:portal, #attack:beam, #finale:rush, #ace:radiant, #staple:Ash Blossom & Joyous Spring
+const h = decodeURIComponent(location.hash.slice(1));
+const [kind, name] = h.includes(":") ? [h.slice(0, h.indexOf(":")), h.slice(h.indexOf(":") + 1)] : ["finish", h];
+const style = kind === "entrance" ? (ENTRANCES.includes(name) ? name : "rise") : kind === "attack" ? (ATTACKS.includes(name) ? name : "lunge")
+  : kind === "finale" ? (FINALES.includes(name) ? name : "menacing") : kind === "ace" ? (ACE_STYLES.includes(name) ? name : "spotlight") : kind === "staple" ? name : STYLES.includes(name) ? name : "shatter";
+document.getElementById("cap").textContent = style + ({ entrance: " · entrance", attack: " · attack", finale: " · winning attack", ace: " · Ace card", staple: "" }[kind] ?? " · finishing move");
+const demoArt = () => { const c = document.createElement("canvas"); c.width = 236; c.height = 344; const g = c.getContext("2d"), gr = g.createLinearGradient(0, 0, 236, 344); gr.addColorStop(0, "#3347f0"); gr.addColorStop(.6, "#7a4fd6"); gr.addColorStop(1, "#f0b429"); g.fillStyle = gr; g.fillRect(0, 0, 236, 344); g.fillStyle = "#ffffffcc"; g.font = "bold 120px sans-serif"; g.textAlign = "center"; g.fillText("★", 118, 220); return c.toDataURL(); };
+async function loopShow() {
+  for (;;) {
+    build();
+    await wait(400);
+    if (kind === "finale") { await finale(style, { src: demoArt(), title: "Your Ace Monster", line: "attacks for the win" }); await wait(500); }
+    else if (kind === "ace") { await ace(style, { src: demoArt(), title: "Your Ace Card", owner: "You" }); await wait(500); }
+    else { staple(style, null); await wait(2400); }
+  }
+}
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 async function loopMoves() {
   for (;;) {
@@ -61,7 +75,7 @@ async function loopMoves() {
     }
   }
 }
-if (kind === "entrance" || kind === "attack") loopMoves(); else loop();
+if (kind === "entrance" || kind === "attack") loopMoves(); else if (kind === "finale" || kind === "ace" || kind === "staple") loopShow(); else loop();
 async function loop() {
   for (;;) {
     const sig = build();

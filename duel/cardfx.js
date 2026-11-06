@@ -1,0 +1,228 @@
+// Card-specific moments for everyone, plus KodeX Premium showcases:
+//  • staple(name): a unique animation for the most-played hand traps and staples, by card name (alt arts included)
+//  • finale(style): a 3+ second dramatic, comic-style beat before an attack that wins the duel
+//  • ace(): a KodeX Premium "Ace card" shown big on screen before its effect resolves
+// Only transforms and opacity are animated; everything sits on one fixed layer that ignores taps.
+export const FINALES = ["menacing", "rush", "timestop", "freeze"];
+export const ACE_STYLES = ["spotlight", "menacing", "radiant"];
+const rnd = (a, b) => a + Math.random() * (b - a);
+const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+const px = (n) => Math.round(n) + "px";
+const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+function layer() {
+  let l = document.getElementById("cardFx");
+  if (!l) { l = document.createElement("div"); l.id = "cardFx"; l.className = "card-fx"; l.setAttribute("aria-hidden", "true"); document.body.append(l); }
+  return l;
+}
+function div(cls, css, text) { const d = document.createElement("div"); d.className = cls; if (css) for (const [k, v] of Object.entries(css)) { if (k.startsWith("--")) d.style.setProperty(k, v); else d.style[k] = v; } if (text != null) d.textContent = text; return d; }
+const later = (n, ms) => setTimeout(() => n.remove(), ms);
+
+// ---------------------------------------------------------------- staples
+// kind: how the particles move. glyph: what they are. word: the stamp. col: the colour of the moment.
+const STAPLES = {
+  "ash blossom joyous spring": { kind: "swirl", glyph: ["🌸", "✿", "❀"], word: "ASH BLOSSOM", sub: "negated", col: "#ff8fc0" },
+  "ghost belle haunted mansion": { kind: "rise", glyph: ["👻", "🔔"], word: "GHOST BELLE", sub: "the graveyard is sealed", col: "#b7a6ff" },
+  "effect veiler": { kind: "veil", glyph: ["✧"], word: "VEILED", sub: "effects negated", col: "#9fd8ff" },
+  "called by the grave": { kind: "rise", glyph: ["💀", "✋"], word: "CALLED BY THE GRAVE", sub: "banished", col: "#c9a6ff" },
+  "crossout designator": { kind: "cross", glyph: ["✖"], word: "CROSSOUT", sub: "declared and denied", col: "#ff4d6a" },
+  "infinite impermanence": { kind: "ring", glyph: ["∞", "⛓"], word: "IMPERMANENCE", sub: "negated", col: "#7fe0ff" },
+  "maxx c": { kind: "dash", glyph: ["🪳", "🪳", "🪳"], word: "MAXX \"C\"", sub: "every summon draws", col: "#c99a5a", many: 26 },
+  "retaliating c": { kind: "dash", glyph: ["🪳"], word: "RETALIATING \"C\"", sub: "", col: "#c99a5a", many: 16 },
+  "droll lock bird": { kind: "fly", glyph: ["🐦", "🔒"], word: "LOCKED", sub: "no more adding cards", col: "#ffd46b" },
+  "ghost ogre snow rabbit": { kind: "fall", glyph: ["❄", "❅", "🐇"], word: "GHOST OGRE", sub: "destroyed", col: "#d8f1ff" },
+  "nibiru the primal being": { kind: "nibiru", glyph: ["☀"], word: "NIBIRU", sub: "the primal being descends", col: "#ffb347" },
+  "d d crow": { kind: "fly", glyph: ["🐦‍⬛", "🪶"], word: "D.D. CROW", sub: "banished", col: "#9aa4bd" },
+  "ghost mourner moonlit chill": { kind: "fall", glyph: ["🌙", "✦"], word: "GHOST MOURNER", sub: "", col: "#c6d4ff" },
+  "ghost sister spooky dogwood": { kind: "fall", glyph: ["🌸", "💮"], word: "GHOST SISTER", sub: "", col: "#ffc2dc" },
+  "dimension shifter": { kind: "ring", glyph: ["◈"], word: "DIMENSION SHIFTER", sub: "banished instead", col: "#b46bff" },
+  "psy framegear gamma": { kind: "bolt", glyph: ["⚡"], word: "GAMMA", sub: "negated", col: "#7fd1ff" },
+  "mulcharmy fuwalos": { kind: "fall", glyph: ["☁", "✧"], word: "MULCHARMY", sub: "every summon draws", col: "#ffd7f0" },
+  "mulcharmy purulia": { kind: "fall", glyph: ["💧", "✧"], word: "MULCHARMY", sub: "every summon draws", col: "#9ce8ff" },
+  "mulcharmy meowls": { kind: "fall", glyph: ["🐾", "✧"], word: "MULCHARMY", sub: "every summon draws", col: "#ffe08a" },
+  "forbidden droplet": { kind: "fall", glyph: ["💧"], word: "FORBIDDEN DROPLET", sub: "", col: "#5ec8ff", many: 30 },
+  "triple tactics talent": { kind: "fan", glyph: ["🂠"], word: "TRIPLE TACTICS", sub: "", col: "#ffcf5a" },
+  "triple tactics thrust": { kind: "fan", glyph: ["🂠"], word: "TRIPLE TACTICS", sub: "", col: "#ffcf5a" },
+  "harpie s feather duster": { kind: "storm", glyph: ["🪶"], word: "FEATHER DUSTER", sub: "", col: "#7fffb0", many: 30 },
+  "raigeki": { kind: "bolt", glyph: ["⚡"], word: "RAIGEKI", sub: "", col: "#ffe46b" },
+  "lightning storm": { kind: "bolt", glyph: ["⚡"], word: "LIGHTNING STORM", sub: "", col: "#ffe46b" },
+  "dark ruler no more": { kind: "wave", glyph: ["☾"], word: "DARK RULER NO MORE", sub: "", col: "#a26bff" },
+  "evenly matched": { kind: "scales", glyph: ["⚖"], word: "EVENLY MATCHED", sub: "", col: "#f0b429" },
+  "pot of prosperity": { kind: "burst", glyph: ["🏺", "🪙"], word: "PROSPERITY", sub: "", col: "#ffcf5a" },
+  "pot of desires": { kind: "burst", glyph: ["🏺", "✦"], word: "POT OF DESIRES", sub: "", col: "#7ff0a6" },
+  "pot of extravagance": { kind: "burst", glyph: ["🏺", "💎"], word: "EXTRAVAGANCE", sub: "", col: "#ff9edb" },
+  "pot of greed": { kind: "burst", glyph: ["🏺"], word: "POT OF GREED", sub: "", col: "#7ff0a6" },
+  "super polymerization": { kind: "vortex", glyph: ["◉"], word: "SUPER POLY", sub: "", col: "#b97bff" },
+  "solemn judgment": { kind: "rays", glyph: ["⚖"], word: "SOLEMN JUDGMENT", sub: "", col: "#ffe08a" },
+  "solemn strike": { kind: "rays", glyph: ["⚖"], word: "SOLEMN STRIKE", sub: "", col: "#ffe08a" },
+  "solemn warning": { kind: "rays", glyph: ["⚖"], word: "SOLEMN WARNING", sub: "", col: "#ffe08a" },
+  "lava golem": { kind: "rise", glyph: ["🔥"], word: "LAVA GOLEM", sub: "", col: "#ff6a2a" },
+  "book of moon": { kind: "moon", glyph: ["🌙"], word: "BOOK OF MOON", sub: "", col: "#c6d4ff" },
+  "cosmic cyclone": { kind: "vortex", glyph: ["✦"], word: "COSMIC CYCLONE", sub: "", col: "#7fd1ff" },
+  "twin twisters": { kind: "vortex", glyph: ["🌀"], word: "TWIN TWISTERS", sub: "", col: "#8ff0d0" },
+  "mystical space typhoon": { kind: "vortex", glyph: ["🌀"], word: "MST", sub: "", col: "#8ff0d0" },
+  "bystial magnamhut": { kind: "wave", glyph: ["✹"], word: "BYSTIAL", sub: "", col: "#ff7a3a" },
+  "bystial druiswurm": { kind: "wave", glyph: ["✹"], word: "BYSTIAL", sub: "", col: "#a26bff" },
+  "kurikara divincarnate": { kind: "rise", glyph: ["🔥", "⚔"], word: "KURIKARA", sub: "", col: "#ff5a3a" },
+  "ice dragon s prison": { kind: "fall", glyph: ["❄"], word: "ICE DRAGON'S PRISON", sub: "", col: "#bfe9ff" },
+  "abominable unchained soul": { kind: "wave", glyph: ["☠"], word: "UNCHAINED", sub: "", col: "#ff4d6a" },
+  "sauravis the ancient and ascended": { kind: "rays", glyph: ["✦"], word: "SAURAVIS", sub: "", col: "#7ff0a6" },
+  "fantastical dragon phantazmay": { kind: "rise", glyph: ["✧"], word: "PHANTAZMAY", sub: "", col: "#ffcf5a" },
+  "dominus impulse": { kind: "bolt", glyph: ["✷"], word: "DOMINUS", sub: "", col: "#ff6a7a" },
+  "dominus purge": { kind: "bolt", glyph: ["✷"], word: "DOMINUS", sub: "", col: "#ff6a7a" },
+  "monster reborn": { kind: "rays", glyph: ["☥"], word: "MONSTER REBORN", sub: "", col: "#ffe08a" },
+  "mirror force": { kind: "cross", glyph: ["◇"], word: "MIRROR FORCE", sub: "", col: "#bfe9ff" },
+  "torrential tribute": { kind: "fall", glyph: ["🌊"], word: "TORRENTIAL", sub: "", col: "#5ec8ff", many: 26 },
+  "skill drain": { kind: "wave", glyph: ["⊘"], word: "SKILL DRAIN", sub: "", col: "#a26bff" },
+  "anti spell fragrance": { kind: "rise", glyph: ["🌼"], word: "ANTI-SPELL", sub: "", col: "#ffe46b" },
+  "gameciel the sea turtle kaiju": { kind: "kaiju", glyph: ["🐢"], word: "KAIJU!", sub: "", col: "#5ec8ff" },
+  "dogoran the mad flame kaiju": { kind: "kaiju", glyph: ["🦖"], word: "KAIJU!", sub: "", col: "#ff6a2a" },
+  "radian the multidimensional kaiju": { kind: "kaiju", glyph: ["👾"], word: "KAIJU!", sub: "", col: "#b46bff" },
+  "kumongous the sticky string kaiju": { kind: "kaiju", glyph: ["🕷"], word: "KAIJU!", sub: "", col: "#c9a6ff" },
+  "gadarla the mystery dust kaiju": { kind: "kaiju", glyph: ["🦋"], word: "KAIJU!", sub: "", col: "#ffd46b" },
+  "jizukiru the star destroying kaiju": { kind: "kaiju", glyph: ["🦂"], word: "KAIJU!", sub: "", col: "#ff9a5a" },
+  "thunder king the lightningstrike kaiju": { kind: "kaiju", glyph: ["⚡"], word: "KAIJU!", sub: "", col: "#ffe46b" },
+};
+export const stapleNames = () => Object.keys(STAPLES);
+export const isStaple = (name) => !!STAPLES[norm(name)];
+
+function stamp(L, word, sub, col, big) {
+  const s = div("cf-stamp" + (big ? " big" : ""), { "--c": col });
+  s.append(div("cf-word", null, word));
+  if (sub) s.append(div("cf-sub", null, sub));
+  L.append(s); later(s, 1900);
+  s.animate([{ transform: "translate(-50%,-50%) scale(2.6) rotate(-8deg)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(.94) rotate(-6deg)", opacity: 1, offset: .16 }, { transform: "translate(-50%,-50%) scale(1) rotate(-6deg)", opacity: 1, offset: .8 }, { transform: "translate(-50%,-50%) scale(1.06) rotate(-6deg)", opacity: 0 }], { duration: 1800, easing: "cubic-bezier(.2,.9,.3,1)", fill: "both" });
+}
+function glyphs(L, spec, from) {
+  const W = innerWidth, H = innerHeight, n = spec.many || 18, g = spec.glyph;
+  for (let i = 0; i < n; i++) {
+    const p = div("cf-p", { color: spec.col }, g[i % g.length]);
+    L.append(p); later(p, 2400);
+    let k;
+    const x0 = from ? from.x : W / 2, y0 = from ? from.y : H / 2;
+    switch (spec.kind) {
+      case "swirl": { const a = (i / n) * Math.PI * 4, r = rnd(60, Math.min(W, H) * .45); k = [{ transform: `translate(${px(x0)},${px(y0)}) scale(.2) rotate(0)`, opacity: 0 }, { transform: `translate(${px(x0 + Math.cos(a) * r * .5)},${px(y0 + Math.sin(a) * r * .5)}) scale(1.2) rotate(180deg)`, opacity: 1, offset: .4 }, { transform: `translate(${px(x0 + Math.cos(a + 1.4) * r)},${px(y0 + Math.sin(a + 1.4) * r + 80)}) scale(.8) rotate(420deg)`, opacity: 0 }]; break; }
+      case "rise": { const x = rnd(W * .15, W * .85); k = [{ transform: `translate(${px(x)},${px(H + 40)}) scale(.8)`, opacity: 0 }, { transform: `translate(${px(x + rnd(-40, 40))},${px(H * .5)}) scale(1.2)`, opacity: 1, offset: .5 }, { transform: `translate(${px(x + rnd(-60, 60))},${px(-60)}) scale(.9)`, opacity: 0 }]; break; }
+      case "fall": case "storm": { const x = rnd(0, W), d = spec.kind === "storm" ? rnd(-300, 300) : rnd(-60, 60); k = [{ transform: `translate(${px(x)},${px(-40)}) rotate(0)`, opacity: 0 }, { transform: `translate(${px(x + d * .5)},${px(H * .5)}) rotate(${rnd(-180, 180)}deg)`, opacity: 1, offset: .45 }, { transform: `translate(${px(x + d)},${px(H + 40)}) rotate(${rnd(-360, 360)}deg)`, opacity: 0 }]; break; }
+      case "dash": { const y = rnd(H * .1, H * .9), dir = i % 2 ? 1 : -1; k = [{ transform: `translate(${px(dir > 0 ? -60 : W + 60)},${px(y)}) scaleX(${-dir})`, opacity: 1 }, { transform: `translate(${px(dir > 0 ? W + 60 : -60)},${px(y + rnd(-60, 60))}) scaleX(${-dir})`, opacity: 1 }]; break; }
+      case "fly": { const y = rnd(H * .2, H * .6); k = [{ transform: `translate(${px(-60)},${px(y)}) scale(1.2)`, opacity: 0 }, { transform: `translate(${px(W * .5)},${px(y - 80)}) scale(1.5)`, opacity: 1, offset: .5 }, { transform: `translate(${px(W + 60)},${px(y - 200)}) scale(1)`, opacity: 0 }]; break; }
+      default: { const a = (i / n) * Math.PI * 2, r = rnd(90, Math.min(W, H) * .5); k = [{ transform: `translate(${px(x0)},${px(y0)}) scale(.3)`, opacity: 1 }, { transform: `translate(${px(x0 + Math.cos(a) * r)},${px(y0 + Math.sin(a) * r)}) scale(1.3) rotate(${rnd(-90, 90)}deg)`, opacity: 0 }]; }
+    }
+    p.animate(k, { duration: spec.kind === "dash" ? rnd(700, 1300) : rnd(1100, 1900), delay: rnd(0, spec.kind === "dash" ? 700 : 300), easing: spec.kind === "dash" ? "linear" : "cubic-bezier(.2,.7,.3,1)", fill: "both" });
+  }
+}
+function overlay(L, spec, at) {
+  const W = innerWidth, H = innerHeight, c = spec.col;
+  const add = (cls, css, kf, opt) => { const d = div(cls, { "--c": c, ...css }); L.append(d); later(d, (opt.duration || 1200) + (opt.delay || 0) + 100); d.animate(kf, { fill: "both", ...opt }); return d; };
+  switch (spec.kind) {
+    case "veil": add("cf-veil", {}, [{ transform: "translateX(-110%) skewX(-12deg)", opacity: .9 }, { transform: "translateX(0) skewX(-12deg)", opacity: .75, offset: .45 }, { transform: "translateX(110%) skewX(-12deg)", opacity: 0 }], { duration: 1300, easing: "cubic-bezier(.5,0,.3,1)" }); break;
+    case "cross": for (const r of [45, -45]) add("cf-slash", { transform: `translate(-50%,-50%) rotate(${r}deg)` }, [{ transform: `translate(-50%,-50%) rotate(${r}deg) scaleX(0)`, opacity: 1 }, { transform: `translate(-50%,-50%) rotate(${r}deg) scaleX(1)`, opacity: 1, offset: .35 }, { transform: `translate(-50%,-50%) rotate(${r}deg) scaleX(1)`, opacity: 0 }], { duration: 1100, delay: r > 0 ? 0 : 160, easing: "cubic-bezier(.2,.9,.2,1)" }); break;
+    case "ring": case "vortex": add("cf-ring " + spec.kind, { left: px(at.x), top: px(at.y) }, [{ transform: "translate(-50%,-50%) scale(.1) rotate(0)", opacity: 1 }, { transform: "translate(-50%,-50%) scale(1) rotate(360deg)", opacity: 1, offset: .5 }, { transform: "translate(-50%,-50%) scale(1.4) rotate(720deg)", opacity: 0 }], { duration: 1500, easing: "ease-in-out" }); break;
+    case "bolt": for (let i = 0; i < 4; i++) { const x = rnd(W * .15, W * .85); add("cf-bolt", { left: px(x) }, [{ opacity: 0 }, { opacity: 1, offset: .1 }, { opacity: .2, offset: .3 }, { opacity: 1, offset: .4 }, { opacity: 0 }], { duration: 600, delay: i * 140 }); } add("cf-flash", {}, [{ opacity: 0 }, { opacity: .5, offset: .1 }, { opacity: 0 }], { duration: 600, delay: 120 }); break;
+    case "wave": add("cf-wave", { left: px(at.x), top: px(at.y) }, [{ transform: "translate(-50%,-50%) scale(0)", opacity: .9 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 0 }], { duration: 1300, easing: "ease-out" }); break;
+    case "rays": case "nibiru": add("cf-rays", { left: px(W / 2), top: px(spec.kind === "nibiru" ? H * .25 : H / 2) }, [{ transform: "translate(-50%,-50%) scale(.2) rotate(0)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(1) rotate(30deg)", opacity: 1, offset: .35 }, { transform: "translate(-50%,-50%) scale(1.3) rotate(70deg)", opacity: 0 }], { duration: 1600, easing: "ease-out" }); if (spec.kind === "nibiru") add("cf-sun", { left: px(W / 2) }, [{ transform: "translate(-50%,-120%) scale(.6)", opacity: 0 }, { transform: "translate(-50%,10vh) scale(1)", opacity: 1, offset: .5 }, { transform: "translate(-50%,20vh) scale(1.4)", opacity: 0 }], { duration: 1600, easing: "cubic-bezier(.5,0,.6,1)" }); break;
+    case "scales": add("cf-big", { left: px(W / 2), top: px(H * .42) }, [{ transform: "translate(-50%,-50%) rotate(-14deg) scale(.6)", opacity: 0 }, { transform: "translate(-50%,-50%) rotate(14deg) scale(1)", opacity: 1, offset: .3 }, { transform: "translate(-50%,-50%) rotate(-8deg)", offset: .55 }, { transform: "translate(-50%,-50%) rotate(0)", opacity: 0 }], { duration: 1500 }).textContent = "⚖"; break;
+    case "moon": add("cf-big", { left: px(W / 2), top: px(H * .4) }, [{ transform: "translate(-50%,-50%) rotateY(0)", opacity: 0 }, { transform: "translate(-50%,-50%) rotateY(180deg)", opacity: 1, offset: .5 }, { transform: "translate(-50%,-50%) rotateY(360deg)", opacity: 0 }], { duration: 1400 }).textContent = "🌙"; break;
+    case "fan": for (let i = -1; i <= 1; i++) add("cf-cardfan", { left: px(W / 2), top: px(H * .45) }, [{ transform: "translate(-50%,-50%) rotate(0) translateY(0)", opacity: 0 }, { transform: `translate(-50%,-50%) rotate(${i * 22}deg) translateY(-30px)`, opacity: 1, offset: .35 }, { transform: `translate(-50%,-50%) rotate(${i * 22}deg) translateY(-30px)`, opacity: 0 }], { duration: 1500, easing: "cubic-bezier(.2,.9,.3,1)" }); break;
+    case "kaiju": add("cf-kaiju", {}, [{ transform: "translateY(40%) scale(1.2)", opacity: 0 }, { transform: "translateY(0) scale(1)", opacity: .85, offset: .4 }, { transform: "translateY(-6%) scale(1.05)", opacity: 0 }], { duration: 1700 }).textContent = spec.glyph[0]; break;
+    case "burst": add("cf-big", { left: px(W / 2), top: px(H * .45) }, [{ transform: "translate(-50%,-50%) scale(.2)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(1.15)", opacity: 1, offset: .3 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 0 }], { duration: 1400 }).textContent = spec.glyph[0]; break;
+    default: break;
+  }
+}
+/** A staple's moment. `at` is the zone or card it came from (optional). Returns true when the card has one. */
+export function staple(name, at) {
+  const spec = STAPLES[norm(name)];
+  if (!spec || reduced()) return !!spec;
+  const L = layer(), r = at && at.getBoundingClientRect && at.getBoundingClientRect();
+  const from = r && r.width ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : { x: innerWidth / 2, y: innerHeight / 2 };
+  overlay(L, spec, from);
+  glyphs(L, spec, from);
+  stamp(L, spec.word, spec.sub, spec.col);
+  return true;
+}
+
+// ---------------------------------------------------------------- the finale (3.2 s) before a winning attack
+function speedLines(L, col, ms) {
+  const s = div("cf-speed", { "--c": col }); L.append(s); later(s, ms);
+  s.animate([{ opacity: 0 }, { opacity: 1, offset: .08 }, { opacity: 1, offset: .9 }, { opacity: 0 }], { duration: ms, fill: "both" });
+  return s;
+}
+function bigCard(L, src, title, cls, ms) {
+  const w = div("cf-hero " + cls);
+  if (src) { const i = document.createElement("img"); i.src = src; i.alt = ""; w.append(i); }
+  w.append(div("cf-hero-t", null, title));
+  L.append(w); later(w, ms);
+  return w;
+}
+function sfx(L, txt, n, col, ms) {
+  for (let i = 0; i < n; i++) {
+    const g = div("cf-sfx", { color: col, left: (i % 2 ? rnd(66, 90) : rnd(4, 26)) + "%", top: rnd(8, 78) + "%", fontSize: `clamp(30px, ${rnd(7, 12).toFixed(1)}vmin, 110px)` }, txt);
+    L.append(g); later(g, ms);
+    g.animate([{ transform: "scale(.4) rotate(-12deg)", opacity: 0 }, { transform: "scale(1) rotate(-8deg)", opacity: 1, offset: .12 }, { transform: "scale(1.04) rotate(-8deg) translateY(-6px)", opacity: 1, offset: .55 }, { transform: "scale(1) rotate(-8deg)", opacity: 1, offset: .9 }, { transform: "scale(1.1) rotate(-8deg)", opacity: 0 }], { duration: ms - 300, delay: i * 120, fill: "both", easing: "ease-out" });
+  }
+}
+/** The finale: resolves after ~3.3 s, then the winning attack plays. */
+export function finale(style, { src = "", title = "", line = "" } = {}) {
+  return new Promise((done) => {
+    if (reduced()) { done(); return; }
+    style = FINALES.includes(style) ? style : "menacing";
+    const L = layer(), T = 3300, root = document.body;
+    const veil = div("cf-veil-all " + style); L.append(veil); later(veil, T);
+    veil.animate([{ opacity: 0 }, { opacity: 1, offset: .08 }, { opacity: 1, offset: .9 }, { opacity: 0 }], { duration: T, fill: "both" });
+    root.classList.add("cf-hold", "cf-" + style);
+    if (style === "menacing") {
+      speedLines(L, "#f0b429", T);
+      sfx(L, "ゴゴゴゴ", 6, "#c48bff", T);
+      const h = bigCard(L, src, title, "menacing", T);
+      h.animate([{ transform: "translate(-50%,-50%) scale(.6) rotate(-4deg)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(1) rotate(-4deg)", opacity: 1, offset: .15 }, { transform: "translate(-50%,-50%) scale(1.06) rotate(-4deg)", opacity: 1, offset: .85 }, { transform: "translate(-50%,-50%) scale(1.4) rotate(-4deg)", opacity: 0 }], { duration: T, fill: "both" });
+    } else if (style === "rush") {
+      speedLines(L, "#ff5a3a", T);
+      const h = bigCard(L, src, title, "rush", T);
+      h.animate([{ transform: "translate(-50%,-50%) scale(.7)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 1, offset: .1 }, { transform: "translate(-52%,-49%) scale(1.02)", offset: .3 }, { transform: "translate(-48%,-51%) scale(1.02)", offset: .5 }, { transform: "translate(-50%,-50%) scale(1.05)", opacity: 1, offset: .88 }, { transform: "translate(-50%,-50%) scale(1.5)", opacity: 0 }], { duration: T, fill: "both" });
+      for (let i = 0; i < 28; i++) setTimeout(() => {
+        const f = div("cf-fist", { left: rnd(10, 90) + "%", top: rnd(12, 88) + "%" }, i % 3 ? "✊" : "💥"); L.append(f); later(f, 520);
+        f.animate([{ transform: "translate(-50%,-50%) scale(.3)", opacity: 1 }, { transform: "translate(-50%,-50%) scale(1.5)", opacity: 0 }], { duration: 480, easing: "ease-out", fill: "both" });
+      }, 300 + i * 85);
+      sfx(L, "ドドドド", 4, "#ffcf5a", T);
+      const r = div("cf-rushword", null, "RUSH! RUSH! RUSH!"); L.append(r); later(r, T);
+      r.animate([{ transform: "translateX(100%)" }, { transform: "translateX(-100%)" }], { duration: T, easing: "linear" });
+    } else if (style === "timestop") {
+      const w = div("cf-tswave"); L.append(w); later(w, T);
+      w.animate([{ transform: "translate(-50%,-50%) scale(0)", opacity: 1 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 1, offset: .25 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 1, offset: .8 }, { transform: "translate(-50%,-50%) scale(0)", opacity: 0 }], { duration: T, easing: "cubic-bezier(.3,0,.3,1)", fill: "both" });
+      const clock = div("cf-clock", null, "🕰"); L.append(clock); later(clock, T);
+      clock.animate([{ transform: "translate(-50%,-50%) scale(0) rotate(0)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(1) rotate(0)", opacity: 1, offset: .25 }, { transform: "translate(-50%,-50%) scale(1) rotate(30deg)", opacity: 1, offset: .5 }, { transform: "translate(-50%,-50%) scale(1) rotate(60deg)", opacity: 1, offset: .75 }, { transform: "translate(-50%,-50%) scale(1.6) rotate(90deg)", opacity: 0 }], { duration: T, easing: "steps(12)", fill: "both" });
+      const t = div("cf-tsword", null, "TIME STOP"); L.append(t); later(t, T);
+      t.animate([{ opacity: 0, letterSpacing: ".6em" }, { opacity: 1, letterSpacing: ".18em", offset: .3 }, { opacity: 1, offset: .85 }, { opacity: 0 }], { duration: T, fill: "both" });
+      setTimeout(() => root.classList.add("cf-frozen"), 800);
+    } else if (style === "freeze") {
+      setTimeout(() => root.classList.add("cf-sepia"), 600);
+      const h = bigCard(L, src, title, "freeze", T);
+      h.animate([{ transform: "translate(-50%,-50%) scale(.8)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 1, offset: .15 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 1, offset: .9 }, { opacity: 0 }], { duration: T, fill: "both" });
+      const a = div("cf-tbc"); a.append(div("cf-tbc-t", null, "TO BE CONTINUED")); L.append(a); later(a, T);
+      a.animate([{ transform: "translateX(-120%)" }, { transform: "translateX(-120%)", offset: .25 }, { transform: "translateX(0)", offset: .4 }, { transform: "translateX(0)" }], { duration: T, easing: "cubic-bezier(.2,.9,.3,1)", fill: "both" });
+    }
+    if (line) { const c = div("cf-line", null, line); L.append(c); later(c, T); c.animate([{ opacity: 0, transform: "translate(-50%, 20px)" }, { opacity: 1, transform: "translate(-50%, 0)", offset: .2 }, { opacity: 1, offset: .88 }, { opacity: 0 }], { duration: T, fill: "both" }); }
+    setTimeout(() => { root.classList.remove("cf-hold", "cf-" + style, "cf-frozen", "cf-sepia"); done(); }, T);
+  });
+}
+
+// ---------------------------------------------------------------- KodeX Premium Ace cards
+/** The Ace card on the big screen (~2.6 s). */
+export function ace(style, { src = "", title = "", owner = "", premiumNote = "" } = {}) {
+  return new Promise((done) => {
+    if (reduced()) { done(); return; }
+    style = ACE_STYLES.includes(style) ? style : "spotlight";
+    const L = layer(), T = 2600;
+    const bg = div("cf-ace-bg " + style); L.append(bg); later(bg, T);
+    bg.animate([{ opacity: 0 }, { opacity: 1, offset: .1 }, { opacity: 1, offset: .88 }, { opacity: 0 }], { duration: T, fill: "both" });
+    if (style === "menacing") sfx(L, "ゴゴゴ", 4, "#c48bff", T);
+    if (style === "radiant") { const r = div("cf-rays", { left: "50%", top: "46%", "--c": "#ffe08a" }); L.append(r); later(r, T); r.animate([{ transform: "translate(-50%,-50%) scale(.3) rotate(0)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(1.2) rotate(40deg)", opacity: 1, offset: .3 }, { transform: "translate(-50%,-50%) scale(1.4) rotate(90deg)", opacity: 0 }], { duration: T, fill: "both" }); }
+    speedLines(L, style === "radiant" ? "#ffe08a" : style === "menacing" ? "#c48bff" : "#8d99ff", T);
+    const h = bigCard(L, src, title, "ace " + style, T);
+    h.animate([{ transform: "translate(-50%,-50%) perspective(900px) rotateY(-70deg) scale(.5)", opacity: 0 }, { transform: "translate(-50%,-50%) perspective(900px) rotateY(8deg) scale(1.05)", opacity: 1, offset: .22 }, { transform: "translate(-50%,-50%) perspective(900px) rotateY(0) scale(1)", opacity: 1, offset: .35 }, { transform: "translate(-50%,-50%) perspective(900px) rotateY(0) scale(1.04)", opacity: 1, offset: .86 }, { transform: "translate(-50%,-50%) perspective(900px) rotateY(0) scale(1.35)", opacity: 0 }], { duration: T, fill: "both", easing: "cubic-bezier(.2,.9,.3,1)" });
+    const tag = div("cf-ace-tag", null, "ACE CARD" + (owner ? " · " + owner : "")); L.append(tag); later(tag, T);
+    tag.animate([{ opacity: 0, transform: "translate(-50%, -10px)" }, { opacity: 1, transform: "translate(-50%, 0)", offset: .25 }, { opacity: 1, offset: .86 }, { opacity: 0 }], { duration: T, fill: "both" });
+    if (premiumNote) { const n = div("cf-line", null, premiumNote); L.append(n); later(n, T); }
+    setTimeout(done, T);
+  });
+}
