@@ -2107,13 +2107,20 @@ window.addEventListener("message", (e) => {
 // ----- testing data for the Synapse Deck Analyzer (KodeX): what each of your duels with a deck looked like -----
 // Kept on this device ("duel:stats", by deck) and sent to the KodeX app when the Arena runs inside it.
 function deckKey(d) { const a = (d && d.main ? d.main : []).map(Number).sort((x, y) => x - y).join(","); let h = 0; for (let i = 0; i < a.length; i++) h = (h * 31 + a.charCodeAt(i)) | 0; return "d" + (h >>> 0).toString(36); }
-function trackReset() { S.track = { myTurns: 0, firstPlays: 0, used: {}, drawn: {}, done: false }; }
+function trackReset() { S.track = { myTurns: 0, firstPlays: 0, used: {}, drawn: {}, open: {}, links: {}, last: 0, turnFirst: true, done: false }; }
 function trackEvents(p) {
   const T = S.track; if (!T || S.mode === "spec" || S.mode === "replay") return;
   const me = S.team, bump = (o, c) => { c = Number(c); if (c) o[c] = (o[c] || 0) + 1; };
   for (const e of p.events) {
-    if (e.type === M.NEW_TURN) { if (p.turn === 1) T.first = p.turnPlayer === me; if (p.turnPlayer === me) T.myTurns++; }
-    else if ((e.type === M.SUMMONING || e.type === M.SPSUMMONING || e.type === M.FLIPSUMMONING || e.type === M.CHAINING) && e.controller === me) { bump(T.used, e.code); if (T.myTurns <= 1 && p.turnPlayer === me) T.firstPlays++; }
+    if (e.type === M.NEW_TURN) { if (p.turn === 1) T.first = p.turnPlayer === me; if (p.turnPlayer === me) T.myTurns++; T.last = 0; T.turnFirst = true; }
+    else if ((e.type === M.SUMMONING || e.type === M.SPSUMMONING || e.type === M.FLIPSUMMONING || e.type === M.CHAINING) && e.controller === me) {
+      const c = Number(e.code);
+      bump(T.used, c); if (T.myTurns <= 1 && p.turnPlayer === me) T.firstPlays++;
+      // what started each of my turns, and which play followed which (the deck's real combo links)
+      if (p.turnPlayer === me && T.turnFirst) { bump(T.open, c); T.turnFirst = false; }
+      if (p.turnPlayer === me && T.last && T.last !== c && Object.keys(T.links).length < 300) { const k = T.last + ">" + c; T.links[k] = (T.links[k] || 0) + 1; }
+      if (p.turnPlayer === me) T.last = c;
+    }
     else if (e.type === M.DRAW && e.player === me) for (const c of e.drawn || []) bump(T.drawn, c.code);
   }
 }
@@ -2123,7 +2130,7 @@ function trackEnd(p) {
   const me = S.team, w = p.ended.winner, start = S.turnStartLP, full = options().lp;
   const res = { at: Date.now(), win: w === me, draw: !(w === 0 || w === 1), turns: p.turn || 0, dead: T.myTurns >= 1 && T.firstPlays === 0,
     otk: w === me && !!start && start[1 - me] >= full && p.turnPlayer === me, first: !!T.first, vs: S.mode === "solo" ? "ai" : "online",
-    used: T.used, drawn: T.drawn };
+    used: T.used, drawn: T.drawn, open: T.open, links: T.links };
   const key = deckKey(S.deck), all = load("duel:stats", {});
   const st = all[key] || { name: S.deck.name || "Deck", games: [] };
   st.name = S.deck.name || st.name; st.games.push(res); st.games = st.games.slice(-200);
