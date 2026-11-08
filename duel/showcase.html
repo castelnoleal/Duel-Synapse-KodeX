@@ -174,11 +174,12 @@ async function play(from = 0) {
     await wait(700);
   }
 }
-window.addEventListener("message", (e) => { const d = e.data || {}; if (d.mdkShow === "goto" && SCENES[d.i]) { cur = 99; replay(d.i); } });
+window.addEventListener("message", (e) => { const d = e.data || {}; if (d.mdkShow === "goto" && SCENES[d.i]) { cur = -1; replay(d.i); } });
 async function replay(i) {
   token++; clearInterval(timerIv);
   ["finFx", "cardFx", "endFx", "moveFx"].forEach((id) => { const l = document.getElementById(id); if (l) l.replaceChildren(); });
   document.body.classList.remove("fin-shake", "ef-comeback", "cf-hold"); [...document.body.classList].filter((c) => c.startsWith("cf-")).forEach((c) => document.body.classList.remove(c));
+  $("#pt").classList.remove("on"); $("#result").classList.remove("comeback");
   build(); $("#timer").textContent = "3:00"; $("#timer").classList.remove("alert");
   // get the board into the state the scene expects
   if (i >= 2) { const sa = [...$("#myHand").children][0]; sa && sa.remove(); Z.me2.append(cardOf(C.snakeash, "800 / 1200")); }
