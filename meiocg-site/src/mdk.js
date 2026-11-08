@@ -321,7 +321,15 @@
       ["a.skip", "div.progress", "header.top"].forEach(function (q) { var n = d.querySelector(q); if (n) document.body.insertBefore(document.importNode(n, true), first); });
       ["footer.foot", "div.search-dlg", "button.iconbtn", "aside.pixel"].forEach(function (q) { var n = d.querySelector(q); if (n) document.body.appendChild(document.importNode(n, true)); });
       var nav = document.querySelector("header.top .nav");
-      if (nav) [].forEach.call(nav.querySelectorAll("[aria-current]"), function (a) { a.removeAttribute("aria-current"); });
+      if (nav) {
+        [].forEach.call(nav.querySelectorAll("[aria-current]"), function (a) { a.removeAttribute("aria-current"); });
+        // the home page gets its "Prices" link from the Price Guide add-on; add it here too
+        if (![].some.call(nav.querySelectorAll("a"), function (a) { return /\/prices\/?$/.test(a.getAttribute("href") || ""); })) {
+          var pl = document.createElement("a"); pl.href = "/prices/"; pl.textContent = "Prices"; pl.className = "mpg-navlink";
+          var ab = [].filter.call(nav.querySelectorAll("a"), function (a) { return /about/i.test(a.getAttribute("href") || ""); })[0];
+          nav.insertBefore(pl, ab || null);
+        }
+      }
       inl.forEach(function (s) { if (!s.closest("head") && s.textContent.length > 2000 && s.textContent.indexOf("createElement('script')") >= 0) run(s.textContent); });
     }).catch(function () {});
   }
