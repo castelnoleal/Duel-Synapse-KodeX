@@ -291,5 +291,26 @@
       '<div class="wrap"><details class="tocm"><summary>On this page</summary>' + toc + '</details><div class="grid"><aside>' + toc + "</aside><main>" + sec.map(function (s) { return section(s[0], s[1], s[2]); }).join("") + disc + "</main></div></div>";
   }
 
+  /* ---------- meiocg.org site chrome ----------
+     Same approach as the Price Guide: borrow the live header, footer, search dialog, theme script and stylesheet
+     from the home page, so these pages always match the rest of the site (and its light/dark theme). */
+  function siteChrome() {
+    if (document.querySelector("header.top") || !/(^|\.)meiocg\.org$/.test(location.hostname) || window.MEIOCG_NO_CHROME) return;
+    fetch("/", { credentials: "same-origin" }).then(function (r) { return r.text(); }).then(function (html) {
+      var d = new DOMParser().parseFromString(html, "text/html");
+      var inl = [].filter.call(d.querySelectorAll("script"), function (s) { return !s.src; });
+      var run = function (code, where) { var s = document.createElement("script"); s.textContent = code; (where || document.body).appendChild(s); };
+      [].forEach.call(d.querySelectorAll('link[href*="fonts.g"]'), function (l) { document.head.appendChild(document.importNode(l, true)); });
+      inl.forEach(function (s) { if (s.closest("head") && (s.textContent.indexOf("data-theme") >= 0 || s.textContent.indexOf("mei-css") >= 0)) run(s.textContent, document.head); });
+      var first = document.body.firstChild;
+      ["a.skip", "div.progress", "header.top"].forEach(function (q) { var n = d.querySelector(q); if (n) document.body.insertBefore(document.importNode(n, true), first); });
+      ["footer.foot", "div.search-dlg", "button.iconbtn", "aside.pixel"].forEach(function (q) { var n = d.querySelector(q); if (n) document.body.appendChild(document.importNode(n, true)); });
+      var nav = document.querySelector("header.top .nav");
+      if (nav) [].forEach.call(nav.querySelectorAll("[aria-current]"), function (a) { a.removeAttribute("aria-current"); });
+      inl.forEach(function (s) { if (!s.closest("head") && s.textContent.length > 2000 && s.textContent.indexOf("createElement('script')") >= 0) run(s.textContent); });
+    }).catch(function () {});
+  }
+
   try { ({ deck: deckPage, hub: hubPage, why: whyPage, guide: guidePage, guides: guidesPage, cup: cupPage, players: playersPage, ds: dsPage })[D.kind](); } catch (e) { console.error(e); root.innerHTML = '<div class="wrap"><p>This page could not load. Please refresh.</p></div>'; }
+  siteChrome();
 })();
