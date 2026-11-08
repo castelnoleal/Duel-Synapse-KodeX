@@ -329,6 +329,11 @@
           var ab = [].filter.call(nav.querySelectorAll("a"), function (a) { return /about/i.test(a.getAttribute("href") || ""); })[0];
           nav.insertBefore(pl, ab || null);
         }
+        if (!document.getElementById("mpg-addon-nav-css")) {  // same spacing fix the Price Guide add-on uses, so the menu stays on one line
+          var nc = document.createElement("style"); nc.id = "mpg-addon-nav-css";
+          nc.textContent = "header.top .nav a.mpg-navlink{white-space:nowrap}header.top .tools a,header.top .tools button{white-space:nowrap}@media (max-width:1440px){header.top .nav:has(.mpg-navlink) a{padding-left:11px;padding-right:11px}}";
+          document.head.appendChild(nc);
+        }
       }
       inl.forEach(function (s) { if (!s.closest("head") && s.textContent.length > 2000 && s.textContent.indexOf("createElement('script')") >= 0) run(s.textContent); });
     }).catch(function () {});
