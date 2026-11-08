@@ -1,6 +1,6 @@
-# meiocg.org deck pages and Why KodeX
+# meiocg.org deck pages, guides, MEIOCG Cup, Players and Why KodeX
 
-DashNex pages for meiocg.org: the OCG meta deck hub, one page per meta deck, and Why KodeX.
+DashNex pages for meiocg.org: the OCG meta deck hub (current lists and an archive tab), one page per meta deck (date-stamped list), a guide per meta deck (lessons 1–3 free, 4–6 listed as KodeX Premium), the guides hub, the MEIOCG Cup, MEIOCG Players and Why KodeX.
 
 - `content.py`: all page text. Card names in `[[double brackets]]` link to KodeX and are checked against `data/cards.min.json` on every build.
 - `decks_raw.py`: the decklists (passcodes and counts).
@@ -13,3 +13,10 @@ DashNex pages for meiocg.org: the OCG meta deck hub, one page per meta deck, and
 For each folder in `out/`: create the page at the URL in `seo.txt`, paste `head.html` into Head Code and `body.html` into Body Code, and copy Title and Description from `seo.txt`.
 
 Social images are served by the KodeX Worker at `https://kodex.meiocg.org/og/<name>.png` from `assets/og/`.
+
+## Keeping it current
+
+- **New OCG list**: set `archived=True` on the old deck entries in `content.py`, add them to `ARCHIVE`, update `LIST_TAG` and `BANLIST`. Their pages stay up with an "Archived list" banner and appear under the hub's Archive tab.
+- **MEIOCG Cup**: put the date and sign-up in `CUP["status"]` / `CUP["statusNote"]`; after the event add it to `CUP["past"]` (and a deck page for the winner).
+- **MEIOCG Players** reads `https://kodex.meiocg.org/api/players` live; nothing to rebuild. Icons and frames come from `duel/profile.js` / `duel/profile.css`, the same files the Arena and the app use.
+- **Guides**: lessons 1–3 come from each deck's content (`how`, `line`, `stops`). Premium lesson titles are in `GUIDES["premium"]`.

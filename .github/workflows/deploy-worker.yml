@@ -57,7 +57,7 @@ jobs:
       - name: What production serves after deploying
         run: |
           sleep 20
-          for p in /health /duel/ /duel/app.js "/api/duel/room/CITEST?role=host"; do
+          for p in /health /duel/ /duel/app.js "/api/duel/room/CITEST?role=host" "/api/players?limit=1"; do
             code=$(curl -s -o /tmp/b -w '%{http_code} %{content_type}' "https://kodex.meiocg.org$p")
             echo "::notice title=after $p::$code $(head -c 160 /tmp/b | tr '\n' ' ')"
           done

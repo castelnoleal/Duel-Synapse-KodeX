@@ -80,7 +80,18 @@ CSS = (R / "src/mdk.css").read_text("utf-8")
 JS = (R / "src/mdk.js").read_text("utf-8")
 OG = "https://kodex.meiocg.org/og/"
 
-def head_html(title, desc, url, og_img, ld):
+PF_CSS = (KODEX / "duel/profile.css").read_text("utf-8")
+PF_JS = (KODEX / "duel/profile.js").read_text("utf-8")
+def profile_data():
+    src = PF_JS.split("/* PROFILE_DATA_START */")[1].split("/* PROFILE_DATA_END */")[0]
+    src = src.replace("export const PROFILE_DATA =", "").strip().rstrip(";")
+    src = re.sub(r"//[^\n]*", "", src)
+    src = re.sub(r"([{,]\s*)([A-Za-z_]\w*)\s*:", r'\1"\2":', src)
+    src = re.sub(r",\s*([}\]])", r"\1", src)
+    return json.loads(src)
+PF_DATA = profile_data()
+
+def head_html(title, desc, url, og_img, ld, extra_css=""):
     e = lambda s: s.replace("&", "&amp;").replace('"', "&quot;").replace("<", "&lt;")
     meta = (f'<meta name="description" content="{e(desc)}">'
             f'<link rel="canonical" href="{url}">'
@@ -92,7 +103,7 @@ def head_html(title, desc, url, og_img, ld):
             f'<meta name="twitter:description" content="{e(desc)}"><meta name="twitter:image" content="{og_img}">'
             f'<meta property="article:modified_time" content="{C.UPDATED}">'
             f'<script type="application/ld+json">{json.dumps(ld, ensure_ascii=False)}</script>')
-    loader = f'<script>(function(){{var d={DEC};if(document.getElementById("mdk-css"))return;var s=document.createElement("style");s.id="mdk-css";s.textContent=d("{B(CSS)}");document.head.appendChild(s)}})();</script>'
+    loader = f'<script>(function(){{var d={DEC};if(document.getElementById("mdk-css"))return;var s=document.createElement("style");s.id="mdk-css";s.textContent=d("{B(CSS + extra_css)}");document.head.appendChild(s)}})();</script>'
     return meta + loader
 
 def body_html(data):
@@ -107,14 +118,14 @@ pages = {}
 deck_meta = {"light-and-darkness-ritual": 15.8, "ars-magna-elfnote": 11.8, "raise-moon": 10.5}
 for slug, d in C.DECKS.items():
     L = deck_list(RAW[slug])
-    data = dict(kind="deck", slug=slug, name=d["name"], label=d["label"], metaLine=d["metaLine"], readMin=d["readMin"], lead=d["lead"],
+    data = dict(kind="deck", slug=slug, listTag=C.LIST_TAG, archived=d.get("archived", False), guide=C.URL("guide-" + slug), hubUrl=C.URL("hub"), name=d["name"], label=d["label"], metaLine=d["metaLine"], readMin=d["readMin"], lead=d["lead"],
                 updated=C.UPDATED, banlist=C.BANLIST, source=dict(text=d["source"]["text"] + f' [Source list]({d["source"]["url"]})'),
                 how=d["how"], line=d["line"], duel=d["duel"], board=d["board"], stopIntro=d.get("stopIntro"), stops=d["stops"],
                 takeaways=d["takeaways"], second=d["second"], practice=d["practice"], faq=d["faq"], list=L)
     others = [k for k in C.DECKS if k != slug]
     data["more"] = [dict(k="OCG meta", t="All meta decks", d="Share of top decks and the full list.", href=C.URL("hub"))] + \
                    [dict(k="Meta deck", t=C.DECKS[k]["name"], d=C.DECKS[k]["metaLine"], href=C.URL(k)) for k in others[:1]] + \
-                   [dict(k="KodeX", t="Why KodeX", d="Rulings, deck tools and the Duel Synapse Arena.", href=C.URL("why"))]
+                   [dict(k="Guide", t="Learn to play " + d["name"], d="Three free lessons, with drills in the Arena.", href=C.URL("guide-" + slug))]
     data["ids"] = ids_for(data)
     title = f'{d["name"]} OCG Deck: Combos & How to Beat It ({C.PERIOD.split("–")[1].strip().split(",")[0].split(" ")[0]} 2026) | Meta Insider OCG'
     desc = f'How {d["name"]} wins in the OCG, the hand traps that stop it, how to play going second, and a legal winning decklist with today\'s Yuyu-tei price.'
@@ -125,7 +136,7 @@ for slug, d in C.DECKS.items():
          "image": OG + slug + ".png", "mainEntityOfPage": url}, faq_ld(d["faq"])]}
     pages[C.PAGES[slug]] = (title, desc, url, OG + slug + ".png", ld, data)
 
-hub = dict(kind="hub", lead=C.HUB["lead"], updated=C.UPDATED, period=C.PERIOD, source=C.META_SRC, table=C.HUB["table"], practice=C.HUB["practice"],
+hub = dict(kind="hub", listTag=C.LIST_TAG, archive=C.ARCHIVE, links=dict(guides=C.URL("guides"), cup=C.URL("cup"), players=C.URL("players")), lead=C.HUB["lead"], updated=C.UPDATED, period=C.PERIOD, source=C.META_SRC, table=C.HUB["table"], practice=C.HUB["practice"],
            decks=[dict(name=C.DECKS[k]["name"], share=deck_meta[k], art=C.DECKS[k]["art"], href=C.URL(k),
                        blurb=C.DECKS[k]["label"][1] + ". " + C.DECKS[k]["lead"].split(". ")[0] + ".") for k in C.DECKS])
 hub["ids"] = ids_for(hub)
@@ -143,6 +154,37 @@ pages[C.PAGES["why"]] = ("Why KodeX: OCG Card Rulings, Deck Builder, Scanner & D
                          {"@context": "https://schema.org", "@graph": [{"@type": "SoftwareApplication", "name": "Duel Synapse: KodeX", "applicationCategory": "GameApplication",
                           "operatingSystem": "Android, Web", "publisher": {"@type": "Organization", "name": "Meta Insider OCG"}, "url": C.URL("why")}, faq_ld(C.WHY["faq"])]}, why)
 
+# guides
+GD = C.GUIDES
+for slug, d in C.DECKS.items():
+    g = dict(kind="guide", slug=slug, name=d["name"], label=d["label"], lead=f'Learn to pilot {d["name"]}: what it wants to do, its core line and where opponents stop it. Lessons 1–3 are free.',
+             updated=C.UPDATED, listTag=C.LIST_TAG, how=d["how"], line=d["line"], stops=d["stops"], stopIntro=d.get("stopIntro"), duel=d["duel"],
+             premium=GD["premium"], premiumNote=GD["premiumNote"], deckUrl=C.URL(slug), guidesUrl=C.URL("guides"), list=deck_list(RAW[slug]))
+    g["ids"] = ids_for(g)
+    title = f'How to Play {d["name"]} (OCG): Free Lessons & Combo Guide | Meta Insider OCG'
+    desc = f'Learn {d["name"]} for the OCG: its engine, the core line step by step and the hand traps to play around, with drills in Duel Synapse Arena.'
+    url = C.URL("guide-" + slug)
+    ld = {"@context": "https://schema.org", "@type": "Course", "name": f'How to play {d["name"]}', "description": desc, "url": url,
+          "provider": {"@type": "Organization", "name": "Meta Insider OCG", "url": C.SITE}, "dateModified": C.UPDATED}
+    pages[C.PAGES["guide-" + slug]] = (title, desc, url, OG + slug + ".png", ld, g)
+gh = dict(kind="guides", lead=GD["lead"], updated=C.UPDATED, premium=GD["premium"], premiumNote=GD["premiumNote"],
+          guides=[dict(name=C.DECKS[k]["name"], art=C.DECKS[k]["art"], label=C.DECKS[k]["label"][1], href=C.URL("guide-" + k), deck=C.URL(k)) for k in C.DECKS])
+gh["ids"] = {}
+pages[C.PAGES["guides"]] = ("OCG Deck Guides: Learn the Meta Decks, Free Lessons | Meta Insider OCG",
+                            "Free lessons for the top OCG decks: the engine, the core line step by step and the hand traps to play around, with drills in Duel Synapse Arena.",
+                            C.URL("guides"), OG + "decks.png", {"@context": "https://schema.org", "@type": "CollectionPage", "name": "OCG deck guides", "url": C.URL("guides"), "dateModified": C.UPDATED}, gh)
+cup = dict(kind="cup", updated=C.UPDATED, links=dict(decks=C.URL("hub"), players=C.URL("players")), **C.CUP)
+cup["ids"] = ids_for(cup)
+pages[C.PAGES["cup"]] = ("MEIOCG Cup: OCG Swiss Tournament, Format & Results | Meta Insider OCG",
+                         "The MEIOCG Cup: an OCG Swiss tournament on the current Forbidden & Limited list, with deck registration through KodeX and the top decks published on meiocg.org.",
+                         C.URL("cup"), OG + "decks.png", {"@context": "https://schema.org", "@type": "WebPage", "name": "MEIOCG Cup", "url": C.URL("cup"), "dateModified": C.UPDATED,
+                          "mainEntity": faq_ld(C.CUP["faq"])}, cup)
+pl = dict(kind="players", updated=C.UPDATED, api="https://kodex.meiocg.org/api/players", profile=PF_DATA, links=dict(cup=C.URL("cup"), why=C.URL("why")), **C.PLAYERS)
+pl["ids"] = {}
+pages[C.PAGES["players"]] = ("MEIOCG Players: The Most Active KodeX Duelists | Meta Insider OCG",
+                             "KodeX players ranked by how active they are, with the icon frames they've unlocked. Opt in from your KodeX profile.",
+                             C.URL("players"), OG + "why-kodex.png", {"@context": "https://schema.org", "@type": "WebPage", "name": "MEIOCG Players", "url": C.URL("players")}, pl)
+
 if missing:
     raise SystemExit("Unknown card names in content: " + ", ".join(sorted(missing)))
 
@@ -158,7 +200,7 @@ out = R / "out"; prev = R / "preview"
 out.mkdir(exist_ok=True); prev.mkdir(exist_ok=True)
 for page, (title, desc, url, og, ld, data) in pages.items():
     data = links(data)
-    h, b = head_html(title, desc, url, og, ld), body_html(data)
+    h, b = head_html(title, desc, url, og, ld, PF_CSS if data.get("kind") == "players" else ""), body_html(data)
     d = out / page; d.mkdir(exist_ok=True)
     (d / "head.html").write_text(h, "utf-8"); (d / "body.html").write_text(b, "utf-8")
     (d / "seo.txt").write_text(f"Page URL: {url}\nTitle: {title}\nDescription: {desc}\nSocial image: {og}\n", "utf-8")
