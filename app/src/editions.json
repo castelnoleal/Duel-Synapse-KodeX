@@ -1,0 +1,25 @@
+{
+ "about": "The Premium edition is the free page with these changes (each 'old' must appear exactly once). {build} is the manifest's build number.",
+ "premium": [
+  [
+   "<meta name=\"kodex-build\" content=\"KODEX-{build}\">",
+   "<meta name=\"kodex-build\" content=\"KODEX-{build}.1\">"
+  ],
+  [
+   "<meta name=\"kodex-edition\" content=\"free\">",
+   "<meta name=\"kodex-edition\" content=\"premium\">"
+  ],
+  [
+   "<title>Duel Synapse: KodeX</title>",
+   "<title>Duel Synapse: KodeX Premium</title>"
+  ],
+  [
+   "</style>\n</head>",
+   "</style>\n<style id=\"kx-premium-noads\">/* KodeX Premium has no ads: the sponsor strip keeps only the status-bar space */#topAdSlot{display:none!important}.top-ad-safe-area{padding:var(--sat) 0 0!important}</style>\n</head>"
+  ],
+  [
+   "\n\n<style id=\"kx-v55\">",
+   "\n\n<script type=\"application/json\" id=\"kx-skin-packs\">[]</script>\n<style id=\"kx-v55\">"
+  ]
+ ]
+}

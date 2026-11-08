@@ -1,0 +1,151 @@
+<!doctype html>
+<!--
+  MEIOCG Players — kodex.meiocg.org/players. © 2023-2026 Meta Insider OCG (MEIOCG). All rights reserved.
+  Created by Castel Noleal, creator of MEIOCG. Built by scripts/build_players_page.py from scripts/players_page.template.html
+  (icons, frames and banners come from duel/profile.js and duel/profile.css, the same files KodeX and the Arena use).
+  For DashNex: everything between PAGE-HEAD markers goes in Head Code, everything between PAGE-BODY markers in Body Code.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>MEIOCG Players · KodeX duelists and their profiles</title>
+<!-- PAGE-HEAD:START -->
+<meta name="description" content="The most active KodeX duelists, their icon frames and public profiles. A project of Meta Insider OCG since 2023.">
+<meta name="author" content="Castel Noleal (MEIOCG)">
+<meta name="theme-color" content="#0b0f26">
+<meta property="og:title" content="MEIOCG Players">
+<meta property="og:description" content="The most active KodeX duelists and their profiles.">
+<meta property="og:image" content="https://kodex.meiocg.org/meiocglogo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+<style id="mp-style">
+/*PROFILE_CSS*/
+#mp{--bg:#070a16;--panel:#10152e;--line:#ffffff1a;--ink:#eef1ff;--muted:#9aa3c7;--brand:#7088ff;--gold:#f0b429;color:var(--ink);font-family:"Plus Jakarta Sans",system-ui,sans-serif;background:radial-gradient(90% 60% at 10% 0%,#1d2a7a66,transparent 60%),radial-gradient(70% 50% at 100% 10%,#7a4fd644,transparent 60%),var(--bg);min-height:100vh;padding:0 0 40px}
+#mp *{box-sizing:border-box}#mp a{color:inherit}
+#mp .mp-top{display:flex;align-items:center;gap:10px;padding:14px 16px;max-width:980px;margin:0 auto}
+#mp .mp-top img{width:34px;height:34px;border-radius:9px}#mp .mp-top b{font:700 15px/1 "Chakra Petch",sans-serif;letter-spacing:.08em}
+#mp .mp-top a.cta{margin-left:auto;padding:9px 14px;border-radius:12px;background:var(--brand);color:#fff;text-decoration:none;font-weight:800;font-size:13px}
+#mp .mp-hero{max-width:980px;margin:6px auto 0;padding:18px 16px 4px}
+#mp .mp-hero small{display:inline-block;padding:4px 10px;border-radius:999px;background:#ffffff10;border:1px solid var(--line);font-weight:800;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#c9d0ff}
+#mp h1{font:700 clamp(30px,7vw,52px)/1.02 "Chakra Petch",sans-serif;margin:12px 0 8px}#mp h1 span{background:linear-gradient(90deg,#ffe08a,#f0b429);-webkit-background-clip:text;background-clip:text;color:transparent}
+#mp .mp-hero p{margin:0;color:var(--muted);max-width:640px;line-height:1.55}
+#mp .mp-wrap{max-width:980px;margin:0 auto;padding:0 16px}
+#mp .mp-podium{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:22px 0 14px;align-items:end}
+#mp .mp-pod{position:relative;display:grid;justify-items:center;gap:6px;padding:16px 8px 14px;border-radius:18px;background:linear-gradient(180deg,#ffffff0d,#ffffff04);border:1px solid var(--line);cursor:pointer;text-align:center;color:inherit;font:inherit}
+#mp .mp-pod.r1{order:2;padding-top:26px;border-color:#f0b42988;background:linear-gradient(180deg,#f0b42922,#ffffff04);box-shadow:0 0 40px #f0b42922}
+#mp .mp-pod.r2{order:1}#mp .mp-pod.r3{order:3}
+#mp .mp-pod .rk{position:absolute;top:-12px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font:700 14px "Chakra Petch",sans-serif;background:#2a3354;border:2px solid #0b0f26}
+#mp .mp-pod.r1 .rk{background:linear-gradient(135deg,#ffe08a,#f0b429);color:#1a1202}#mp .mp-pod.r2 .rk{background:#dfe5ee;color:#111}#mp .mp-pod.r3 .rk{background:#e0a070;color:#1a0e04}
+#mp .mp-pod b{font-size:14px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#mp .mp-pod span{font:700 18px "Chakra Petch",sans-serif}#mp .mp-pod em{font-style:normal;font-size:11px;color:var(--muted)}
+#mp .mp-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0 12px}
+#mp .mp-tabs{display:flex;gap:6px}#mp .mp-tabs button{padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:inherit;font:inherit;font-weight:800;font-size:13px;cursor:pointer}
+#mp .mp-tabs button.on{background:var(--brand);border-color:var(--brand);color:#fff}
+#mp .mp-q{flex:1;min-width:160px;height:40px;border-radius:12px;border:1px solid var(--line);background:#0b1024;color:inherit;font:inherit;padding:0 12px}
+#mp .mp-list{display:grid;gap:8px}
+#mp .mp-row{display:grid;grid-template-columns:30px auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 14px;border-radius:16px;background:var(--panel);border:1px solid var(--line);cursor:pointer;color:inherit;font:inherit;text-align:left;width:100%}
+#mp .mp-row:hover{border-color:#7088ff88}
+#mp .mp-row .n{font:700 16px "Chakra Petch",sans-serif;color:var(--muted);text-align:center}
+#mp .mp-row .who{min-width:0;display:grid;gap:2px}#mp .mp-row .who b{font-size:15.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#mp .mp-row .who span{font-size:12.5px;color:#a9b4ff;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#mp .tags{display:flex;gap:6px;flex-wrap:wrap;align-items:center}#mp .tags em{font-style:normal;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:999px;background:#ffffff12}#mp .tags em.pr{background:linear-gradient(90deg,#ffe08a,#f0b429);color:#1a1202}#mp .tags small{color:var(--muted);font-size:11.5px}
+#mp .mp-row .pts{display:grid;justify-items:end}#mp .mp-row .pts b{font:700 20px "Chakra Petch",sans-serif}#mp .mp-row .pts small{font-size:11px;color:var(--muted)}
+#mp .empty{padding:22px;border-radius:16px;border:1px dashed var(--line);color:var(--muted);text-align:center}
+#mp .mp-note{color:var(--muted);font-size:12.5px;margin:10px 0 0}
+#mp .mp-frames{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:10px;margin-top:10px}#mp .mp-frames div{display:grid;justify-items:center;gap:4px;padding:12px 4px;border-radius:14px;background:var(--panel);border:1px solid var(--line);font-size:12px}#mp .mp-frames small{color:var(--muted);font-size:10.5px}
+#mp h2{font:700 20px "Chakra Petch",sans-serif;margin:30px 0 4px}
+#mp .mp-how{display:grid;gap:8px;margin-top:10px}#mp .mp-how div{padding:12px 14px;border-radius:14px;background:var(--panel);border:1px solid var(--line);font-size:14px;line-height:1.5}#mp .mp-how b{color:#ffe08a}
+#mp .mp-foot{max-width:980px;margin:34px auto 0;padding:0 16px;color:var(--muted);font-size:12px;line-height:1.6}
+/* profile view */
+#mp .mp-view{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:16px;background:#03050dcc;backdrop-filter:blur(6px)}
+#mp .mp-view[hidden]{display:none}
+#mp .mp-box{width:min(440px,100%);max-height:calc(100vh - 32px);overflow-y:auto;display:grid;gap:10px;animation:mpIn .3s cubic-bezier(.2,.9,.3,1.2)}
+@keyframes mpIn{from{transform:translateY(16px) scale(.96);opacity:0}}
+#mp .mp-box .pf-card{box-shadow:0 30px 70px #000c}
+#mp .mp-meta{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}#mp .mp-meta div{padding:10px 6px;border-radius:12px;background:var(--panel);border:1px solid var(--line);text-align:center;display:grid;gap:2px}#mp .mp-meta b{font:700 17px "Chakra Petch",sans-serif}#mp .mp-meta small{font-size:10.5px;color:var(--muted)}
+#mp .mp-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px}#mp .mp-acts button,#mp .mp-acts a{min-height:44px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:inherit;font:inherit;font-weight:800;display:grid;place-items:center;text-decoration:none;cursor:pointer}#mp .mp-acts .p{background:var(--brand);border-color:var(--brand);color:#fff}
+@media (max-width:560px){#mp .mp-row{grid-template-columns:22px auto minmax(0,1fr) auto;gap:10px;padding:10px}#mp .mp-row .pf-av{--pf:44px!important}#mp .mp-pod b{font-size:12.5px}}
+</style>
+<!-- PAGE-HEAD:END -->
+</head>
+<body style="margin:0">
+<!-- PAGE-BODY:START -->
+<div id="mp">
+  <div class="mp-top"><img src="https://kodex.meiocg.org/duel/assets/meiocg-192.webp" alt=""><b>MEIOCG</b><a class="cta" href="https://meiocg.org/duelsynapse">Get KodeX</a></div>
+  <div class="mp-hero"><small>Community · KodeX duelists</small><h1>MEIOCG <span>Players</span></h1>
+    <p>KodeX players who chose to be listed, ranked by how active they are. Tap a player to open their profile: their icon frame, banner, title and how they play.</p></div>
+  <div class="mp-wrap">
+    <div class="mp-podium" id="mpPod"></div>
+    <div class="mp-bar"><div class="mp-tabs" role="tablist"><button role="tab" class="on" data-sort="points">Most active</button><button role="tab" data-sort="recent">Recently active</button></div><input class="mp-q" id="mpQ" type="search" placeholder="Find a player" aria-label="Find a player"></div>
+    <div class="mp-list" id="mpList"><div class="empty">Loading players…</div></div>
+    <p class="mp-note" id="mpTotal"></p>
+    <h2>Icon frames</h2><p class="mp-note">Frames unlock as you use KodeX. KodeX Premium adds its own frame.</p>
+    <div class="mp-frames" id="mpFrames"></div>
+    <h2>Get listed</h2>
+    <div class="mp-how"><div>Open <b>KodeX → Settings → Profile → Edit profile</b> and turn on <b>Show me on MEIOCG Players</b>.</div>
+      <div>Points come from using KodeX: each day you open it (10), each duel in Duel Synapse Arena (4), each deck you build (5) and the cards you look up (1 each, up to 300).</div>
+      <div>Only what your profile shows is listed: name, title, about line, preset icon, frame and activity counts. No email or account. Turn it off and you're removed.</div></div>
+  </div>
+  <div class="mp-foot">A project of Meta Insider OCG since 2023 · Created by Castel Noleal · Not affiliated with, endorsed or sponsored by Konami. Yu-Gi-Oh! is a trademark of Konami.</div>
+  <div class="mp-view" id="mpView" hidden role="dialog" aria-modal="true" aria-label="Player profile"><div class="mp-box" id="mpBox"></div></div>
+</div>
+<script>
+(function () {
+  "use strict";
+  /*PROFILE_JS*/
+  var API = /(^|\.)kodex\.meiocg\.org$/.test(location.hostname) ? "/api/players" : "https://kodex.meiocg.org/api/players";
+  var LOGO = "https://kodex.meiocg.org/duel/assets/meiocg-192.webp";
+  var $ = function (id) { return document.getElementById(id); };
+  // esc() comes with the profile code above
+  var all = [], sort = "points";
+  var asProfile = function (r) { return { name: r.name, title: r.title, bio: r.bio, icon: r.icon, img: "", frame: r.frame, theme: r.theme || "default", premium: r.premium, tier: r.tier, accent: "", stats: { points: r.points, days: r.days, duels: r.duels, wins: r.wins } }; };
+  var ago = function (t) { var m = Math.round((Date.now() - t) / 60000); return m < 60 ? "active now" : m < 1440 ? "active " + Math.round(m / 60) + " h ago" : "active " + Math.round(m / 1440) + " d ago"; };
+  function row(r) {
+    var p = asProfile(r);
+    return '<button class="mp-row" data-pid="' + esc(r.pid) + '"><span class="n">' + r.rank + "</span>" + avatarHTML(p, LOGO, 52) + '<span class="who"><b>' + esc(r.name) + "</b>" + (r.title ? "<span>" + esc(r.title) + "</span>" : "") +
+      '<span class="tags"><em class="t-' + esc(r.tier) + '">' + esc(tierName(r.tier)) + "</em>" + (r.premium ? '<em class="pr">Premium</em>' : "") + "<small>" + ago(r.last) + '</small></span></span><span class="pts"><b>' + r.points + "</b><small>points</small></span></button>";
+  }
+  function draw() {
+    var q = $("mpQ").value.trim().toLowerCase(), xs = q ? all.filter(function (r) { return (r.name + " " + (r.title || "")).toLowerCase().indexOf(q) >= 0; }) : all;
+    $("mpList").innerHTML = xs.length ? xs.map(row).join("") : '<div class="empty">' + (all.length ? "No player by that name." : "No players listed yet. Be the first: turn on <b>Show me on MEIOCG Players</b> in your KodeX profile.") + "</div>";
+    var top = sort === "points" && !q ? all.slice(0, 3) : [];
+    $("mpPod").innerHTML = top.map(function (r, i) { return '<button class="mp-pod r' + (i + 1) + '" data-pid="' + esc(r.pid) + '"><span class="rk">' + (i + 1) + "</span>" + avatarHTML(asProfile(r), LOGO, i ? 58 : 74) + "<b>" + esc(r.name) + "</b><span>" + r.points + "</span><em>" + esc(tierName(r.tier)) + "</em></button>"; }).join("");
+    $("mpPod").hidden = !top.length;
+  }
+  function load() {
+    $("mpList").innerHTML = '<div class="empty">Loading players…</div>';
+    fetch(API + "?sort=" + sort + "&limit=200").then(function (r) { if (!r.ok) throw 0; return r.json(); }).then(function (j) {
+      all = j.players || []; draw();
+      $("mpTotal").textContent = j.total ? j.total + " player" + (j.total === 1 ? "" : "s") + " active in the last 90 days" : "";
+      route();
+    }).catch(function () { $("mpList").innerHTML = '<div class="empty">The player list could not load. Please refresh in a moment.</div>'; });
+  }
+  function open(pid) {
+    var show = function (r) {
+      var p = asProfile(r), rate = r.duels ? Math.round(r.wins / r.duels * 100) + "%" : "–";
+      $("mpBox").innerHTML = cardHTML(p, LOGO) + '<div class="mp-meta"><div><b>' + (r.rank ? "#" + r.rank : "–") + '</b><small>Rank</small></div><div><b>' + (r.decks || 0) + '</b><small>Decks</small></div><div><b>' + new Date(r.since).toLocaleDateString([], { month: "short", year: "numeric" }) + "</b><small>Listed since</small></div></div>" +
+        '<div class="mp-acts"><button type="button" data-share>Copy profile link</button><button type="button" class="p" data-close>Close</button></div>';
+      $("mpView").hidden = false;
+      if (location.hash !== "#" + pid) history.replaceState(null, "", "#" + pid);
+    };
+    var r = all.filter(function (x) { return x.pid === pid; })[0];
+    if (r) { show(r); return; }
+    fetch(API + "/p/" + encodeURIComponent(pid)).then(function (x) { if (!x.ok) throw 0; return x.json(); }).then(function (j) { show(j.player); }).catch(function () {});
+  }
+  function close() { $("mpView").hidden = true; if (location.hash) history.replaceState(null, "", location.pathname + location.search); }
+  function route() { var m = /^#([a-f0-9]{12})$/.exec(location.hash); if (m) open(m[1]); }
+  document.getElementById("mp").addEventListener("click", function (e) {
+    var t = e.target.closest("[data-pid]"); if (t) { open(t.dataset.pid); return; }
+    var s = e.target.closest("[data-sort]"); if (s) { sort = s.dataset.sort; document.querySelectorAll("#mp [data-sort]").forEach(function (b) { b.classList.toggle("on", b === s); }); load(); return; }
+    if (e.target.closest("[data-close]") || e.target === $("mpView")) { close(); return; }
+    if (e.target.closest("[data-share]")) { var u = "https://kodex.meiocg.org/players" + location.hash; (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(function () { e.target.textContent = "Link copied"; }, function () { prompt("Copy this link:", u); }); }
+  });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") close(); });
+  addEventListener("hashchange", route);
+  $("mpQ").addEventListener("input", draw);
+  $("mpFrames").innerHTML = PROFILE_DATA.tiers.map(function (t) { return "<div>" + avatarHTML({ frame: t[0], icon: "star" }, LOGO, 48) + "<b>" + esc(t[1]) + "</b><small>" + t[2] + " points</small></div>"; }).join("") + "<div>" + avatarHTML({ frame: "premium", icon: "crown" }, LOGO, 48) + "<b>Premium</b><small>KodeX Premium</small></div>";
+  load();
+})();
+</script>
+<!-- PAGE-BODY:END -->
+</body>
+</html>

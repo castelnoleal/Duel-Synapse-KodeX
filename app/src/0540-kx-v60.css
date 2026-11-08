@@ -1,0 +1,31 @@
+/* KodeX 9.3 · module: premium-pitch-and-trial (styles) */
+html.kx-trial #topAdSlot{display:none!important}html.kx-trial .top-ad-safe-area{padding:var(--sat) 0 0!important}
+.pz{display:grid;gap:12px}
+.pz-hero{position:relative;overflow:hidden;border-radius:22px;padding:22px 18px 18px;min-height:250px;background:radial-gradient(120% 90% at 100% 0%,#7a4fd6aa,transparent 60%),radial-gradient(100% 80% at 0% 100%,#f0b42955,transparent 60%),linear-gradient(150deg,#141b4a,#0b0f26 70%);border:1px solid #f0b42966;box-shadow:0 20px 50px #0008,inset 0 0 0 1px #ffffff10;isolation:isolate}
+.pz-hero::before{content:"";position:absolute;inset:-40%;z-index:-1;background:conic-gradient(from 0deg,transparent,#8d99ff33,transparent 30%,#f0b42933,transparent 60%);animation:pzSpin 9s linear infinite}
+@keyframes pzSpin{to{transform:rotate(1turn)}}
+.pz-fan{position:absolute;right:-6px;top:16px;width:150px;height:200px;pointer-events:none}
+.pz-fan img{position:absolute;top:0;right:24px;width:96px;aspect-ratio:59/86;object-fit:cover;border-radius:7px;box-shadow:0 0 0 2px #fff,0 12px 28px #000a,0 0 30px #f0b42966;transform-origin:50% 120%;animation:pzFloat 5s ease-in-out infinite}
+.pz-fan .f0{transform:rotate(-16deg) translateX(-34px);animation-delay:-1.2s}.pz-fan .f1{transform:rotate(-2deg);z-index:2;animation-delay:-2.4s}.pz-fan .f2{transform:rotate(13deg) translateX(30px) translateY(10px);animation-delay:-3.6s}
+@keyframes pzFloat{50%{translate:0 -6px}}
+.pz-tag{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;background:linear-gradient(90deg,#ffe08a,#f0b429);color:#1a1202;font-weight:900;font-size:11px;letter-spacing:.1em;text-transform:uppercase}
+.pz-h{margin:12px 0 6px;max-width:58%;font-size:26px;line-height:1.05;font-weight:900;letter-spacing:-.01em;background:linear-gradient(180deg,#fff,#c9d2ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.pz-p{margin:0;max-width:60%;color:#c9d0f2;font-size:13.5px;line-height:1.45}
+.pz-cta{display:grid;gap:8px;margin-top:16px}
+.pz-cta .btn{width:100%;min-height:48px;font-size:15px;font-weight:850;border-radius:14px}
+.pz-try{background:linear-gradient(90deg,#ffe08a,#f0b429);color:#1a1202;border:0;box-shadow:0 8px 24px #f0b42955;animation:pzPulse 2.4s ease-in-out infinite}
+@keyframes pzPulse{50%{box-shadow:0 8px 34px #f0b429aa}}
+.pz-fine{display:block;margin-top:8px;color:#9aa3c7;font-size:11.5px;text-align:center}
+.pz-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pz-t{position:relative;display:grid;gap:3px;text-align:left;padding:12px;border-radius:14px;border:1px solid var(--line);background:linear-gradient(160deg,rgba(255,255,255,.05),rgba(255,255,255,.01));color:inherit;font:inherit}
+.pz-t b{font-size:13.5px}.pz-t small{color:var(--muted);font-size:11.5px;line-height:1.3}.pz-t em{font-style:normal;display:inline-flex;align-items:center;gap:4px;margin-top:4px;color:#f0b429;font-weight:800;font-size:11px}
+.pz-cmp{border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.pz-row{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:6px;padding:9px 12px;font-size:12.5px;border-top:1px solid var(--line)}.pz-row:first-child{border-top:0}
+.pz-row.h{background:rgba(255,255,255,.04)}.pz-row.h b:last-child{color:#f0b429}.pz-row i{font-style:normal;color:var(--muted)}.pz-row i.y{color:#ffe08a;font-weight:800}
+.pz-more{border:1px solid var(--line);border-radius:14px;padding:10px 12px}.pz-more summary{cursor:pointer;font-weight:800;font-size:13px}.pz-more .pcard{margin-top:10px}
+.pz-trial{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:0 0 10px;padding:12px 14px;border-radius:14px;background:linear-gradient(90deg,#f0b42922,#7a4fd622);border:1px solid #f0b42966}
+.pz-trial b{display:inline-flex;align-items:center;gap:6px;color:#ffe08a}.pz-trial span{flex:1;color:var(--muted);font-size:13px}.pz-trial .btn{min-height:38px}
+@media (prefers-reduced-motion:reduce){.pz-hero::before,.pz-fan img,.pz-try{animation:none}}
+.pz-fan{width:118px;height:170px;right:-2px;top:18px}.pz-fan img{width:72px;right:18px}
+.pz-fan .f0{transform:rotate(-14deg) translateX(-22px)}.pz-fan .f2{transform:rotate(12deg) translateX(20px) translateY(8px)}
+.pz-h,.pz-p{max-width:calc(100% - 112px)}.pz-h{font-size:24px}

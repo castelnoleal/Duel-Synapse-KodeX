@@ -202,7 +202,7 @@ export default {
     const duel = await handleDuel(request, url, env);
     if (duel) return duel;
     if (url.pathname === "/api/lens") return handleLens(request, env, ctx);
-    if (url.pathname === "/api/players" || url.pathname === "/api/players/ping" || url.pathname === "/api/players/leave") return handlePlayers(request, env);
+    if (url.pathname === "/api/players" || url.pathname.startsWith("/api/players/")) return handlePlayers(request, env);
     if (url.pathname === "/translate") {
       if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
       try {
@@ -285,6 +285,17 @@ export default {
             "X-Content-Type-Options": "nosniff",
             ...corsHeaders(),
           },
+        });
+      }
+
+      if (url.pathname === "/players" || url.pathname === "/players.html" || url.pathname === "/players/") {
+        // MEIOCG Players: the leaderboard and each player's public profile (players.html#<pid>)
+        const response = await githubFile("players.html", env, 300);
+        return withHeaders(response, {
+          "Content-Type": "text/html; charset=utf-8",
+          "Cache-Control": "public, max-age=300, stale-while-revalidate=3600",
+          "X-Content-Type-Options": "nosniff",
+          "Referrer-Policy": "no-referrer",
         });
       }
 

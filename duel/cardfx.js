@@ -38,6 +38,12 @@ function A(el, frames, opts = {}) {
 // ---------------------------------------------------------------- staples
 // kind: how the particles move. glyph: what they are. word: the stamp. col: the colour of the moment.
 const STAPLES = {
+  "s p little knight": { kind: "dash", glyph: ["⚔"], word: "BANISHED!", sub: "S:P Little Knight", col: "#9fe2ff", cut: true },
+  "baronne de fleur": { kind: "rise", glyph: ["🌹", "✿"], word: "NEGATED!", sub: "Baronne de Fleur", col: "#ff6a9a", cut: true },
+  "apollousa bow of the goddess": { kind: "rays", glyph: ["✦"], word: "NEGATED!", sub: "Apollousa", col: "#ffe08a", cut: true },
+  "i p masquerena": { kind: "swirl", glyph: ["🎭"], word: "LINK!", sub: "I:P Masquerena", col: "#c48bff", cut: true },
+  "accesscode talker": { kind: "bolt", glyph: ["⚡", "◆"], word: "ACCESS!", sub: "Accesscode Talker", col: "#3ac8ff", cut: true },
+  "knightmare unicorn": { kind: "dash", glyph: ["🦄"], word: "SHUFFLE!", sub: "Knightmare Unicorn", col: "#b46bff", cut: true },
   "ash blossom joyous spring": { kind: "swirl", glyph: ["🌸", "✿", "❀"], word: "ASH BLOSSOM", sub: "negated", col: "#ff8fc0" },
   "ghost belle haunted mansion": { kind: "rise", glyph: ["👻", "🔔"], word: "GHOST BELLE", sub: "the graveyard is sealed", col: "#b7a6ff" },
   "effect veiler": { kind: "veil", glyph: ["✧"], word: "VEILED", sub: "effects negated", col: "#9fd8ff" },
@@ -103,8 +109,8 @@ const STAPLES = {
 export const stapleNames = () => Object.keys(STAPLES);
 export const isStaple = (name) => !!STAPLES[norm(name)];
 
-function stamp(L, word, sub, col, big) {
-  const s = div("cf-stamp" + (big ? " big" : ""), { "--c": col });
+function stamp(L, word, sub, col, big, low) {
+  const s = div("cf-stamp" + (big ? " big" : "") + (low ? " low" : ""), { "--c": col });
   s.append(div("cf-word", null, word));
   if (sub) s.append(div("cf-sub", null, sub));
   L.append(s); later(s, 1900);
@@ -147,15 +153,27 @@ function overlay(L, spec, at) {
   }
 }
 /** A staple's moment. `at` is the zone or card it came from (optional). Returns true when the card has one. */
-export function staple(name, at) {
+export function staple(name, code, src, at) {
+  if (at === undefined && code && code.getBoundingClientRect) { at = code; code = 0; src = ""; }   // old call: staple(name, at)
   const spec = STAPLES[norm(name)];
   if (!spec || reduced()) return !!spec;
   const L = layer(), r = at && at.getBoundingClientRect && at.getBoundingClientRect();
   const from = r && r.width ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : { x: innerWidth / 2, y: innerHeight / 2 };
   overlay(L, spec, from);
   glyphs(L, spec, from);
-  stamp(L, spec.word, spec.sub, spec.col);
+  if (src) cutIn(L, src, name, spec.col);
+  else stamp(L, spec.word, spec.sub, spec.col);
+  if (src) stamp(L, spec.word, "", spec.col, false, true);
   return true;
+}
+/** Anime cut-in: a diagonal band slides across with the card's own art and name. */
+function cutIn(L, src, name, col) {
+  const b = div("cf-cut", { "--c": col });
+  const art = div("cf-cut-art"); art.style.backgroundImage = `url("${src}")`;
+  const t = div("cf-cut-t", null, name);
+  b.append(art, t); L.append(b); later(b, 1700);
+  A(b, [{ transform: "translateY(-50%) skewY(-6deg) translateX(-110%)", opacity: 1 }, { transform: "translateY(-50%) skewY(-6deg) translateX(0)", opacity: 1, offset: .18 }, { transform: "translateY(-50%) skewY(-6deg) translateX(3%)", opacity: 1, offset: .78 }, { transform: "translateY(-50%) skewY(-6deg) translateX(110%)", opacity: 0 }], { duration: 1600, easing: "cubic-bezier(.2,.9,.3,1)", fill: "both" });
+  A(art, [{ backgroundPosition: "50% 20%" }, { backgroundPosition: "50% 40%" }], { duration: 1600, fill: "both" });
 }
 
 // ---------------------------------------------------------------- showdowns (finale before a winning blow, Ace cards)
@@ -173,7 +191,8 @@ function bigCard(L, src, title, cls, ms) {
 }
 function sfx(L, txt, n, col, ms) {
   for (let i = 0; i < n; i++) {
-    const g = div("cf-sfx", { color: col, left: (i % 2 ? rnd(66, 90) : rnd(4, 26)) + "%", top: rnd(8, 78) + "%", fontSize: `clamp(30px, ${rnd(7, 12).toFixed(1)}vmin, 110px)` }, txt);
+    const pos = i % 2 ? { right: rnd(2, 8) + "%" } : { left: rnd(2, 8) + "%" };
+    const g = div("cf-sfx", { color: col, ...pos, top: (8 + (i >> 1) * (70 / Math.max(1, Math.ceil(n / 2))) + rnd(0, 6)).toFixed(1) + "%", fontSize: `clamp(24px, ${rnd(6, 8.5).toFixed(1)}vmin, 80px)` }, txt);
     L.append(g); later(g, ms);
     A(g, [{ transform: "scale(.4) rotate(-12deg)", opacity: 0 }, { transform: "scale(1) rotate(-8deg)", opacity: 1, offset: .12 }, { transform: "scale(1.04) rotate(-8deg) translateY(-6px)", opacity: 1, offset: .55 }, { transform: "scale(1) rotate(-8deg)", opacity: 1, offset: .9 }, { transform: "scale(1.1) rotate(-8deg)", opacity: 0 }], { duration: ms - 300, delay: i * 120, fill: "both", easing: "ease-out" });
   }

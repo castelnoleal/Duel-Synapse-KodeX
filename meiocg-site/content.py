@@ -22,6 +22,7 @@ PAGES = {
     "guide-raise-moon": "guide-raise-moon",
     "cup": "meiocg-cup",
     "players": "players",
+    "ds": "duelsynapse",
 }
 URL = lambda k: f"{SITE}/{PAGES[k]}"
 
@@ -432,4 +433,40 @@ PLAYERS = dict(
     how=["Open KodeX → Settings → Profile → Edit profile and turn on **Show me on MEIOCG Players**.",
          "Points come from using KodeX: each day you open it, each duel in Duel Synapse Arena, each deck you build and the cards you look up.",
          "Only what your profile shows is listed: name, title, about line, preset icon, frame and activity counts. No email or account. Turn it off and you're removed."],
+)
+
+
+# meiocg.org/duelsynapse: the KodeX / Duel Synapse landing page. Card art in the demos is real art from the KodeX
+# database (kodex.meiocg.org/img/<passcode>.jpg). Set PLAY_FREE when the free app's Play listing is live.
+DS = dict(
+    play_free="",   # e.g. "https://play.google.com/store/apps/details?id=…"
+    play_premium="https://play.google.com/store/apps/details?id=com.duelsynapse.kodex.premium",
+    web="https://kodex.meiocg.org",
+    lead=("Duel Synapse: KodeX is the OCG companion from Meta Insider OCG: every card with official rulings, a card scanner, "
+          "a deck builder that checks OCG legality, and the Duel Synapse Arena to playtest and duel online, with your own profile."),
+    cards=dict(ace=93481594, ash=14558127, maxx=23434538, finisher=86066372, dm=46986414, bewd=89631139, dmg=38033121, veiler=97268402, nibiru=27204311, snake=9674034),
+    features=[
+        ("🔎", "Every OCG card and its rulings", "Search by name, text or stats, with official Q&A rulings and the OCG Forbidden & Limited status on every card."),
+        ("📷", "Card scanner", "Point the camera at a card to open it. Works on artwork and text."),
+        ("🧩", "Decks that check themselves", "Build, import deck links, files or text lists, and see at a glance if a deck is OCG legal."),
+        ("⚔️", "Duel Synapse Arena", "Playtest against Synapse AI or a dummy, choose your deck order and opening hand, set a turn timer, play best-of-three, or duel friends online."),
+        ("🏅", "Your profile", "Name, title, icon and a frame that levels up as you use KodeX: Rookie to Master. Opponents see it in every duel."),
+        ("❓", "Help bubble", "Find any feature or setting by name, open the banlist and quick settings from anywhere, even mid-duel."),
+    ],
+    premium=[
+        ("ace", "Ace showdowns", "Your Ace cards take the whole screen when they're summoned, activated or added to the hand, and nothing covers them."),
+        ("finish", "Finishing moves", "Shatter, Meteor, Thunder, Vortex or Slash: the loser's field and profile icon crack and break before the result."),
+        ("staple", "Staple animations", "Ash Blossom, Maxx \"C\", Effect Veiler, Nibiru and more get their own cut-in for everyone (free too, and you can turn them off)."),
+        ("frames", "Profile frames", "Frames from Rookie to Master for everyone; Premium adds the Premium frame, your own picture or GIF and animated banners."),
+        ("win", "Winner screen", "Your profile, your finishing card and YOU WIN, with a secret comeback moment when you turn the duel around."),
+    ],
+    compare=[("Ads", "Sponsor strip", "None"), ("Card scans", "4 a day", "Unlimited"), ("Winning showdowns", "Menacing", "13 styles + Random"),
+             ("Ace cards", "–", "✓"), ("Finishing moves", "Shatter", "5 + one per card"), ("Profile", "MEIOCG icon, presets, earned frames", "Own picture, animated banner, Premium frame"),
+             ("Skins, emotes, music", "–", "✓")],
+    trial="New to Premium? The free app has a one-time 5-day KodeX Premium trial in Settings: every feature, no ads, nothing charged, and it ends on its own.",
+    faq=[("Is KodeX free?", "Yes. The free edition has everything for cards, rulings, decks and the Arena, with a small sponsor strip. KodeX Premium removes it and adds the showdowns, skins and profile extras."),
+         ("Which format does KodeX follow?", "The OCG: its card pool and its Forbidden & Limited list."),
+         ("Can I duel my friends?", "Yes. Open a room in the Arena and send the invite link; friends can also watch."),
+         ("Do I need an account?", "No. Your decks, profile and settings stay on your phone. Being listed on MEIOCG Players is optional."),
+         ("Who makes KodeX?", "Meta Insider OCG (MEIOCG), created by Castel Noleal. A project of Meta Insider OCG since 2023.")],
 )

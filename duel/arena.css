@@ -965,3 +965,20 @@ body.replaying #table { padding-top: 54px; }
 }
 /* the name comes from the KodeX profile, so on short landscape screens the field steps aside for the rest of Play */
 @media (orientation: landscape) and (min-width: 640px) and (max-height: 460px) { body.has-pf .play-panel .field:has(> #nameInput) { display: none; } }
+/* v60 portrait lobby: fewer things to scroll past */
+@media (orientation: portrait) {
+  .play-panel .pane-body { gap: 10px; }
+  .play-panel #aiNote:empty { display: none; }
+  .play-panel #aiNote { font-size: 11.5px; margin: -4px 0 0; }
+  .play-panel .replay-open { min-height: 38px; font-size: 13px; padding: 6px 12px; }
+  .play-panel .field > span { font-size: 12px; }
+  .pt-opts .grid2 { gap: 8px; }
+  .pt-opts .test-hand { max-height: 168px; overflow-y: auto; }
+}
+/* v60 short landscape: names wrap only between words; Play keeps its button below the options, not over them */
+@media (orientation: landscape) and (min-width: 640px) and (max-height: 460px) {
+  .arena .duelist .who b, .arena .duelist.me .who b { overflow-wrap: normal; word-break: normal; hyphens: none; font-size: 11px; }
+  .arena .duelist .who { min-width: 64px; }
+  .play-panel #aiNote { display: none; }
+  .play-panel .pane-body .btn.primary.wide { box-shadow: 0 -14px 0 2px #121838, 0 -30px 16px #121838e6, 0 6px 18px #3347f055; }
+}

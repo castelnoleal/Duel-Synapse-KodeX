@@ -149,6 +149,12 @@ export class DuelHost {
     this.finish(1 - player, `${this.names[player]} surrendered`, []);
   }
 
+  /** A playtest turn timer ran out: that player loses. */
+  timeout(player) {
+    if (this.ended) return;
+    this.finish(1 - player, `${this.names[player]} ran out of time`, []);
+  }
+
   run() {
     const events = [];
     let guard = 0;

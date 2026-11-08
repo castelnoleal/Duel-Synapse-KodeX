@@ -162,6 +162,8 @@ self.onmessage = async (ev) => {
       if (err) post({ t: "error", team: m.team, error: err });
     } else if (m.cmd === "surrender") {
       if (host) host.surrender(m.team);
+    } else if (m.cmd === "timeout") {
+      if (host) host.timeout(m.team);
     } else if (m.cmd === "train") {
       // Practice games for a deck (run in a separate worker so they never slow down a real duel).
       if (training) return;

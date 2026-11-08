@@ -200,6 +200,46 @@
       '<div class="wrap"><details class="tocm"><summary>On this page</summary>' + toc + '</details><div class="grid"><aside>' + toc + "</aside><main>" + sec.map(function (x) { return section(x[0], x[1], x[2]); }).join("") + disc + "</main></div></div>";
   }
 
+  /* ---------- Duel Synapse: KodeX landing (meiocg.org/duelsynapse) ---------- */
+  function dsPage() {
+    var K = D.cards, P = D.profile;
+    var pfIcon = function (id) { var p = P.icons[id]; if (!p) return KX + "/duel/assets/meiocg-192.webp"; return "data:image/svg+xml;charset=utf-8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + p[0] + '"/><stop offset="1" stop-color="' + p[1] + '"/></linearGradient></defs><rect width="48" height="48" fill="url(#g)"/><g transform="translate(12 12)" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="' + p[2] + '"/></g></svg>'); };
+    var av = function (fr, icon, n) { return '<span class="pf-av fr-' + fr + '" style="--pf:' + n + 'px"><img src="' + esc(pfIcon(icon)) + '" alt="" loading="lazy"></span>'; };
+    var playBtn = D.play_free ? '<a class="btn p" href="' + esc(D.play_free) + '" target="_blank" rel="noopener">Get it on Google Play</a>' : '<span class="btn p dis" aria-disabled="true">Google Play · coming soon</span>';
+    var demo = {
+      ace: '<div class="dsx ace"><i class="rays"></i><img class="hero" src="' + img(K.ace) + '" alt="Solfachord Happiness"><b class="t">Solfachord Happiness</b><span class="tag">ACE CARD · Kasuteru Kun</span><span class="ln">Added to the hand</span></div>',
+      finish: '<div class="dsx fin"><div class="mat">' + [0, 1, 2, 3, 4].map(function (i) { return '<img src="' + img([K.dm, K.bewd, K.dmg, K.snake, K.veiler][i]) + '" alt="" style="--i:' + i + '">'; }).join("") + '</div><div class="pfb">' + av("gold", "moon", 70) + '<svg viewBox="0 0 100 100"><polyline points="50,2 44,20 58,36 40,54 56,72 46,98"/><polyline points="58,36 80,44 94,40"/><polyline points="40,54 20,60 8,74"/></svg></div><b class="k">FINISH!</b></div>',
+      staple: '<div class="dsx stp"><div class="band"><img src="' + img(K.ash) + '" alt="Ash Blossom &amp; Joyous Spring"><b>Ash Blossom &amp; Joyous Spring</b></div>' + new Array(16).join(".").split(".").map(function (_, i) { return '<i class="pt" style="left:' + ((i * 37) % 96) + '%;animation-delay:' + ((i * 53) % 25) / 10 + 's;animation-duration:' + (3 + (i % 4) * .5) + 's">' + (i % 3 ? "🌸" : "✿") + "</i>"; }).join("") + '<b class="stamp">ASH BLOSSOM</b></div>',
+      frames: '<div class="dsx frm">' + [["rookie", "star"], ["bronze", "flame"], ["silver", "moon"], ["gold", "crown"], ["platinum", "gem"], ["diamond", "bolt"], ["master", "sun"], ["premium", "wing"]].map(function (f, i) { return '<div style="--i:' + i + '">' + av(f[0], f[1], 54) + "<small>" + f[0][0].toUpperCase() + f[0].slice(1) + "</small></div>"; }).join("") + "</div>",
+      win: '<div class="dsx win"><div class="who">' + av("premium", "crown", 64) + '<div><b>Kasuteru Kun</b><span>Winner via Comeback</span></div></div><img class="fc" src="' + img(K.finisher) + '" alt="Accesscode Talker"><small class="cap">Finishing card · Accesscode Talker</small><b class="yw">You win</b></div>'
+    };
+    var tabs = D.premium.map(function (x, i) { return '<button role="tab" data-ds="' + x[0] + '"' + (i ? "" : ' class="on"') + ">" + esc(x[1]) + "</button>"; }).join("");
+    var info = {}; D.premium.forEach(function (x) { info[x[0]] = x; });
+    root.innerHTML =
+      '<header class="hero ds-hero"><div class="wrap ds-hgrid"><div><span class="pill"><b>KodeX</b>by Meta Insider OCG</span><h1>Duel Synapse: <span>KodeX</span></h1><p class="lead">' + md(D.lead) + '</p>' +
+      '<div class="btns">' + playBtn + '<a class="btn" href="' + esc(D.web) + '" target="_blank" rel="noopener">Open KodeX on the web</a></div><small class="ds-fine">Free on Android and the web · KodeX Premium on Google Play</small></div>' +
+      '<div class="ds-phone" aria-label="KodeX Arena preview"><div class="ds-scr">' + demo.ace + "</div></div></div></header>" +
+      '<div class="wrap"><main>' +
+      section("features", "Everything for the OCG, in one app", '<div class="ds-feat">' + D.features.map(function (f) { return '<div class="ds-f"><i>' + f[0] + "</i><b>" + esc(f[1]) + "</b><p>" + md(f[2]) + "</p></div>"; }).join("") + "</div>") +
+      section("premium", "KodeX Premium, in action", '<p>Real cards from the KodeX database, the way they play in Duel Synapse Arena.</p><div class="ds-show"><div class="ds-tabs" role="tablist">' + tabs + '</div><div class="ds-stage"><div class="ds-scr big" id="dsStage"></div><div class="ds-cap" id="dsCap"></div></div></div>') +
+      section("compare", "Free and Premium", '<div class="tbl"><table><thead><tr><th></th><th>Free</th><th>Premium</th></tr></thead><tbody>' + D.compare.map(function (r) { return "<tr><td>" + esc(r[0]) + "</td><td>" + esc(r[1]) + '</td><td class="y">' + esc(r[2]) + "</td></tr>"; }).join("") + '</tbody></table></div><div class="ds-trial"><b>5 days of Premium, free</b><p>' + md(D.trial) + '</p><a class="btn g" href="' + esc(D.play_premium) + '" target="_blank" rel="noopener">Get KodeX Premium</a></div>') +
+      section("community", "Play with the community", '<div class="more"><a class="mc" href="' + esc(D.links.players) + '"><small>Community</small><b>MEIOCG Players</b><span>The most active duelists and their frames.</span></a><a class="mc" href="' + esc(D.links.cup) + '"><small>Tournament</small><b>MEIOCG Cup</b><span>OCG Swiss rounds, decks registered through KodeX.</span></a><a class="mc" href="' + esc(D.links.decks) + '"><small>Meta</small><b>OCG meta decks</b><span>How they combo and how to beat them, with drills in the Arena.</span></a></div>') +
+      section("faq", "FAQ", faq(D.faq)) +
+      '<p class="disc">A project of Meta Insider OCG since 2023 · Created by Castel Noleal. Meta Insider OCG (MEIOCG) is an independent fan project, not affiliated with or endorsed by Konami. Yu-Gi-Oh! is a trademark of Konami. Card images are shown for identification.</p></main></div>';
+    var cur = D.premium[0][0], timer = 0, order = D.premium.map(function (x) { return x[0]; });
+    var show = function (k) {
+      cur = k;
+      root.querySelectorAll("[data-ds]").forEach(function (b) { b.classList.toggle("on", b.dataset.ds === k); b.setAttribute("aria-selected", b.dataset.ds === k); });
+      var st = root.querySelector("#dsStage"); st.innerHTML = demo[k];
+      root.querySelector("#dsCap").innerHTML = "<b>" + esc(info[k][1]) + "</b><p>" + md(info[k][2]) + "</p>";
+    };
+    var auto = function () { clearInterval(timer); if (matchMedia("(prefers-reduced-motion: reduce)").matches) return; timer = setInterval(function () { show(order[(order.indexOf(cur) + 1) % order.length]); }, 5200); };
+    root.addEventListener("click", function (e) { var t = e.target.closest("[data-ds]"); if (t) { show(t.dataset.ds); auto(); } });
+    show(cur); auto();
+    // the phone in the hero loops the Ace showdown
+    setInterval(function () { var s = root.querySelector(".ds-phone .ds-scr"); if (s && !document.hidden) { s.innerHTML = ""; void s.offsetWidth; s.innerHTML = demo.ace; } }, 5200);
+  }
+
   /* ---------- MEIOCG Players ---------- */
   function playersPage() {
     var P = D.profile, tierName = function (id) { var t = P.tiers.filter(function (x) { return x[0] === id; })[0]; return t ? t[1] : "Rookie"; };
@@ -249,5 +289,5 @@
       '<div class="wrap"><details class="tocm"><summary>On this page</summary>' + toc + '</details><div class="grid"><aside>' + toc + "</aside><main>" + sec.map(function (s) { return section(s[0], s[1], s[2]); }).join("") + disc + "</main></div></div>";
   }
 
-  try { ({ deck: deckPage, hub: hubPage, why: whyPage, guide: guidePage, guides: guidesPage, cup: cupPage, players: playersPage })[D.kind](); } catch (e) { console.error(e); root.innerHTML = '<div class="wrap"><p>This page could not load. Please refresh.</p></div>'; }
+  try { ({ deck: deckPage, hub: hubPage, why: whyPage, guide: guidePage, guides: guidesPage, cup: cupPage, players: playersPage, ds: dsPage })[D.kind](); } catch (e) { console.error(e); root.innerHTML = '<div class="wrap"><p>This page could not load. Please refresh.</p></div>'; }
 })();

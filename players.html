@@ -1,0 +1,283 @@
+<!doctype html>
+<!--
+  MEIOCG Players — kodex.meiocg.org/players. © 2023-2026 Meta Insider OCG (MEIOCG). All rights reserved.
+  Created by Castel Noleal, creator of MEIOCG. Built by scripts/build_players_page.py from scripts/players_page.template.html
+  (icons, frames and banners come from duel/profile.js and duel/profile.css, the same files KodeX and the Arena use).
+  For DashNex: everything between PAGE-HEAD markers goes in Head Code, everything between PAGE-BODY markers in Body Code.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>MEIOCG Players · KodeX duelists and their profiles</title>
+<!-- PAGE-HEAD:START -->
+<meta name="description" content="The most active KodeX duelists, their icon frames and public profiles. A project of Meta Insider OCG since 2023.">
+<meta name="author" content="Castel Noleal (MEIOCG)">
+<meta name="theme-color" content="#0b0f26">
+<meta property="og:title" content="MEIOCG Players">
+<meta property="og:description" content="The most active KodeX duelists and their profiles.">
+<meta property="og:image" content="https://kodex.meiocg.org/meiocglogo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+<style id="mp-style">
+/* Player profiles: icon frames, banners and the profile card. Shared by the Arena and the KodeX app. */
+.pf-av { --pf: 40px; position: relative; display: inline-grid; place-items: center; width: var(--pf); height: var(--pf); flex: none; border-radius: 50%; isolation: isolate; }
+.pf-av img { position: relative; z-index: 1; width: calc(100% - 6px); height: calc(100% - 6px); border-radius: 50%; object-fit: cover; background: #0c1426; display: block; }
+.pf-av::before { content: ""; position: absolute; inset: 0; z-index: 0; border-radius: 50%; background: #2a3354; }
+.pf-av::after { content: ""; position: absolute; inset: -3px; z-index: -1; border-radius: 50%; opacity: 0; }
+.pf-av.fr-none::before { background: #2a3354; }
+.pf-av.fr-rookie::before { background: linear-gradient(135deg, #8a96b4, #4c5878); }
+.pf-av.fr-bronze::before { background: conic-gradient(from 30deg, #8a4b20, #e0a070, #8a4b20, #c27a44, #8a4b20); }
+.pf-av.fr-silver::before { background: conic-gradient(from 30deg, #8d97a8, #f4f7fb, #8d97a8, #dfe5ee, #8d97a8); }
+.pf-av.fr-gold::before { background: conic-gradient(from 30deg, #a8740b, #ffe08a, #b8860b, #fff1b8, #a8740b); }
+.pf-av.fr-gold::after { opacity: 1; box-shadow: 0 0 10px #f0b42988; }
+.pf-av.fr-platinum::before { background: conic-gradient(from 0deg, #5fd3c4, #f2fffd, #7ab8ff, #f2fffd, #5fd3c4); }
+.pf-av.fr-platinum::after { opacity: 1; box-shadow: 0 0 12px #8be1ffaa; }
+.pf-av.fr-diamond::before { background: conic-gradient(from 0deg, #8be1ff, #b46bff, #ffffff, #6f7dff, #8be1ff); animation: pfSpin 6s linear infinite; }
+.pf-av.fr-diamond::after { opacity: 1; box-shadow: 0 0 14px #8be1ffbb, 0 0 26px #b46bff55; }
+.pf-av.fr-master::before { background: conic-gradient(from 0deg, #e0102a, #ffb347, #fff1b8, #e0102a, #7a0a1a, #e0102a); animation: pfSpin 4s linear infinite; }
+.pf-av.fr-master::after { opacity: 1; box-shadow: 0 0 14px #ff5a3aaa, 0 0 30px #f0b42966; animation: pfPulse 2.4s ease-in-out infinite; }
+.pf-av.fr-premium::before { background: conic-gradient(from 0deg, #f0b429, #ffe08a, #7a4fd6, #b46bff, #ffe08a, #f0b429); animation: pfSpin 3.2s linear infinite; }
+.pf-av.fr-premium::after { opacity: 1; inset: -5px; background: radial-gradient(circle, transparent 58%, #f0b42933 70%, transparent 72%); box-shadow: 0 0 16px #f0b429aa, 0 0 32px #7a4fd666; animation: pfPulse 2s ease-in-out infinite; }
+@keyframes pfSpin { to { transform: rotate(1turn); } }
+@keyframes pfPulse { 50% { opacity: .55; } }
+@media (prefers-reduced-motion: reduce) { .pf-av::before, .pf-av::after, .pf-banner, .pf-banner i { animation: none !important; } }
+
+.pf-card { --pf-acc: #8d99ff; position: relative; overflow: hidden; border-radius: 18px; border: 1px solid #ffffff1f; background: #0e1228; color: #eef1ff; padding: 0 0 14px; }
+.pf-banner { height: 92px; position: relative; overflow: hidden; background: radial-gradient(120% 140% at 0% 0%, #3347f088, transparent 60%), linear-gradient(135deg, #182152, #0c0f1f); }
+.pf-banner i { position: absolute; inset: 0; }
+.th-ocean .pf-banner { background: linear-gradient(135deg, #0b3a6a, #0e6a8a 55%, #0c1a2b); }
+.th-dusk .pf-banner { background: linear-gradient(135deg, #5a2a6a, #c25a5a 55%, #2b1530); }
+.th-aurora .pf-banner { background: linear-gradient(120deg, #0c2b2a, #1f9d6b, #3347f0, #b46bff, #0c2b2a); background-size: 300% 100%; animation: pfDrift 9s ease-in-out infinite alternate; }
+.th-nebula .pf-banner { background: radial-gradient(60% 90% at 20% 30%, #b46bff99, transparent), radial-gradient(60% 90% at 80% 60%, #2b7fff99, transparent), #090a1f; background-size: 200% 200%; animation: pfDrift 12s ease-in-out infinite alternate; }
+.th-nebula .pf-banner i { background: radial-gradient(1px 1px at 20% 30%, #fff, transparent), radial-gradient(1px 1px at 60% 70%, #fff, transparent), radial-gradient(1.5px 1.5px at 80% 20%, #fff, transparent), radial-gradient(1px 1px at 40% 80%, #fff, transparent); animation: pfPulse 3s ease-in-out infinite; }
+.th-inferno .pf-banner { background: linear-gradient(0deg, #e0563a, #7a0a1a 60%, #1a0204); }
+.th-inferno .pf-banner i { background: radial-gradient(30% 60% at 20% 100%, #ffb347aa, transparent), radial-gradient(30% 60% at 60% 100%, #ff5a3aaa, transparent), radial-gradient(25% 50% at 90% 100%, #ffe066aa, transparent); animation: pfFlick 1.6s ease-in-out infinite alternate; }
+.th-royal .pf-banner { background: linear-gradient(110deg, #3a2a05, #b8860b 30%, #fff1b8 45%, #b8860b 60%, #3a2a05); background-size: 250% 100%; animation: pfDrift 5s linear infinite; }
+.th-synapse .pf-banner { background: linear-gradient(135deg, #10163a, #2a1a5a); }
+.th-synapse .pf-banner i { background-image: linear-gradient(#8d99ff33 1px, transparent 1px), linear-gradient(90deg, #8d99ff33 1px, transparent 1px); background-size: 18px 18px; animation: pfGrid 3s linear infinite; }
+@keyframes pfDrift { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
+@keyframes pfFlick { from { opacity: .6; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes pfGrid { to { background-position: 18px 18px; } }
+.pf-head { display: flex; align-items: flex-end; gap: 12px; padding: 0 16px; margin-top: -40px; position: relative; }
+.pf-head .pf-av { --pf: 84px; box-shadow: 0 8px 24px #000a; }
+.pf-who { display: grid; gap: 3px; min-width: 0; padding-bottom: 2px; }
+.pf-who b { font-size: 19px; font-weight: 850; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pf-who > span { color: var(--pf-acc); font-size: 13px; font-weight: 700; }
+.pf-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.pf-tags em { font-style: normal; font-size: 10.5px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; background: #ffffff14; color: #c9d0ff; }
+.pf-tags .pf-prem { background: linear-gradient(90deg, #ffe08a, #f0b429); color: #140f02; }
+.pf-tags .t-bronze { background: #8a4b2055; color: #f2b88a; } .pf-tags .t-silver { background: #dfe5ee33; color: #f4f7fb; } .pf-tags .t-gold { background: #f0b42933; color: #ffe08a; }
+.pf-tags .t-platinum { background: #5fd3c433; color: #c6fff6; } .pf-tags .t-diamond { background: #8be1ff33; color: #dff7ff; } .pf-tags .t-master { background: #e0102a44; color: #ffd0b0; }
+.pf-bio { margin: 12px 16px 0; color: #c9d0f2; font-size: 13.5px; line-height: 1.5; }
+.pf-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 14px 12px 0; }
+.pf-stats div { display: grid; justify-items: center; gap: 2px; padding: 8px 4px; border-radius: 12px; background: #ffffff0a; border: 1px solid #ffffff12; text-align: center; }
+.pf-stats b { font-size: 16px; font-variant-numeric: tabular-nums; }
+.pf-stats span { font-size: 10px; color: #9aa3c7; line-height: 1.2; }
+#mp{--bg:#070a16;--panel:#10152e;--line:#ffffff1a;--ink:#eef1ff;--muted:#9aa3c7;--brand:#7088ff;--gold:#f0b429;color:var(--ink);font-family:"Plus Jakarta Sans",system-ui,sans-serif;background:radial-gradient(90% 60% at 10% 0%,#1d2a7a66,transparent 60%),radial-gradient(70% 50% at 100% 10%,#7a4fd644,transparent 60%),var(--bg);min-height:100vh;padding:0 0 40px}
+#mp *{box-sizing:border-box}#mp a{color:inherit}
+#mp .mp-top{display:flex;align-items:center;gap:10px;padding:14px 16px;max-width:980px;margin:0 auto}
+#mp .mp-top img{width:34px;height:34px;border-radius:9px}#mp .mp-top b{font:700 15px/1 "Chakra Petch",sans-serif;letter-spacing:.08em}
+#mp .mp-top a.cta{margin-left:auto;padding:9px 14px;border-radius:12px;background:var(--brand);color:#fff;text-decoration:none;font-weight:800;font-size:13px}
+#mp .mp-hero{max-width:980px;margin:6px auto 0;padding:18px 16px 4px}
+#mp .mp-hero small{display:inline-block;padding:4px 10px;border-radius:999px;background:#ffffff10;border:1px solid var(--line);font-weight:800;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#c9d0ff}
+#mp h1{font:700 clamp(30px,7vw,52px)/1.02 "Chakra Petch",sans-serif;margin:12px 0 8px}#mp h1 span{background:linear-gradient(90deg,#ffe08a,#f0b429);-webkit-background-clip:text;background-clip:text;color:transparent}
+#mp .mp-hero p{margin:0;color:var(--muted);max-width:640px;line-height:1.55}
+#mp .mp-wrap{max-width:980px;margin:0 auto;padding:0 16px}
+#mp .mp-podium{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:22px 0 14px;align-items:end}
+#mp .mp-pod{position:relative;display:grid;justify-items:center;gap:6px;padding:16px 8px 14px;border-radius:18px;background:linear-gradient(180deg,#ffffff0d,#ffffff04);border:1px solid var(--line);cursor:pointer;text-align:center;color:inherit;font:inherit}
+#mp .mp-pod.r1{order:2;padding-top:26px;border-color:#f0b42988;background:linear-gradient(180deg,#f0b42922,#ffffff04);box-shadow:0 0 40px #f0b42922}
+#mp .mp-pod.r2{order:1}#mp .mp-pod.r3{order:3}
+#mp .mp-pod .rk{position:absolute;top:-12px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font:700 14px "Chakra Petch",sans-serif;background:#2a3354;border:2px solid #0b0f26}
+#mp .mp-pod.r1 .rk{background:linear-gradient(135deg,#ffe08a,#f0b429);color:#1a1202}#mp .mp-pod.r2 .rk{background:#dfe5ee;color:#111}#mp .mp-pod.r3 .rk{background:#e0a070;color:#1a0e04}
+#mp .mp-pod b{font-size:14px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#mp .mp-pod span{font:700 18px "Chakra Petch",sans-serif}#mp .mp-pod em{font-style:normal;font-size:11px;color:var(--muted)}
+#mp .mp-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0 12px}
+#mp .mp-tabs{display:flex;gap:6px}#mp .mp-tabs button{padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:inherit;font:inherit;font-weight:800;font-size:13px;cursor:pointer}
+#mp .mp-tabs button.on{background:var(--brand);border-color:var(--brand);color:#fff}
+#mp .mp-q{flex:1;min-width:160px;height:40px;border-radius:12px;border:1px solid var(--line);background:#0b1024;color:inherit;font:inherit;padding:0 12px}
+#mp .mp-list{display:grid;gap:8px}
+#mp .mp-row{display:grid;grid-template-columns:30px auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 14px;border-radius:16px;background:var(--panel);border:1px solid var(--line);cursor:pointer;color:inherit;font:inherit;text-align:left;width:100%}
+#mp .mp-row:hover{border-color:#7088ff88}
+#mp .mp-row .n{font:700 16px "Chakra Petch",sans-serif;color:var(--muted);text-align:center}
+#mp .mp-row .who{min-width:0;display:grid;gap:2px}#mp .mp-row .who b{font-size:15.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#mp .mp-row .who span{font-size:12.5px;color:#a9b4ff;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#mp .tags{display:flex;gap:6px;flex-wrap:wrap;align-items:center}#mp .tags em{font-style:normal;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:999px;background:#ffffff12}#mp .tags em.pr{background:linear-gradient(90deg,#ffe08a,#f0b429);color:#1a1202}#mp .tags small{color:var(--muted);font-size:11.5px}
+#mp .mp-row .pts{display:grid;justify-items:end}#mp .mp-row .pts b{font:700 20px "Chakra Petch",sans-serif}#mp .mp-row .pts small{font-size:11px;color:var(--muted)}
+#mp .empty{padding:22px;border-radius:16px;border:1px dashed var(--line);color:var(--muted);text-align:center}
+#mp .mp-note{color:var(--muted);font-size:12.5px;margin:10px 0 0}
+#mp .mp-frames{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:10px;margin-top:10px}#mp .mp-frames div{display:grid;justify-items:center;gap:4px;padding:12px 4px;border-radius:14px;background:var(--panel);border:1px solid var(--line);font-size:12px}#mp .mp-frames small{color:var(--muted);font-size:10.5px}
+#mp h2{font:700 20px "Chakra Petch",sans-serif;margin:30px 0 4px}
+#mp .mp-how{display:grid;gap:8px;margin-top:10px}#mp .mp-how div{padding:12px 14px;border-radius:14px;background:var(--panel);border:1px solid var(--line);font-size:14px;line-height:1.5}#mp .mp-how b{color:#ffe08a}
+#mp .mp-foot{max-width:980px;margin:34px auto 0;padding:0 16px;color:var(--muted);font-size:12px;line-height:1.6}
+/* profile view */
+#mp .mp-view{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:16px;background:#03050dcc;backdrop-filter:blur(6px)}
+#mp .mp-view[hidden]{display:none}
+#mp .mp-box{width:min(440px,100%);max-height:calc(100vh - 32px);overflow-y:auto;display:grid;gap:10px;animation:mpIn .3s cubic-bezier(.2,.9,.3,1.2)}
+@keyframes mpIn{from{transform:translateY(16px) scale(.96);opacity:0}}
+#mp .mp-box .pf-card{box-shadow:0 30px 70px #000c}
+#mp .mp-meta{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}#mp .mp-meta div{padding:10px 6px;border-radius:12px;background:var(--panel);border:1px solid var(--line);text-align:center;display:grid;gap:2px}#mp .mp-meta b{font:700 17px "Chakra Petch",sans-serif}#mp .mp-meta small{font-size:10.5px;color:var(--muted)}
+#mp .mp-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px}#mp .mp-acts button,#mp .mp-acts a{min-height:44px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:inherit;font:inherit;font-weight:800;display:grid;place-items:center;text-decoration:none;cursor:pointer}#mp .mp-acts .p{background:var(--brand);border-color:var(--brand);color:#fff}
+@media (max-width:560px){#mp .mp-row{grid-template-columns:22px auto minmax(0,1fr) auto;gap:10px;padding:10px}#mp .mp-row .pf-av{--pf:44px!important}#mp .mp-pod b{font-size:12.5px}}
+</style>
+<!-- PAGE-HEAD:END -->
+</head>
+<body style="margin:0">
+<!-- PAGE-BODY:START -->
+<div id="mp">
+  <div class="mp-top"><img src="https://kodex.meiocg.org/duel/assets/meiocg-192.webp" alt=""><b>MEIOCG</b><a class="cta" href="https://meiocg.org/duelsynapse">Get KodeX</a></div>
+  <div class="mp-hero"><small>Community · KodeX duelists</small><h1>MEIOCG <span>Players</span></h1>
+    <p>KodeX players who chose to be listed, ranked by how active they are. Tap a player to open their profile: their icon frame, banner, title and how they play.</p></div>
+  <div class="mp-wrap">
+    <div class="mp-podium" id="mpPod"></div>
+    <div class="mp-bar"><div class="mp-tabs" role="tablist"><button role="tab" class="on" data-sort="points">Most active</button><button role="tab" data-sort="recent">Recently active</button></div><input class="mp-q" id="mpQ" type="search" placeholder="Find a player" aria-label="Find a player"></div>
+    <div class="mp-list" id="mpList"><div class="empty">Loading players…</div></div>
+    <p class="mp-note" id="mpTotal"></p>
+    <h2>Icon frames</h2><p class="mp-note">Frames unlock as you use KodeX. KodeX Premium adds its own frame.</p>
+    <div class="mp-frames" id="mpFrames"></div>
+    <h2>Get listed</h2>
+    <div class="mp-how"><div>Open <b>KodeX → Settings → Profile → Edit profile</b> and turn on <b>Show me on MEIOCG Players</b>.</div>
+      <div>Points come from using KodeX: each day you open it (10), each duel in Duel Synapse Arena (4), each deck you build (5) and the cards you look up (1 each, up to 300).</div>
+      <div>Only what your profile shows is listed: name, title, about line, preset icon, frame and activity counts. No email or account. Turn it off and you're removed.</div></div>
+  </div>
+  <div class="mp-foot">A project of Meta Insider OCG since 2023 · Created by Castel Noleal · Not affiliated with, endorsed or sponsored by Konami. Yu-Gi-Oh! is a trademark of Konami.</div>
+  <div class="mp-view" id="mpView" hidden role="dialog" aria-modal="true" aria-label="Player profile"><div class="mp-box" id="mpBox"></div></div>
+</div>
+<script>
+(function () {
+  "use strict";
+  // Player profiles: icon, frame, title and banner, shown on the Life Point plates and in a profile card.
+  // Shared with the KodeX app (its build copies PROFILE_DATA from this file), so both draw profiles the same way.
+  // Free players: the MEIOCG icon or a preset, frames unlocked by how much they use KodeX, three plain banners.
+  // KodeX Premium: their own picture (GIFs move), the Premium frame, animated banners and an accent colour.
+
+  /* PROFILE_DATA_START */
+  const PROFILE_DATA = {
+    icons: {
+      star: ["#3347f0", "#7a4fd6", "M12 2.8l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 16.6l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8z"],
+      flame: ["#e0563a", "#f0b429", "M12 2.5c1 4 5.5 6 5.5 11a5.5 5.5 0 0 1-11 0c0-2.6 1.4-4.2 2.4-5.3.3 1.9 1.4 3 2.5 3-.9-2.9-.2-5.8.6-8.7z"],
+      crown: ["#b8860b", "#ffe08a", "M3.5 8l4 3.5L12 5l4.5 6.5 4-3.5-1.8 10H5.3z M5.5 20h13"],
+      blade: ["#2b7fff", "#9fe2ff", "M14.5 3.5h6v6L10 20l-2-2-2.5 2.5-2-2L6 16l-2-2z M13 8l3 3"],
+      shield: ["#1f9d6b", "#8be1ff", "M12 2.8l7.5 3v6c0 4.7-3.2 8.2-7.5 9.4-4.3-1.2-7.5-4.7-7.5-9.4v-6z M8.5 12l2.4 2.4L15.6 9.7"],
+      moon: ["#3b2a8a", "#b46bff", "M19.5 14.5A8 8 0 1 1 9.5 4.5a6.4 6.4 0 0 0 10 10z"],
+      sun: ["#f08a29", "#ffe066", "M12 7.5a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9z M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"],
+      bolt: ["#7a4fd6", "#8be1ff", "M13.5 2.5L5 13.5h6l-1 8 8.5-11h-6z"],
+      eye: ["#0f6a8a", "#8be1ff", "M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12z M12 9a3 3 0 1 1 0 6 3 3 0 0 1 0-6z"],
+      gem: ["#a81a6a", "#ff8dc7", "M6.5 3.5h11l4 5.5L12 21 2.5 9z M2.5 9h19 M9 3.5L12 21l3-17.5"],
+      wing: ["#3a8a9a", "#e0f7ff", "M21 4c-6 .5-11 3-14 8-1.5 2.5-2.5 5-3 8 2-2.5 4.5-3.5 7-3.5-1.5-1-2-2-2-3 3 .5 5.5-.5 7.5-2.5-1.5-.5-2.5-1-3-2 3-.5 5.5-2.5 7.5-5z"],
+      spiral: ["#6a1aa8", "#ffb347", "M12 12m-1.5 0a1.5 1.5 0 1 0 3 0a3 3 0 1 0-6 0a4.5 4.5 0 1 0 9 0a6 6 0 1 0-12 0a7.5 7.5 0 1 0 15 0"],
+    },
+    // frames unlock with activity points (a day you use KodeX: 10, a duel: 4, a deck: 5, cards looked up: up to 300)
+    tiers: [["rookie", "Rookie", 0], ["bronze", "Bronze", 120], ["silver", "Silver", 350], ["gold", "Gold", 800], ["platinum", "Platinum", 1600], ["diamond", "Diamond", 3200], ["master", "Master", 6000]],
+    themes: [["default", "MEIOCG", false], ["ocean", "Ocean", false], ["dusk", "Dusk", false], ["aurora", "Aurora", true], ["nebula", "Nebula", true], ["inferno", "Inferno", true], ["royal", "Royal Gold", true], ["synapse", "Synapse Grid", true]],
+  };
+  /* PROFILE_DATA_END */
+
+  const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  const TIER_IDS = PROFILE_DATA.tiers.map((t) => t[0]);
+  const FRAME_IDS = ["none", ...TIER_IDS, "premium"];
+  const THEME_IDS = PROFILE_DATA.themes.map((t) => t[0]);
+  const tierName = (id) => (PROFILE_DATA.tiers.find((t) => t[0] === id) || ["", "Rookie"])[1];
+
+  /** A preset icon as an SVG data URL. */
+  function presetIcon(id) {
+    const p = PROFILE_DATA.icons[id];
+    if (!p) return "";
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${p[0]}"/><stop offset="1" stop-color="${p[1]}"/></linearGradient></defs><rect width="48" height="48" fill="url(#g)"/><g transform="translate(12 12)" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="${p[2]}"/></g></svg>`;
+    return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+  }
+  /** Cleans a profile that came from KodeX or from the other player. */
+  function cleanProfile(v, imgOk) {
+    if (!v || typeof v !== "object") return null;
+    const t = (x, n) => String(x == null ? "" : x).replace(/[\u0000-\u001f\u007f]/g, "").replace(/\s+/g, " ").trim().slice(0, n);
+    const premium = v.premium === true;
+    let icon = t(v.icon, 12);
+    const img = premium && icon === "custom" && typeof v.img === "string" && v.img.length < 400000 && (!imgOk || imgOk(v.img)) ? v.img : "";
+    if (icon === "custom" && !img) icon = "meiocg";
+    if (icon !== "custom" && icon !== "meiocg" && !PROFILE_DATA.icons[icon]) icon = "meiocg";
+    let frame = FRAME_IDS.includes(v.frame) ? v.frame : "none";
+    if (frame === "premium" && !premium) frame = "none";
+    const theme = THEME_IDS.includes(v.theme) && (premium || !PROFILE_DATA.themes.find((x) => x[0] === v.theme)[2]) ? v.theme : "default";
+    const n = (x) => Math.max(0, Math.min(1e7, Math.floor(Number(x) || 0)));
+    return { name: t(v.name, 24) || "Duelist", title: t(v.title, 32), bio: t(v.bio, 140), icon, img, frame, theme, premium,
+      tier: TIER_IDS.includes(v.tier) ? v.tier : "rookie", accent: premium && /^#[0-9a-f]{6}$/i.test(v.accent || "") ? v.accent : "",
+      stats: { points: n(v.stats && v.stats.points), days: n(v.stats && v.stats.days), duels: n(v.stats && v.stats.duels), wins: n(v.stats && v.stats.wins) } };
+  }
+  /** The picture for a profile (MEIOCG logo, a preset or their own). */
+  function iconSrc(p, meiocgLogo) {
+    if (!p) return meiocgLogo;
+    if (p.icon === "custom" && p.img) return p.img;
+    return presetIcon(p.icon) || meiocgLogo;
+  }
+  /** <span class="pf-av fr-…"><img></span> */
+  function avatarHTML(p, meiocgLogo, size = 0) {
+    const fr = (p && p.frame) || "none";
+    return `<span class="pf-av fr-${fr}"${size ? ` style="--pf:${size}px"` : ""}><img src="${esc(iconSrc(p, meiocgLogo))}" alt="" draggable="false"></span>`;
+  }
+  /** The profile card (opened by tapping a player's plate). */
+  function cardHTML(p, meiocgLogo, opts = {}) {
+    if (!p) return "";
+    const s = p.stats || {}, rate = s.duels ? Math.round((s.wins / s.duels) * 100) + "%" : "–";
+    return `<div class="pf-card th-${esc(p.theme || "default")}"${p.accent ? ` style="--pf-acc:${esc(p.accent)}"` : ""}>
+      <div class="pf-banner"><i></i></div>
+      <div class="pf-head">${avatarHTML(p, meiocgLogo, 84)}<div class="pf-who"><b>${esc(p.name)}</b>${p.title ? `<span>${esc(p.title)}</span>` : ""}
+        <div class="pf-tags"><em class="pf-tier t-${esc(p.tier)}">${esc(tierName(p.tier))}</em>${p.premium ? '<em class="pf-prem">PREMIUM</em>' : ""}${opts.ai ? '<em class="pf-ai">AI</em>' : ""}</div></div></div>
+      ${p.bio ? `<p class="pf-bio">${esc(p.bio)}</p>` : ""}
+      ${opts.ai ? "" : `<div class="pf-stats"><div><b>${s.days || 0}</b><span>Days on KodeX</span></div><div><b>${s.duels || 0}</b><span>Duels</span></div><div><b>${rate}</b><span>Win rate</span></div><div><b>${s.points || 0}</b><span>Points</span></div></div>`}
+    </div>`;
+  }
+  var API = /(^|\.)kodex\.meiocg\.org$/.test(location.hostname) ? "/api/players" : "https://kodex.meiocg.org/api/players";
+  var LOGO = "https://kodex.meiocg.org/duel/assets/meiocg-192.webp";
+  var $ = function (id) { return document.getElementById(id); };
+  // esc() comes with the profile code above
+  var all = [], sort = "points";
+  var asProfile = function (r) { return { name: r.name, title: r.title, bio: r.bio, icon: r.icon, img: "", frame: r.frame, theme: r.theme || "default", premium: r.premium, tier: r.tier, accent: "", stats: { points: r.points, days: r.days, duels: r.duels, wins: r.wins } }; };
+  var ago = function (t) { var m = Math.round((Date.now() - t) / 60000); return m < 60 ? "active now" : m < 1440 ? "active " + Math.round(m / 60) + " h ago" : "active " + Math.round(m / 1440) + " d ago"; };
+  function row(r) {
+    var p = asProfile(r);
+    return '<button class="mp-row" data-pid="' + esc(r.pid) + '"><span class="n">' + r.rank + "</span>" + avatarHTML(p, LOGO, 52) + '<span class="who"><b>' + esc(r.name) + "</b>" + (r.title ? "<span>" + esc(r.title) + "</span>" : "") +
+      '<span class="tags"><em class="t-' + esc(r.tier) + '">' + esc(tierName(r.tier)) + "</em>" + (r.premium ? '<em class="pr">Premium</em>' : "") + "<small>" + ago(r.last) + '</small></span></span><span class="pts"><b>' + r.points + "</b><small>points</small></span></button>";
+  }
+  function draw() {
+    var q = $("mpQ").value.trim().toLowerCase(), xs = q ? all.filter(function (r) { return (r.name + " " + (r.title || "")).toLowerCase().indexOf(q) >= 0; }) : all;
+    $("mpList").innerHTML = xs.length ? xs.map(row).join("") : '<div class="empty">' + (all.length ? "No player by that name." : "No players listed yet. Be the first: turn on <b>Show me on MEIOCG Players</b> in your KodeX profile.") + "</div>";
+    var top = sort === "points" && !q ? all.slice(0, 3) : [];
+    $("mpPod").innerHTML = top.map(function (r, i) { return '<button class="mp-pod r' + (i + 1) + '" data-pid="' + esc(r.pid) + '"><span class="rk">' + (i + 1) + "</span>" + avatarHTML(asProfile(r), LOGO, i ? 58 : 74) + "<b>" + esc(r.name) + "</b><span>" + r.points + "</span><em>" + esc(tierName(r.tier)) + "</em></button>"; }).join("");
+    $("mpPod").hidden = !top.length;
+  }
+  function load() {
+    $("mpList").innerHTML = '<div class="empty">Loading players…</div>';
+    fetch(API + "?sort=" + sort + "&limit=200").then(function (r) { if (!r.ok) throw 0; return r.json(); }).then(function (j) {
+      all = j.players || []; draw();
+      $("mpTotal").textContent = j.total ? j.total + " player" + (j.total === 1 ? "" : "s") + " active in the last 90 days" : "";
+      route();
+    }).catch(function () { $("mpList").innerHTML = '<div class="empty">The player list could not load. Please refresh in a moment.</div>'; });
+  }
+  function open(pid) {
+    var show = function (r) {
+      var p = asProfile(r), rate = r.duels ? Math.round(r.wins / r.duels * 100) + "%" : "–";
+      $("mpBox").innerHTML = cardHTML(p, LOGO) + '<div class="mp-meta"><div><b>' + (r.rank ? "#" + r.rank : "–") + '</b><small>Rank</small></div><div><b>' + (r.decks || 0) + '</b><small>Decks</small></div><div><b>' + new Date(r.since).toLocaleDateString([], { month: "short", year: "numeric" }) + "</b><small>Listed since</small></div></div>" +
+        '<div class="mp-acts"><button type="button" data-share>Copy profile link</button><button type="button" class="p" data-close>Close</button></div>';
+      $("mpView").hidden = false;
+      if (location.hash !== "#" + pid) history.replaceState(null, "", "#" + pid);
+    };
+    var r = all.filter(function (x) { return x.pid === pid; })[0];
+    if (r) { show(r); return; }
+    fetch(API + "/p/" + encodeURIComponent(pid)).then(function (x) { if (!x.ok) throw 0; return x.json(); }).then(function (j) { show(j.player); }).catch(function () {});
+  }
+  function close() { $("mpView").hidden = true; if (location.hash) history.replaceState(null, "", location.pathname + location.search); }
+  function route() { var m = /^#([a-f0-9]{12})$/.exec(location.hash); if (m) open(m[1]); }
+  document.getElementById("mp").addEventListener("click", function (e) {
+    var t = e.target.closest("[data-pid]"); if (t) { open(t.dataset.pid); return; }
+    var s = e.target.closest("[data-sort]"); if (s) { sort = s.dataset.sort; document.querySelectorAll("#mp [data-sort]").forEach(function (b) { b.classList.toggle("on", b === s); }); load(); return; }
+    if (e.target.closest("[data-close]") || e.target === $("mpView")) { close(); return; }
+    if (e.target.closest("[data-share]")) { var u = "https://kodex.meiocg.org/players" + location.hash; (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(function () { e.target.textContent = "Link copied"; }, function () { prompt("Copy this link:", u); }); }
+  });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") close(); });
+  addEventListener("hashchange", route);
+  $("mpQ").addEventListener("input", draw);
+  $("mpFrames").innerHTML = PROFILE_DATA.tiers.map(function (t) { return "<div>" + avatarHTML({ frame: t[0], icon: "star" }, LOGO, 48) + "<b>" + esc(t[1]) + "</b><small>" + t[2] + " points</small></div>"; }).join("") + "<div>" + avatarHTML({ frame: "premium", icon: "crown" }, LOGO, 48) + "<b>Premium</b><small>KodeX Premium</small></div>";
+  load();
+})();
+</script>
+<!-- PAGE-BODY:END -->
+</body>
+</html>

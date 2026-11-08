@@ -1,0 +1,237 @@
+<!doctype html>
+<!-- KodeX Editor — © 2023-2026 Meta Insider OCG (MEIOCG). All rights reserved. Created by Castel Noleal, creator of MEIOCG.
+     Not for redistribution without written permission: metainsiderocg@gmail.com
+     One tool for every KodeX build: sponsor banners for the free edition, skin packs for Premium.
+     Built by scripts/build_editor.py (the newest free and Premium KodeX pages are inside). -->
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="editor-build" content="EDITOR-1.0"><meta name="author" content="Castel Noleal (MEIOCG)"><title>KodeX Editor</title>
+<style>
+:root{color-scheme:dark;--bg:#070a16;--panel:#10152b;--panel2:#0b1022;--line:#ffffff1a;--line2:#ffffff2a;--ink:#eef1ff;--muted:#9aa3c7;--brand:#7088ff;--gold:#f0b429;--ok:#3dd68c;--bad:#ff6a7a}
+*{box-sizing:border-box}html,body{margin:0}body{min-height:100vh;color:var(--ink);font:15px/1.5 Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:radial-gradient(80% 50% at 0% 0%,#1d2a7a55,transparent 60%),radial-gradient(60% 40% at 100% 0%,#7a4fd633,transparent 60%),var(--bg)}
+button,input,select{font:inherit;color:inherit}
+.app{display:grid;grid-template-columns:240px minmax(0,1fr);min-height:100vh}
+.side{position:sticky;top:0;height:100vh;padding:20px 14px;border-right:1px solid var(--line);background:#080c1ccc;backdrop-filter:blur(8px);display:flex;flex-direction:column;gap:6px}
+.logo{display:flex;align-items:center;gap:10px;margin:0 6px 16px}.logo i{width:34px;height:34px;border-radius:10px;background:conic-gradient(from 200deg,#3347f0,#7a4fd6,#f0b429,#3347f0);box-shadow:0 0 20px #7a4fd666}.logo b{display:block;font-size:16px;letter-spacing:.02em}.logo small{display:block;color:var(--muted);font-size:11px}
+.nav{display:flex;align-items:center;gap:10px;width:100%;padding:11px 12px;border-radius:12px;border:1px solid transparent;background:none;text-align:left;cursor:pointer;color:var(--muted);font-weight:700}
+.nav .n{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:#ffffff10;font-size:12px;font-weight:900}
+.nav.on{background:#7088ff1f;border-color:#7088ff55;color:var(--ink)}.nav.on .n{background:var(--brand);color:#fff}
+.nav em{margin-left:auto;font-style:normal;font-size:11px;padding:1px 8px;border-radius:999px;background:#ffffff10;color:var(--muted)}
+.side .foot{margin-top:auto;color:var(--muted);font-size:11px;line-height:1.5;padding:0 6px}
+.main{padding:26px clamp(14px,4vw,40px) 60px;max-width:980px}
+h1{font-size:26px;margin:0 0 4px;letter-spacing:-.01em}.lead{color:var(--muted);margin:0 0 18px;max-width:680px}
+.pane[hidden]{display:none}
+.card{background:linear-gradient(180deg,#121836,#0e1329);border:1px solid var(--line);border-radius:18px;padding:18px;margin-bottom:14px;box-shadow:0 10px 30px #0006}
+.card h2{font-size:16px;margin:0 0 4px}.card .sub{color:var(--muted);font-size:13px;margin:0 0 12px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:42px;padding:0 16px;border-radius:12px;border:1px solid var(--line2);background:#1a2142;cursor:pointer;font-weight:800}
+.btn.p{background:var(--brand);border-color:var(--brand);color:#fff}.btn.g{background:linear-gradient(90deg,#ffe08a,#f0b429);border:0;color:#1a1202}.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.sm{min-height:34px;padding:0 10px;font-size:13px;border-radius:10px}
+.bases{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.base{position:relative;border:1px solid var(--line);border-radius:16px;padding:16px;background:var(--panel2);overflow:hidden}
+.base::before{content:"";position:absolute;inset:0 0 auto;height:3px;background:var(--c,#7088ff)}.base.prem{--c:linear-gradient(90deg,#ffe08a,#f0b429)}
+.base .ed{font-size:11px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}.base b{display:block;font-size:20px;margin:4px 0}.base .meta{font-size:12.5px;color:var(--muted);min-height:38px}
+.base .row{margin-top:12px}
+.drop{display:grid;place-items:center;gap:6px;text-align:center;padding:22px;border:2px dashed #7088ff55;border-radius:16px;background:#7088ff0a;cursor:pointer;transition:.15s}
+.drop:hover,.drop.over{border-color:var(--brand);background:#7088ff1a}.drop b{font-size:15px}.drop small{color:var(--muted)}
+.list{display:grid;gap:10px;margin-top:14px}
+.bn{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:14px;background:var(--panel2)}
+.bn img{height:50px;max-width:100%;object-fit:contain;border-radius:8px;background:#05080f;display:block}
+.bn input{width:100%;margin-top:8px}
+.ctl{display:flex;gap:6px}.ctl button{width:36px;height:36px;border-radius:10px;border:1px solid var(--line2);background:#1a2142;cursor:pointer}
+input[type=text],input[type=url],input[type=number],select{min-height:40px;border-radius:10px;border:1px solid var(--line2);background:#070b19;padding:0 12px;width:100%}
+label.f{display:grid;gap:5px;font-size:12px;font-weight:800;color:#cdd6f5}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.phone{width:min(100%,380px);margin:14px auto 0;border-radius:28px;border:8px solid #1b2140;background:#070a12;overflow:hidden;box-shadow:0 20px 50px #000a}
+.phone .sb{height:22px;display:flex;justify-content:space-between;padding:0 16px;font-size:11px;color:#cfd6ff;align-items:center}
+.phone .slot{width:calc(100% - 20px);height:50px;margin:4px auto 0;border-radius:10px;background:#0c1124;position:relative;overflow:hidden}
+.phone .fake{padding:14px 12px 18px;display:grid;gap:8px}.phone .fake i{display:block;height:12px;border-radius:6px;background:#ffffff10}.phone .fake i:nth-child(2){width:70%}.phone .fake i:nth-child(3){width:85%}
+.kx-on{position:relative;overflow:hidden}.kx-on .kx-sp{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;transition:opacity .6s}.kx-on img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+.skins{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-top:14px}
+.sk{display:grid;gap:8px;padding:10px;border:1px solid var(--line);border-radius:14px;background:var(--panel2)}
+.sk .pic{height:120px;border-radius:10px;background:#05080f center/cover no-repeat;position:relative}.sk.sleeve .pic,.sk.xsleeve .pic{background-size:contain;background-repeat:no-repeat}
+.sk .pic span{position:absolute;left:6px;top:6px;padding:2px 8px;border-radius:999px;background:#000a;font-size:10.5px;font-weight:800}
+.counts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.counts span{padding:3px 10px;border-radius:999px;background:#ffffff10;font-size:12px;color:var(--muted)}
+.builds{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.bcard{border:1px solid var(--line);border-radius:16px;padding:16px;background:var(--panel2);display:grid;gap:10px}
+.bcard ul{margin:0;padding:0;list-style:none;display:grid;gap:4px;font-size:13px;color:var(--muted)}.bcard li::before{content:"✓ ";color:var(--ok)}.bcard li.warn::before{content:"! ";color:var(--gold)}
+.status{margin-top:12px;padding:12px 14px;border-radius:12px;background:#070b19;border:1px solid var(--line);font-size:13px;color:var(--muted);white-space:pre-wrap}.status.ok{color:var(--ok)}.status.err{color:var(--bad)}
+.tabsm{display:none}
+@media (max-width:820px){.app{grid-template-columns:1fr}.side{position:sticky;top:0;z-index:5;height:auto;flex-direction:row;overflow-x:auto;padding:10px;gap:6px;border-right:0;border-bottom:1px solid var(--line)}.side .logo,.side .foot{display:none}.nav{width:auto;white-space:nowrap;padding:8px 12px}.nav em{display:none}
+ .bases,.builds{grid-template-columns:1fr}.g4{grid-template-columns:1fr 1fr}.main{padding-top:16px}}
+</style></head><body>
+<div class="app">
+ <aside class="side" aria-label="Steps">
+  <div class="logo"><i></i><div><b>KodeX Editor</b><small>MEIOCG · Duel Synapse</small></div></div>
+  <button class="nav on" data-go="base"><span class="n">1</span>Base<em id="nvBase"></em></button>
+  <button class="nav" data-go="sp"><span class="n">2</span>Sponsors<em id="nvSp">0</em></button>
+  <button class="nav" data-go="sk"><span class="n">3</span>Skins<em id="nvSk">0</em></button>
+  <button class="nav" data-go="build"><span class="n">4</span>Build</button>
+  <div class="foot">Created by Castel Noleal, creator of MEIOCG.<br>Everything you add is remembered on this device.</div>
+ </aside>
+ <main class="main">
+  <section class="pane" data-pane="base">
+   <h1>KodeX builds</h1><p class="lead">The newest free and Premium KodeX are built in. Load a ZIP (for instApped, with the Duel Arena inside) or a page to work on another version. Sponsors go on the free edition, skins on Premium.</p>
+   <div class="bases">
+    <div class="base" id="bFree"><span class="ed">Free edition</span><b id="vFree">–</b><div class="meta" id="mFree"></div>
+     <div class="row"><label class="btn sm">Load ZIP or page<input type="file" accept=".zip,.html,application/zip,text/html" hidden data-load="free"></label><button class="btn sm" data-reset="free">Use built-in</button></div></div>
+    <div class="base prem" id="bPrem"><span class="ed">Premium edition</span><b id="vPrem">–</b><div class="meta" id="mPrem"></div>
+     <div class="row"><label class="btn sm">Load ZIP or page<input type="file" accept=".zip,.html,application/zip,text/html" hidden data-load="prem"></label><button class="btn sm" data-reset="prem">Use built-in</button></div></div>
+   </div>
+   <div class="status" id="stBase">Loading…</div>
+  </section>
+
+  <section class="pane" data-pane="sp" hidden>
+   <h1>Sponsor banners</h1><p class="lead">Banners show in the free edition's sponsor strip. One banner stays put; two or more rotate. Best size 720×100 (shown at 360×50); bigger pictures are resized, GIF and SVG are kept as they are.</p>
+   <div class="card"><label class="drop" id="spDrop"><b>Drop banners here or tap to choose</b><small>Select several at once</small><input type="file" accept="image/*" multiple hidden id="spFile"></label>
+    <div class="list" id="spList"></div></div>
+   <div class="card"><h2>Rotation</h2><p class="sub">At least 2 seconds. Rotation pauses while the app is in the background.</p>
+    <div class="g4"><label class="f">Change every<input type="number" id="stT" min="2" step="1"></label><label class="f">Unit<select id="stU"><option value="s">Seconds</option><option value="m">Minutes</option></select></label>
+     <label class="f">Order<select id="stO"><option value="seq">In order</option><option value="random">Random</option></select></label><label class="f">Transition<select id="stF"><option value="1">Fade</option><option value="0">Instant</option></select></label></div>
+    <div class="phone" aria-label="Preview"><div class="sb"><span>9:41</span><span>5G ▮▮</span></div><div class="slot" id="pv"></div><div class="fake"><i></i><i></i><i></i></div></div></div>
+  </section>
+
+  <section class="pane" data-pane="sk" hidden>
+   <h1>Skins</h1><p class="lead">Premade fields (playmats), Main Deck sleeves and Extra Deck sleeves for KodeX Premium. Players pick them in Settings › Premium Studio; opponents see them in online duels.</p>
+   <div class="card"><label class="drop" id="skDrop"><b>Drop pictures here or tap to choose</b><small>Fields: wide, about 1000×370. Sleeves: card shape 59×86 (about 420×612). Resized automatically.</small><input type="file" accept="image/*" multiple hidden id="skFile"></label>
+    <div class="counts" id="skCounts"></div><div class="skins" id="skList"></div></div>
+  </section>
+
+  <section class="pane" data-pane="build" hidden>
+   <h1>Build</h1><p class="lead">Each build downloads a file ready for instApped (a ZIP when the base was a ZIP, otherwise a page).</p>
+   <div class="builds">
+    <div class="bcard"><h2>Free + sponsors</h2><ul id="sumFree"></ul><button class="btn p" id="goFree">Build free edition</button></div>
+    <div class="bcard"><h2>Premium + skins</h2><ul id="sumPrem"></ul><button class="btn g" id="goPrem">Build Premium edition</button></div>
+   </div>
+   <div class="row" style="margin-top:12px"><button class="btn" id="goBoth">Build both</button></div>
+   <div class="status" id="st">Ready.</div>
+  </section>
+ </main>
+</div>
+<script>
+'use strict';
+const FREE_B64="%%FREE_B64%%", PREM_B64="%%PREM_B64%%", DEFAULT_BANNERS=%%DEFAULT_BANNERS%%;
+const $=i=>document.getElementById(i),esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const dec=b=>b?new TextDecoder().decode(Uint8Array.from(atob(b),c=>c.charCodeAt(0))):'';
+const BUILTIN={free:dec(FREE_B64),prem:dec(PREM_B64)};
+/* storage (one IndexedDB; the older injectors' saved banners and skins are brought over once) */
+const idb=(name)=>{let p;return()=>p||(p=new Promise((ok,no)=>{const r=indexedDB.open(name,1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)}))};
+const dbs={main:idb('kxeditor'),inj:idb('kxinj'),skins:idb('kxskins')};
+const kvOn=(d)=>async(m,k,v)=>{try{const x=await d();return await new Promise((ok,no)=>{const t=x.transaction('kv',m==='get'?'readonly':'readwrite'),o=t.objectStore('kv'),r=m==='get'?o.get(k):o.put(v,k);t.oncomplete=()=>ok(m==='get'?r.result:true);t.onerror=()=>no(t.error)})}catch(e){return undefined}};
+const kv=kvOn(dbs.main);
+const ver=s=>((/name=["']kodex-build["']\s+content=["'][^"']*?(\d+(?:\.\d+)*)/i.exec(s)||[])[1]||'0').split('.').map(Number);
+const newer=(a,b)=>{const x=ver(a),y=ver(b);for(let n=0;n<4;n++)if((x[n]||0)!==(y[n]||0))return(x[n]||0)>(y[n]||0);return false};
+const isPrem=s=>/name=["']kodex-edition["']\s+content=["']premium["']/i.test(s);
+const okBase=s=>typeof s==='string'&&/<body[\s>]/i.test(s)&&/<\/body>/i.test(s);
+const status=(id,t,c)=>{$(id).className='status '+(c||'');$(id).textContent=t};
+/* ZIP support (JSZip loads only when a ZIP is used) */
+const JSZIP_URL='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';let zipLib=null;
+const loadZip=()=>zipLib||(zipLib=new Promise((ok,no)=>{if(window.JSZip)return ok(window.JSZip);const s=document.createElement('script');s.src=JSZIP_URL;s.onload=()=>ok(window.JSZip);s.onerror=()=>{zipLib=null;no(Error('Could not load the ZIP tool. Check your connection.'))};document.head.appendChild(s)}));
+const isZip=f=>/\.zip$/i.test(f.name)||/zip/.test(f.type);
+async function readBase(f){if(isZip(f)){const Z=await loadZip(),buf=await f.arrayBuffer(),z=await Z.loadAsync(buf),e=z.file('index.html');if(!e)throw Error('That ZIP has no index.html.');return{text:await e.async('string'),zip:buf}}return{text:await f.text(),zip:null}}
+async function packOut(html,zip){if(zip){const Z=await loadZip(),z=await Z.loadAsync(zip);z.file('index.html',html);return{blob:await z.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}}),ext:'zip'}}return{blob:new Blob([html],{type:'text/html'}),ext:'html'}}
+function saveFile(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500)}
+
+/* ---------- navigation ---------- */
+function go(p){document.querySelectorAll('[data-pane]').forEach(x=>x.hidden=x.dataset.pane!==p);document.querySelectorAll('[data-go]').forEach(b=>b.classList.toggle('on',b.dataset.go===p));if(p==='build')summary();scrollTo(0,0)}
+document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
+
+/* ---------- bases ---------- */
+const base={free:{text:'',label:'',zip:null},prem:{text:'',label:'',zip:null}};
+function drawBase(k){const b=base[k],h=b.text,id=k==='free'?'Free':'Prem';$('v'+id).textContent=h?'KodeX '+ver(h).join('.'):'–';
+ $('m'+id).innerHTML=h?`${esc(b.label)}<br>${b.zip?'ZIP with the Arena inside · '+(b.zip.byteLength/1048576).toFixed(1)+' MB':'Page only · '+(h.length/1024).toFixed(0)+' KB'}${k==='prem'&&!isPrem(h)?'<br><span style="color:var(--bad)">Not a Premium page: skins only show in Premium</span>':''}`:'Not loaded';
+ $('nvBase').textContent=base.free.text&&base.prem.text?'2 ready':''}
+async function setBase(k,text,label,zip,save){base[k]={text,label,zip:zip||null};drawBase(k);if(save)await kv('put','base_'+k,{text,label,zip:zip||null})}
+document.querySelectorAll('[data-load]').forEach(inp=>inp.onchange=async e=>{const k=inp.dataset.load,f=e.target.files[0];e.target.value='';if(!f)return;let r;try{r=await readBase(f)}catch(x){status('stBase',x.message,'err');return}
+ if(!okBase(r.text)){status('stBase','That file does not look like a complete KodeX page.','err');return}
+ if(k==='prem'&&!isPrem(r.text)){status('stBase','That is the free edition. Load it under Free, or load KodeX Premium here.','err');return}
+ await setBase(k,r.text,'Loaded: '+f.name,r.zip,true);status('stBase',`${k==='free'?'Free':'Premium'} base loaded and remembered (KodeX ${ver(r.text).join('.')}).`,'ok')});
+document.querySelectorAll('[data-reset]').forEach(b=>b.onclick=async()=>{const k=b.dataset.reset;await kv('put','base_'+k,null);await setBase(k,BUILTIN[k],'Built-in (newest)',null,false);status('stBase','Back to the built-in base.','ok')});
+
+/* ---------- sponsors ---------- */
+let banners=[],set={t:8,u:'s',o:'seq',f:'1'},stop=null;
+function kxRotate(C,s){
+  if(!s||!C.b.length)return function(){};
+  s.classList.add('kx-on');s.textContent='';var i=-1,tm,dead=false;
+  function mk(b){var e=document.createElement(b.u?'a':'div');if(b.u){e.href=b.u;e.target='_blank';e.rel='noopener noreferrer sponsored'}e.className='kx-sp';var m=new Image();m.alt='Sponsor';m.decoding='async';m.src=b.d;e.appendChild(m);return e}
+  function step(){var n=i+1;if(C.o==='random'&&C.b.length>1){do{n=Math.floor(Math.random()*C.b.length)}while(n===i)}else n=n%C.b.length;i=n;var e=mk(C.b[n]),old=s.querySelector('.kx-sp');
+    if(C.f&&old){e.style.opacity='0';s.appendChild(e);void e.offsetWidth;e.style.opacity='1';old.style.opacity='0';old.style.pointerEvents='none';setTimeout(function(){if(old.parentNode)old.parentNode.removeChild(old)},800)}
+    else{if(old)old.parentNode.removeChild(old);s.appendChild(e)}}
+  function loop(){tm=setTimeout(function(){if(!dead){if(!document.hidden)step();loop()}},C.t)}
+  step();if(C.b.length>1)loop();
+  return function(){dead=true;clearTimeout(tm)};
+}
+const ms=()=>Math.max(2000,Math.round((+set.t||8)*(set.u==='m'?60000:1000)));
+const cfg=()=>({t:ms(),o:set.o,f:set.f==='1',b:banners.map(b=>({d:b.d,u:b.u}))});
+const saveB=()=>kv('put','banners',banners);
+function drawB(){$('spList').innerHTML=banners.length?banners.map((b,i)=>`<div class="bn"><div><img src="${esc(b.d)}" alt="Banner ${i+1}"><input type="url" inputmode="url" data-l="${i}" placeholder="Link when tapped (optional): https://…" value="${esc(b.u)}" aria-label="Banner ${i+1} link"></div><div class="ctl"><button data-a="up" data-i="${i}" aria-label="Move up">↑</button><button data-a="dn" data-i="${i}" aria-label="Move down">↓</button><button data-a="rm" data-i="${i}" aria-label="Remove">✕</button></div></div>`).join(''):'<div class="sub">No banners yet.</div>';
+ $('nvSp').textContent=banners.length;preview()}
+function preview(){if(stop)stop();const p=$('pv');p.textContent='';p.classList.remove('kx-on');stop=banners.length?kxRotate(cfg(),p):null;if(!banners.length)p.innerHTML='<div style="height:50px;display:grid;place-items:center;font-size:10px;letter-spacing:.14em;color:#64728a">ADVERTISEMENT</div>'}
+$('spList').addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b)return;const i=+b.dataset.i,a=b.dataset.a;if(a==='rm'){const r=banners.splice(i,1)[0];if(r&&r.k)kv('get','gone').then(g=>kv('put','gone',[...(g||[]),r.k]))}else{const j=a==='up'?i-1:i+1;if(j<0||j>=banners.length)return;[banners[i],banners[j]]=[banners[j],banners[i]]}saveB();drawB()});
+$('spList').addEventListener('input',e=>{const i=e.target.dataset.l;if(i!==undefined){banners[+i].u=e.target.value.trim();saveB()}});
+const read=f=>new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(r.result);r.onerror=no;r.readAsDataURL(f)});
+async function prepBanner(f){if(/gif|svg/.test(f.type)||f.size<120000)return read(f);const bm=await createImageBitmap(f),k=Math.min(720/bm.width,100/bm.height,1),c=document.createElement('canvas');c.width=Math.round(bm.width*k);c.height=Math.round(bm.height*k);c.getContext('2d').drawImage(bm,0,0,c.width,c.height);const w=c.toDataURL('image/webp',.9);return w.startsWith('data:image/webp')?w:c.toDataURL('image/png')}
+async function addBanners(files){let n=0;for(const f of files){if(!f.type.startsWith('image/'))continue;try{banners.push({d:await prepBanner(f),u:''});n++}catch(x){}}await saveB();drawB();status('st',n?`${n} banner${n>1?'s':''} added.`:'No pictures in that selection.',n?'ok':'err')}
+$('spFile').onchange=e=>{addBanners([...e.target.files]);e.target.value=''};
+function loadSet(){$('stT').value=set.t;$('stU').value=set.u;$('stO').value=set.o;$('stF').value=set.f}
+['stT','stU','stO','stF'].forEach(id=>$(id).addEventListener('change',()=>{set={t:+$('stT').value||8,u:$('stU').value,o:$('stO').value,f:$('stF').value};kv('put','set',set);preview()}));
+
+/* ---------- skins ---------- */
+const TYPES=[['field','Field (playmat)'],['sleeve','Main Deck sleeves'],['xsleeve','Extra Deck sleeves']];
+let skins=[];
+const saveS=()=>kv('put','skins',skins);
+function shrink(f,type){return new Promise((ok,no)=>{const u=URL.createObjectURL(f),im=new Image();im.onload=()=>{const max=type==='field'?1000:612,k=Math.min(1,max/Math.max(im.naturalWidth,im.naturalHeight)),c=document.createElement('canvas');c.width=Math.round(im.naturalWidth*k);c.height=Math.round(im.naturalHeight*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);let q=.86,w=c.toDataURL('image/webp',q),t='image/webp';if(!w.startsWith('data:image/webp')){t='image/jpeg';w=c.toDataURL(t,q)}while(w.length>420000&&q>.4){q-=.1;w=c.toDataURL(t,q)}ok(w)};im.onerror=()=>{URL.revokeObjectURL(u);no(Error('bad image'))};im.src=u})}
+function drawS(){$('skList').innerHTML=skins.map((s,i)=>`<div class="sk ${esc(s.type)}"><div class="pic" style="background-image:url('${esc(s.img)}')"><span>${esc((TYPES.find(t=>t[0]===s.type)||['','Choose a type'])[1])}</span></div><input type="text" data-n="${i}" value="${esc(s.name)}" placeholder="Name" maxlength="40" aria-label="Skin ${i+1} name"><select data-t="${i}" aria-label="Skin ${i+1} type">${TYPES.some(([k])=>k===s.type)?'':'<option value="" selected disabled>Choose…</option>'}${TYPES.map(([k,l])=>`<option value="${k}"${s.type===k?' selected':''}>${l}</option>`).join('')}</select><div class="ctl"><button data-a="up" data-i="${i}" aria-label="Move earlier">←</button><button data-a="rm" data-i="${i}" aria-label="Remove">✕</button></div></div>`).join('');
+ const c={};skins.forEach(s=>c[s.type]=(c[s.type]||0)+1);$('skCounts').innerHTML=skins.length?TYPES.map(([k,l])=>`<span>${l}: ${c[k]||0}</span>`).join(''):'<span>No skins yet</span>';$('nvSk').textContent=skins.length}
+$('skList').addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b)return;const i=+b.dataset.i;if(b.dataset.a==='rm')skins.splice(i,1);else if(i>0)[skins[i-1],skins[i]]=[skins[i],skins[i-1]];saveS();drawS()});
+$('skList').addEventListener('input',e=>{const t=e.target;if(t.dataset.n!==undefined){skins[+t.dataset.n].name=t.value.trim();saveS()}});
+$('skList').addEventListener('change',e=>{const t=e.target;if(t.dataset.t!==undefined){skins[+t.dataset.t].type=t.value;saveS();drawS()}});
+async function addSkins(files){let n=0;for(const f of files){if(!f.type.startsWith('image/'))continue;try{const pr=await createImageBitmap(f),type=pr.width>pr.height*1.3?'field':'sleeve';skins.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),type,name:f.name.replace(/\.[^.]+$/,'').slice(0,40),img:await shrink(f,type)});n++}catch(x){}}await saveS();drawS();status('st',n?`${n} skin${n>1?'s':''} added. Check each one's type.`:'No pictures in that selection.',n?'ok':'err')}
+$('skFile').onchange=e=>{addSkins([...e.target.files]);e.target.value=''};
+for(const [id,fn] of [['spDrop',addBanners],['skDrop',addSkins]]){const d=$(id);d.addEventListener('dragover',e=>{e.preventDefault();d.classList.add('over')});d.addEventListener('dragleave',()=>d.classList.remove('over'));d.addEventListener('drop',e=>{e.preventDefault();d.classList.remove('over');fn([...e.dataTransfer.files])})}
+
+/* ---------- build ---------- */
+const SP_CSS='#topAdSlot.kx-on{position:relative;overflow:hidden}#topAdSlot .kx-sp{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-decoration:none;transition:opacity .6s}#topAdSlot img{max-width:100%;max-height:100%;object-fit:contain;display:block}';
+const slotRe=/<div\s+id=["']topAdSlot["'][^>]*>/i;
+function buildFree(){const src=base.free.text;
+  if(!banners.length)throw Error('Add at least one sponsor banner first (step 2).');
+  banners.forEach((b,i)=>{if(b.u&&!/^https?:\/\/[^\s]+$/i.test(b.u))throw Error(`Link for banner ${i+1} must start with http:// or https://`)});
+  if(isPrem(src))throw Error('The free base is a Premium page. Load the free edition in step 1.');
+  let h=src.replace(/<!--kx-sponsor:start-->[\s\S]*?<!--kx-sponsor:end-->/g,'').replace(/<style id="kodex-direct-sponsor-style">[\s\S]*?<\/style>/gi,'');
+  const m=slotRe.exec(h);
+  if(m){let d=1,p=m.index+m[0].length;const re=/<(\/?)div\b[^>]*>/gi;re.lastIndex=p;let x;while(d>0&&(x=re.exec(h))){d+=x[1]?-1:1;p=re.lastIndex}if(d)throw Error('The ad slot in this KodeX is not closed properly.');h=h.slice(0,m.index)+m[0].replace(/\s*kodex-direct-sponsor/g,'')+'</div>'+h.slice(p)}
+  else{const b=/<body[^>]*>/i.exec(h);if(!b)throw Error('No <body> in this KodeX.');const ins='\n<div id="topAdSafeArea" style="flex:none;display:flex;justify-content:center;padding:max(24px,env(safe-area-inset-top)) 12px 0;position:relative;z-index:1"><div id="topAdSlot" class="top-ad-slot" style="width:min(100%,360px);height:50px;border-radius:10px;overflow:hidden"></div></div>\n';h=h.slice(0,b.index+b[0].length)+ins+h.slice(b.index+b[0].length)}
+  const data=JSON.stringify(cfg()).replace(/</g,'\\u003c'),S='</'+'script>';
+  const style=`<!--kx-sponsor:start--><style>${SP_CSS}</style><!--kx-sponsor:end-->`;
+  const code=`<!--kx-sponsor:start--><script type="application/json" id="kx-sponsor-data">${data}${S}<script>(${kxRotate.toString()})(JSON.parse(document.getElementById("kx-sponsor-data").textContent),document.getElementById("topAdSlot"))${S}<!--kx-sponsor:end-->`;
+  const hi=h.toLowerCase().lastIndexOf('</head>');h=hi>=0?h.slice(0,hi)+style+h.slice(hi):style+h;
+  const bi=h.toLowerCase().lastIndexOf('</body>');return bi>=0?h.slice(0,bi)+code+h.slice(bi):h+code}
+function buildPrem(){const src=base.prem.text;
+  if(!isPrem(src))throw Error('The Premium base is not KodeX Premium. Load it in step 1.');
+  const bad=skins.filter(s=>!TYPES.some(([k])=>k===s.type));if(bad.length)throw Error(`Choose a type for: ${bad.map(s=>s.name||'Skin').join(', ')}`);
+  const data=JSON.stringify(skins.map(s=>({id:s.id,type:s.type,name:s.name||'Skin',img:s.img}))).replace(/</g,'\\u003c');
+  const tag=`<script type="application/json" id="kx-skin-packs">${data}</`+`script>`,re=/<script type="application\/json" id="kx-skin-packs">[\s\S]*?<\/script>/;
+  if(re.test(src))return src.replace(re,()=>tag);const i=src.toLowerCase().lastIndexOf('</body>');return src.slice(0,i)+tag+src.slice(i)}
+function summary(){const vf=ver(base.free.text).join('.'),vp=ver(base.prem.text).join('.');
+  $('sumFree').innerHTML=`<li>KodeX ${esc(vf)} · ${base.free.zip?'ZIP for instApped':'page'}</li><li class="${banners.length?'':'warn'}">${banners.length} sponsor banner${banners.length===1?'':'s'}${banners.length>1?` · changes every ${ms()>=60000?ms()/60000+' min':ms()/1000+' s'}`:''}</li><li>${banners.filter(b=>b.u).length} with a link</li>`;
+  $('sumPrem').innerHTML=`<li>KodeX Premium ${esc(vp)} · ${base.prem.zip?'ZIP for instApped':'page'}</li><li class="${skins.length?'':'warn'}">${skins.length} skin${skins.length===1?'':'s'} (${TYPES.map(([k,l])=>skins.filter(s=>s.type===k).length+' '+l.split(' ')[0].toLowerCase()).join(', ')})</li><li>No ads</li>`;
+  $('goFree').disabled=!banners.length}
+const stamp=()=>{const n=new Date(),p=x=>String(x).padStart(2,'0');return `${n.getFullYear()}${p(n.getMonth()+1)}${p(n.getDate())}-${p(n.getHours())}${p(n.getMinutes())}`};
+async function run(k){const html=k==='free'?buildFree():buildPrem(),b=base[k],o=await packOut(html,b.zip),name=k==='free'?`KodeX_v${ver(b.text).join('.')}_sponsored_${stamp()}.${o.ext}`:`KodeX_Premium_v${ver(b.text).join('.')}_skins_${stamp()}.${o.ext}`;saveFile(o.blob,name);return `${name} (${(o.blob.size/1048576).toFixed(1)} MB)`}
+for(const [id,ks] of [['goFree',['free']],['goPrem',['prem']],['goBoth',['free','prem']]])$(id).onclick=async()=>{const btn=$(id);btn.disabled=true;status('st','Building…');const done=[];try{for(const k of ks)done.push(await run(k));status('st','Built:\n'+done.join('\n'),'ok')}catch(e){status('st',(done.length?'Built:\n'+done.join('\n')+'\n':'')+e.message,'err')}finally{btn.disabled=false;summary()}};
+
+/* ---------- start ---------- */
+(async()=>{
+  for(const k of ['free','prem']){const sv=await kv('get','base_'+k);if(sv&&okBase(sv.text)&&!newer(BUILTIN[k],sv.text))await setBase(k,sv.text,sv.label||'Saved base',sv.zip,false);else{if(sv)await kv('put','base_'+k,null);await setBase(k,BUILTIN[k],'Built-in (newest)',null,false)}}
+  status('stBase','Ready. Both editions are loaded.','ok');
+  const s=await kv('get','set');if(s)set=s;loadSet();
+  let b=await kv('get','banners'),sk=await kv('get','skins');
+  // bring over what the older Sponsor and Skin Injectors saved on this device
+  if(!Array.isArray(b)){const old=await kvOn(dbs.inj)('get','banners');b=Array.isArray(old)?old:[];if(old)await kv('put','banners',b)}
+  if(!Array.isArray(sk)){const old=await kvOn(dbs.skins)('get','skins');sk=Array.isArray(old)?old:[];if(old)await kv('put','skins',sk)}
+  banners=b.filter(x=>x&&typeof x.d==='string');skins=sk.filter(x=>x&&typeof x.img==='string');
+  const gone=(await kv('get','gone'))||[];let added=0;
+  for(const d of DEFAULT_BANNERS)if(!gone.includes(d.k)&&!banners.some(x=>x.k===d.k)){banners.push({...d});added++}
+  if(added)await saveB();
+  drawB();drawS();summary();
+})();
+</script></body></html>
