@@ -3173,7 +3173,7 @@ function kxPitchArt(){const want=['Blue-Eyes White Dragon','Dark Magician','Ash 
  for(const c of cards){if(out.length>=3)break;if((c.img||c.sm)&&/Monster/.test(c.type||'')&&!out.includes(c))out.push(c)}
  return out.map(c=>({src:c.img||c.sm,name:c.name}))}
 function premiumCardV60(){const art=kxPitchArt(),used=KX_TRIAL.used&&!KX_TRIAL.active;
- const tiles=[['Ace showdowns','Your best cards take over the screen','show','destiny','ace'],['Finishing moves','Shatter, Meteor, Thunder and more','fin','thunder',''],['Grand entrances','Portal, Storm, Inferno, Nova','mv','portal','ent'],['Winning showdowns','Domain Expansion, Time Stop…','show','domain','finale'],['Your profile','Own picture, animated banner, Premium frame','',''],['No ads','The sponsor strip is gone','',''],['Unlimited scanner','Free: 4 scans a day','',''],['Skins & sounds','Sleeves, fields, emotes, music','','']];
+ const tiles=[['Ace showdowns','Your best cards take over the screen','show','destiny','ace'],['Finishing moves','Shatter, Meteor, Thunder and more','fin','thunder',''],['Grand entrances','Portal, Storm, Inferno, Nova','mv','portal','ent'],['Winning showdowns','Domain Expansion, Time Stop…','show','domain','finale'],['Your profile','Own picture, animated banner, Premium frame','',''],['No ads','The sponsor strip is gone','',''],['Unlimited card scanner','Free: 4 scans a day','',''],['Skins & sounds','Sleeves, fields, emotes, music','','']];
  return `<div class="pz">
  <div class="pz-hero">
   <div class="pz-fan" aria-hidden="true">${art.map((a,i)=>`<img class="f${i}" src="${esc(a.src)}" alt="" loading="lazy">`).join('')}</div>
@@ -3204,6 +3204,9 @@ function premiumCardV60(){const art=kxPitchArt(),used=KX_TRIAL.used&&!KX_TRIAL.a
 {const f0=window.fetch;window.fetch=function(u,o){if(typeof u==='string'&&/\/api\/players\/ping$/.test(u)&&o&&typeof o.body==='string'){try{const b=JSON.parse(o.body);b.theme=kxProfile().theme;o={...o,body:JSON.stringify(b)}}catch(e){}
   return f0.call(this,u,o).then(r=>{try{r.clone().json().then(j=>{if(j&&j.pid){S.s('pf_pid',j.pid)}}).catch(()=>{})}catch(e){}return r})}return f0.apply(this,arguments)}}
 {const v=window.kxpView;if(typeof v==='function')window.kxpView=function(){v.apply(this,arguments);const pid=S.g('pf_pid',''),m=[...document.querySelectorAll('.mdl')].pop();if(!m||!pid||!kxpRaw().listed)return;const a=m.querySelector('[data-pfplayers]');if(a){a.textContent='My public profile';a.onclick=()=>openLink('https://kodex.meiocg.org/players#'+pid,'MEIOCG Players')}}}
+
+/* "More about KodeX Premium": the full list is open there */
+{const o=window.openPremiumInfo;if(typeof o==='function')window.openPremiumInfo=function(){o.apply(this,arguments);document.querySelectorAll('#tb .pz-more').forEach(d=>d.open=true)}}
 
 </script>
 </body>
