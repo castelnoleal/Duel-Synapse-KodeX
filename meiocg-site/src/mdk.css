@@ -285,3 +285,11 @@
 #mdk .ds-achips button{padding:7px 12px;border-radius:999px;border:1px solid var(--line,#262b3d);background:var(--surface,#11141f);font-weight:700;font-size:13px;cursor:pointer;color:var(--ink,#eef0f8)}
 #mdk .ds-achips button.on{background:linear-gradient(90deg,#7088ff,#7a4fd6);border-color:transparent;color:#fff}
 @media(max-width:860px){#mdk .ds-arena{grid-template-columns:1fr}#mdk .ds-afr{aspect-ratio:auto;height:min(640px,128vw)}#mdk .ds-acap{min-height:0}}
+
+#mdk .ds-demo{margin:0}
+#mdk .ds-demo .ds-afr{aspect-ratio:4/5;max-height:620px}
+#mdk .ds-demo figcaption{margin-top:10px;font-size:14px;color:var(--ink-2,#c9cde0);display:flex;gap:8px;align-items:center;justify-content:center}
+#mdk .ds-demo figcaption b{font-size:11px;font-weight:800;letter-spacing:.06em;padding:3px 10px;border-radius:999px;background:#f0b429;color:#1a1300;text-transform:uppercase}
+#mdk .ds-demo figcaption b.free{background:#61a8ff;color:#04122a}
+#mdk .ds-feat{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))!important}
+@media(max-width:860px){#mdk .ds-demo .ds-afr{aspect-ratio:auto;height:min(600px,125vw)}}

@@ -439,58 +439,25 @@ PLAYERS = dict(
 # meiocg.org/duelsynapse: the KodeX / Duel Synapse landing page. Card art in the demos is real art from the KodeX
 # database (kodex.meiocg.org/img/<passcode>.jpg). Set PLAY_FREE when the free app's Play listing is live.
 DS = dict(
-    play_free="",   # e.g. "https://play.google.com/store/apps/details?id=…"
-    # Live meiocg.org/duelsynapse (Nov 9, 2026) still says KodeX and Premium are "coming soon" to Google Play: keep that until the listings are live.
-    play_premium="",  # e.g. "https://play.google.com/store/apps/details?id=com.duelsynapse.kodex.premium"
+    # Kept short on purpose: what KodeX is, see it working, get it. Wording from the live page where it existed.
+    play_free="",   # set to the Play Store link when the free app is live
     web="https://kodex.meiocg.org",
-    # Text below keeps the wording from the live DashNex page (hero, features, scanner, plans, get-the-app) and adds the new features.
-    tagline="Every card. Every ruling. In your pocket.",
-    lead=("The Yu-Gi-Oh! card and rulings app from Meta Insider OCG. Search any card in seconds, settle table disputes with official rulings, "
-          "and scan cards straight from your camera. Then build legal OCG decks and playtest them in the Duel Synapse Arena."),
-    chips=["Free to download", "OCG & TCG cards", "Play with Friends"],
-    why_title="Built for the table, not the textbook.",
-    why_lead="Everything you need between rounds, at locals or at regionals — fast, clean and made for your phone.",
-    cards=dict(ace=93481594, ash=14558127, maxx=23434538, finisher=86066372, dm=46986414, bewd=89631139, dmg=38033121, veiler=97268402, nibiru=27204311, snake=9674034),
-    features=[
-        ("🔎", "Instant card search", "Find any Monster, Spell or Trap by name or text. Filter by type and jump straight to the details, with the OCG Forbidden & Limited status on every card."),
-        ("⚖️", "Rulings that settle it", "Read card rulings and interactions in one place, so the judge call is clear before the argument starts."),
-        ("📷", "Card scanner", "Point your camera at a card and KodeX identifies it — even Japanese cards, recognised by their artwork. **App exclusive.**"),
-        ("⚔️", "Arena playtesting (and more)", "Test your deck or duel online in the KodeX Arena — perfect for tuning your list before the next event. Play Synapse AI or a dummy, choose your opening hand, set a turn timer or play best-of-three."),
-        ("🧩", "Decks that check themselves", "Build, import deck links, files or text lists, and see at a glance if a deck is OCG legal."),
-        ("🔄", "Always up to date", "Kept current by Meta Insider OCG — the team behind PH's leading Yu-Gi-Oh! OCG publication."),
-        ("🏁", "Duel endings", "A finishing move breaks the loser's field, their profile icon cracks and shatters, a comeback moment when you turn it around, then a winner screen with your finishing card."),
-        ("🎨", "Make it yours", "Adjust text size, toggle card pictures and set your own wallpaper for a KodeX that feels like your deck box."),
-        ("🏅", "Your profile", "Name, title, icon and a frame that levels up as you use KodeX: Rookie to Master. Opponents see it in every duel."),
-        ("❓", "Help bubble", "Find any feature or setting by name, open the banlist and quick settings from anywhere, even mid-duel."),
-    ],
-    premium=[
-        ("ace", "Ace showdowns", "Your Ace cards take the whole screen when they're summoned, activated or added to the hand, and nothing covers them."),
-        ("finish", "Finishing moves", "Shatter, Meteor, Thunder, Vortex or Slash: the loser's field and profile icon crack and break before the result."),
-        ("staple", "Staple animations", "Ash Blossom, Maxx \"C\", Effect Veiler, Nibiru and more get their own cut-in for everyone (free too, and you can turn them off)."),
-        ("frames", "Profile frames", "Frames from Rookie to Master for everyone; Premium adds the Premium frame, your own picture or GIF and animated banners."),
-        ("win", "Winner screen", "Your profile, your finishing card and YOU WIN, with a secret comeback moment when you turn the duel around."),
-    ],
-    compare=[("Ads", "Sponsor strip", "None"), ("Card scans", "4 a day", "Unlimited"), ("Winning showdowns", "Menacing", "13 styles + Random"),
-             ("Ace cards", "–", "✓"), ("Finishing moves", "Shatter", "5 + one per card"), ("Profile", "MEIOCG icon, presets, earned frames", "Own picture, animated banner, Premium frame"),
-             ("Skins, emotes, music", "–", "✓")],
-    # The live Arena demo (kodex.meiocg.org/duel/showcase.html): real cards and the Arena's own animation code.
     arena_demo="https://kodex.meiocg.org/duel/showcase.html",
-    arena_scenes=["Playtest setup", "Summon entrance", "Staple cut-in", "Revealed card", "Ace showdown", "Turn timer", "Finishing move", "Comeback", "Winner screen"],
-    scanner=dict(kicker="Only in the app", title="Scan it. Know it. Play it.",
-                 lead="The KodeX scanner is the fastest way to look up a card you're holding — no typing, no guessing the English name.",
-                 points=["Recognises artwork, not just printed text", "Works with Japanese cards — ideal for OCG players", "Jumps straight to rulings for the card you scanned"]),
-    plans_title="Download free. Go Premium when you're ready.",
-    plans_lead="KodeX is free on Google Play. Duel Synapse Premium is on the way for players who want more.",
-    plans=[dict(name="KodeX Free", price="₱0 · Google Play", items=["Full card search and rulings", "Camera card scanner", "Arena deck playtesting", "Custom wallpaper & display settings"]),
-           dict(name="Duel Synapse Premium", price="Subscription · in-app", tag="Coming soon", items=["Remove all ads", "Exclusive premium features", "Support MEIOCG and the PH community"])],
-    get_kicker="Step up your game",
-    get_title="Get KodeX on your phone.",
+    tagline="Every card. Every ruling. In your pocket.",
+    lead="The Yu-Gi-Oh! OCG card and rulings app from Meta Insider OCG, with a built-in Arena to playtest your decks.",
+    chips=["Free to download", "OCG & TCG cards", "Play with Friends"],
+    features=[
+        ("🔎", "Cards & rulings", "Find any card in seconds and read its official rulings."),
+        ("📷", "Card scanner", "Point your camera at a card, even a Japanese one, and KodeX finds it."),
+        ("🧩", "Deck builder", "Build or import decks and see at a glance if they are OCG legal."),
+        ("⚔️", "Duel Synapse Arena", "Playtest against Synapse AI or duel your friends online."),
+    ],
+    plans=[dict(name="KodeX", price="Free", items=["Cards, rulings and deck builder", "Card scanner (4 a day)", "Duel Synapse Arena"]),
+           dict(name="KodeX Premium", price="Coming soon", items=["No ads, unlimited scans", "Ace showdowns & finishing moves", "Premium profile, skins and replays"])],
+    get_title="Get KodeX on your phone",
     get_lead="KodeX is landing on Google Play soon. Until then, use the full web version — it's free.",
-    qr_note="On your computer? Scan with your phone to open KodeX on Google Play.",
-    trial="New to Premium? The free app has a one-time 5-day KodeX Premium trial in Settings: every feature, no ads, nothing charged, and it ends on its own.",
-    faq=[("Is KodeX free?", "Yes. The free edition has everything for cards, rulings, decks and the Arena, with a small sponsor strip. KodeX Premium removes it and adds the showdowns, skins and profile extras."),
-         ("Which format does KodeX follow?", "The OCG: its Forbidden & Limited list and legality checks. TCG cards are in the card database too."),
-         ("Can I duel my friends?", "Yes. Open a room in the Arena and send the invite link; friends can also watch."),
-         ("Do I need an account?", "No. Your decks, profile and settings stay on your phone. Being listed on MEIOCG Players is optional."),
+    qr_note="On your computer? Scan with your phone to open KodeX.",
+    faq=[("Is KodeX free?", "Yes. KodeX Premium only adds extras like the showdowns, skins and no ads."),
+         ("Which format does KodeX follow?", "The OCG: its Forbidden & Limited list and legality checks."),
          ("Who makes KodeX?", "Meta Insider OCG (MEIOCG), created by Castel Noleal. A project of Meta Insider OCG since 2023.")],
 )
