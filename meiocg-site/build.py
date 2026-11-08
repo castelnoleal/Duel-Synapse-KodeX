@@ -154,7 +154,8 @@ pages[C.PAGES["why"]] = ("Why KodeX: OCG Card Rulings, Deck Builder, Scanner & D
                          {"@context": "https://schema.org", "@graph": [{"@type": "SoftwareApplication", "name": "Duel Synapse: KodeX", "applicationCategory": "GameApplication",
                           "operatingSystem": "Android, Web", "publisher": {"@type": "Organization", "name": "Meta Insider OCG"}, "url": C.URL("why")}, faq_ld(C.WHY["faq"])]}, why)
 
-ds = dict(kind="ds", updated=C.UPDATED, links=dict(players=C.URL("players"), why=C.URL("why"), cup=C.URL("cup"), guides=C.URL("guides"), decks=C.URL("hub")), profile=PF_DATA, **C.DS)
+DS_QR = "data:image/png;base64," + base64.b64encode((R / "data/ds-qr.png").read_bytes()).decode()  # the QR from the live page
+ds = dict(kind="ds", qr=DS_QR, updated=C.UPDATED, links=dict(players=C.URL("players"), why=C.URL("why"), cup=C.URL("cup"), guides=C.URL("guides"), decks=C.URL("hub")), profile=PF_DATA, **C.DS)
 ds["ids"] = {}
 pages[C.PAGES["ds"]] = ("Duel Synapse: KodeX · OCG Card Rulings, Deck Builder & Duel Arena | Meta Insider OCG",
                         "KodeX by Meta Insider OCG: every OCG card with rulings, a card scanner, deck builder with legality check, the Duel Synapse Arena and KodeX Premium showdowns.",

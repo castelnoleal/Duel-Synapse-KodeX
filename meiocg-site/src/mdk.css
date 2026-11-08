@@ -254,3 +254,21 @@
 #mdk td.y{color:#ffe08a;font-weight:700}
 #mdk .ds-trial{margin-top:14px;padding:16px;border-radius:16px;background:linear-gradient(100deg,#f0b42922,#7a4fd622);border:1px solid #f0b42966}#mdk .ds-trial b{font-size:17px;color:#ffe08a}#mdk .ds-trial p{margin:6px 0 12px}
 @media (max-width:760px){#mdk .ds-hgrid,#mdk .ds-stage{grid-template-columns:1fr}#mdk .ds-phone{width:min(260px,72vw)}}
+
+#mdk .ds-tag{font-family:"Chakra Petch",system-ui,sans-serif;font-weight:700;font-size:clamp(18px,2.2vw,24px);margin:-4px 0 12px;color:var(--ink,#eef0f8)}
+#mdk .ds-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+#mdk .ds-chips span{padding:5px 12px;border-radius:999px;border:1px solid var(--line,#262b3d);background:var(--surface,#11141f);font-size:13px;font-weight:700;color:var(--ink-2,#c9cde0)}
+#mdk .ds-kick{font-family:"Chakra Petch",system-ui,sans-serif;font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--brand,#7088ff);font-weight:700;margin:-6px 0 8px}
+#mdk .ds-plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin:8px 0 16px}
+#mdk .ds-plan{position:relative;padding:18px;border-radius:18px;background:var(--surface,#11141f);border:1px solid var(--line,#262b3d)}
+#mdk .ds-plan:last-child{border-color:rgba(240,180,41,.55);background:linear-gradient(160deg,rgba(240,180,41,.10),var(--surface,#11141f) 60%)}
+#mdk .ds-plan b{display:block;font-family:"Chakra Petch",system-ui,sans-serif;font-size:20px}
+#mdk .ds-plan small{color:var(--muted,#a3aac6)}
+#mdk .ds-plan em{position:absolute;top:14px;right:14px;font-style:normal;font-size:11.5px;font-weight:800;padding:3px 10px;border-radius:999px;background:rgba(240,180,41,.16);color:var(--gold,#f0b429)}
+#mdk .ds-plan ul{margin:10px 0 0}
+#mdk .ds-get{display:flex;flex-wrap:wrap;gap:18px;align-items:center;justify-content:space-between}
+#mdk .ds-qr{display:flex;gap:12px;align-items:center;max-width:300px}
+#mdk .ds-qr img{border-radius:10px;background:#fff;padding:6px;flex:none}
+#mdk .ds-qr small{color:var(--muted,#a3aac6);font-size:13px}
+@media(max-width:640px){#mdk .ds-qr{display:none}}
+#mdk .btn.dis{opacity:.75;cursor:default}
