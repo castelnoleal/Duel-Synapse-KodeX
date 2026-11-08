@@ -2,8 +2,23 @@
    Live prices come from the MEIOCG Price Guide data (Yuyu-tei standard prices). */
 (function () {
   "use strict";
-  var D = window.MDK, root = document.getElementById("mdk");
-  if (!D || !root) return;
+  var D = window.MDK, host = document.getElementById("mdk"), root = host;
+  if (!D || !host) return;
+  // The page lives in a shadow root so the site stylesheet (which uses the same short class names) can't reach in.
+  // Theme tokens (--bg, --ink, --brand …) and fonts still inherit from the site, so light/dark mode keeps working.
+  if (host.attachShadow && !host.shadowRoot) {
+    var sh = host.attachShadow({ mode: "open" }), css = document.getElementById("mdk-css"), st = document.createElement("style");
+    st.textContent = (css ? css.textContent : "") + ":host{display:block;width:100%}";
+    sh.appendChild(st);
+    if (css) css.media = "not all";
+    root = document.createElement("div"); root.id = "mdk"; sh.appendChild(root);
+  }
+  // DashNex wraps editor-made pages in its own header bar, a 960px container and a footer: use the full width instead.
+  if (!document.getElementById("mdk-page")) {
+    var pg = document.createElement("style"); pg.id = "mdk-page";
+    pg.textContent = "body:has(#mdk) .dnp-header,body:has(#mdk) .dnp-footer{display:none!important}.dnp-content:has(#mdk){max-width:none!important;width:100%!important;padding:0!important;margin:0!important}body:has(#mdk){margin:0}";
+    document.head.appendChild(pg);
+  }
   var SITE = "https://meiocg.org", KX = "https://kodex.meiocg.org";
   var PRICE_REPO = "castelnoleal/Meiocg_Price-Check";
   var PRICE_BASES = ["https://raw.githubusercontent.com/" + PRICE_REPO + "/data/", "https://cdn.jsdelivr.net/gh/" + PRICE_REPO + "@data/"];
