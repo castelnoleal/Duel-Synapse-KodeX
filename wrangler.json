@@ -50,6 +50,10 @@
       {
         "name": "PLAYBOOK",
         "class_name": "PlayBook"
+      },
+      {
+        "name": "PLAYERS",
+        "class_name": "PlayerBoard"
       }
     ]
   },
@@ -64,6 +68,12 @@
       "tag": "playbook-v1",
       "new_sqlite_classes": [
         "PlayBook"
+      ]
+    },
+    {
+      "tag": "players-v1",
+      "new_sqlite_classes": [
+        "PlayerBoard"
       ]
     }
   ]

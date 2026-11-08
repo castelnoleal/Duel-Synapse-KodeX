@@ -16,6 +16,12 @@ PAGES = {
     "ars-magna-elfnote": "deck-ars-magna-elfnote",
     "raise-moon": "deck-raise-moon",
     "why": "why-kodex",
+    "guides": "guides",
+    "guide-light-and-darkness-ritual": "guide-light-and-darkness-ritual",
+    "guide-ars-magna-elfnote": "guide-ars-magna-elfnote",
+    "guide-raise-moon": "guide-raise-moon",
+    "cup": "meiocg-cup",
+    "players": "players",
 }
 URL = lambda k: f"{SITE}/{PAGES[k]}"
 
@@ -345,6 +351,7 @@ WHY = dict(
         dict(i="📊", t="Synapse Deck Analyzer", d="Starters, opening-hand odds, brick rates going first and second, and how your deck performs in Arena duels."),
         dict(i="📝", t="Match log", d="Log games from locals and events: result, going first or second, the opponent's deck. See your win rate against each matchup."),
         dict(i="💴", t="Live prices", d="Yuyu-tei standard prices with history, in yen, pesos and dollars. Every deck page on meiocg.org shows its build price.", tag="On meiocg.org"),
+        dict(i="🏅", t="Player profile", d="Your name, title, icon and a frame that levels up as you use KodeX, shown to opponents in the Arena. Opt in to appear on MEIOCG Players."),
         dict(i="⚔️", t="Duel Synapse Arena", d="Play your decks in the browser or the app: against Synapse AI, a practice dummy, or a friend online."),
     ],
     arena=dict(
@@ -362,6 +369,7 @@ WHY = dict(
         ("Card search and official rulings", True, True), ("Deck builder, import/export, OCG legality check", True, True),
         ("Deck Analyzer and match log", True, True), ("Duel Synapse Arena", True, True),
         ("Card scanner", "4 scans per day", "Unlimited"), ("Ads", "Yes", "No ads"),
+        ("Player profile and icon frames earned by use", True, True), ("Own profile picture, animated banners, Premium frame", False, True),
         ("Premium Studio: skins, showdowns, Ace cards, emotes", False, True), ("Save duel replays", False, True),
     ],
     not_=[
@@ -375,6 +383,53 @@ WHY = dict(
         ("Does KodeX use the OCG or TCG list?", "The OCG Forbidden & Limited list. The legality check updates with the card database."),
         ("Can I import my existing decks?", "Yes: .ydk files, ydke:// links and plain text lists like \"3 Ash Blossom & Joyous Spring\" all work."),
         ("Where do rulings come from?", "The official Q&A database, mirrored and kept up to date by KodeX, with translations."),
+        ("What is MEIOCG Players?", "A page on meiocg.org that lists KodeX players who opt in from their profile, ranked by how active they are."),
         ("Who makes KodeX?", "Meta Insider OCG (MEIOCG), a Philippine OCG publication. Contact: metainsiderocg@gmail.com."),
     ],
+)
+
+
+# Date stamp shown on every decklist ("OCG · Nov 2026 list"). When the OCG list changes, set archived=True on the old
+# deck entries (their pages stay up with an "Archived list" banner) and add them to ARCHIVE with the list they were legal on.
+LIST_TAG = "OCG · Nov 2026 list"
+ARCHIVE = []   # e.g. dict(slug="raise-moon", name="Raise Moon", tag="OCG · Nov 2026 list", banlist="OCG list of Oct 1, 2026")
+
+# Guides: learn to pilot each meta deck. Lessons 1-3 are free on meiocg.org; the rest are KodeX Premium lessons.
+GUIDES = dict(
+    lead=("Learn to pilot the decks that top OCG events. Each guide starts with three free lessons: what the deck wants to do, "
+          "its core line step by step, and where opponents will try to stop you. Every lesson ends with a drill in Duel Synapse Arena."),
+    premium=[("Playing through hand traps", "Which follow-up to take after each common interruption."),
+             ("Going second", "Breaking the boards you'll face and the cards to side in."),
+             ("Side deck and matchups", "What to bring in and take out against the rest of the meta.")],
+    premiumNote=("Premium lessons are being written now and will open in the KodeX app for KodeX Premium players. "
+                 "The free lessons stay free."),
+)
+CUP = dict(
+    lead=("The MEIOCG Cup is Meta Insider OCG's community tournament for OCG players: Swiss rounds, the current OCG Forbidden & Limited list, "
+          "and the top decks published on meiocg.org with full lists you can open in Duel Synapse Arena."),
+    status="Next Cup: date to be announced",
+    statusNote="Follow MEIOCG on Facebook for the date, venue or online room, and sign-up.",
+    format=[
+        "**OCG format**, current OCG Forbidden & Limited list (" + BANLIST + " until the next list).",
+        "**Swiss rounds**, best of three, run with the MEIOCG Swiss Tournament Manager. The number of rounds depends on how many players join.",
+        "**Deck registration** with a KodeX deck link (ydke://) or a text list. KodeX checks your deck is OCG legal before you send it.",
+        "**Results published**: standings, the top decks as full lists, and the winning deck written up as a meiocg.org deck page.",
+    ],
+    steps=[("Build and check", "Build your deck in KodeX. The legality bar under the deck must say ✓ OCG legal."),
+           ("Practise", "Playtest it in Duel Synapse Arena against the meta decks on meiocg.org."),
+           ("Register", "Send your deck link or text list when sign-up opens."),
+           ("Play", "Report each round's result to the organiser; standings update after every round.")],
+    faq=[("How much does it cost to join?", "Each Cup's entry and prizes are announced with its date."),
+         ("Online or in person?", "Each Cup's announcement says whether it is played online or in person."),
+         ("Which list do you use?", "The OCG Forbidden & Limited list in force on the day of the Cup."),
+         ("Where do results go?", "On meiocg.org, with the top lists and a deck page for the winner. Older Cup lists stay in the deck archive."),
+         ("Who runs it?", "Meta Insider OCG (MEIOCG). Contact: metainsiderocg@gmail.com.")],
+    past=[],   # dict(name="MEIOCG Cup #1", date="2026-12-06", players=32, winner="…", deck="…", href=URL("…"))
+)
+PLAYERS = dict(
+    lead=("KodeX players who chose to be listed, ranked by how active they are. Frames unlock as you use KodeX: "
+          "Rookie, Bronze, Silver, Gold, Platinum, Diamond and Master, plus the Premium frame for KodeX Premium."),
+    how=["Open KodeX → Settings → Profile → Edit profile and turn on **Show me on MEIOCG Players**.",
+         "Points come from using KodeX: each day you open it, each duel in Duel Synapse Arena, each deck you build and the cards you look up.",
+         "Only what your profile shows is listed: name, title, about line, preset icon, frame and activity counts. No email or account. Turn it off and you're removed."],
 )

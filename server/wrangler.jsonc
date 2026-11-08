@@ -8,7 +8,7 @@
     "enabled": true
   },
   "durable_objects": {
-    "bindings": [{ "name": "DUEL_ROOMS", "class_name": "DuelRoom" }, { "name": "PLAYBOOK", "class_name": "PlayBook" }]
+    "bindings": [{ "name": "DUEL_ROOMS", "class_name": "DuelRoom" }, { "name": "PLAYBOOK", "class_name": "PlayBook" }, { "name": "PLAYERS", "class_name": "PlayerBoard" }]
   },
-  "migrations": [{ "tag": "duel-rooms-v1", "new_sqlite_classes": ["DuelRoom"] }, { "tag": "playbook-v1", "new_sqlite_classes": ["PlayBook"] }]
+  "migrations": [{ "tag": "duel-rooms-v1", "new_sqlite_classes": ["DuelRoom"] }, { "tag": "playbook-v1", "new_sqlite_classes": ["PlayBook"] }, { "tag": "players-v1", "new_sqlite_classes": ["PlayerBoard"] }]
 }

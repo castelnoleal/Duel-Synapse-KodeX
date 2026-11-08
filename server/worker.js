@@ -1,7 +1,8 @@
 import { DuelRoom, handleDuelRoom } from "./duel-room.js";
 import { PlayBook, handlePlayBook } from "./playbook.js";
 import { handleLens } from "./lens.js";
-export { DuelRoom, PlayBook };
+import { PlayerBoard, handlePlayers } from "./players.js";
+export { DuelRoom, PlayBook, PlayerBoard };
 
 const REPO = "castelnoleal/Duel-Synapse-KodeX";
 const BRANCH = "main";
@@ -201,6 +202,7 @@ export default {
     const duel = await handleDuel(request, url, env);
     if (duel) return duel;
     if (url.pathname === "/api/lens") return handleLens(request, env, ctx);
+    if (url.pathname === "/api/players" || url.pathname === "/api/players/ping" || url.pathname === "/api/players/leave") return handlePlayers(request, env);
     if (url.pathname === "/translate") {
       if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
       try {

@@ -12,6 +12,7 @@ The Worker retrieves KodeX files with a GitHub token stored as a Cloudflare Work
 - `GET /api/ruling/<Konami-ID>`
 - `GET /health`
 - `GET /api/duel/book?cards=...` and `POST /api/duel/book/learn`: Synapse AI's shared play book (`playbook.js`, a SQLite Durable Object bound as `PLAYBOOK`). It stores only anonymous counts keyed by card codes and action letters: combo lines, card-pick rates and responses. Reads return only rows whose cards are all in the requested list; writes are validated, capped at 600 rows and weight 3 per row.
+- `GET /api/players?sort=points|recent&limit=100`, `POST /api/players/ping`, `POST /api/players/leave`: MEIOCG Players (`players.js`, a SQLite Durable Object bound as `PLAYERS`, migration `players-v1`). Lists KodeX players who opted in from their profile, active in the last 90 days, ranked by activity points. Stores only what the profile shows (name, title, about, a preset icon name, frame, tier, Premium, activity counts, first and last seen) plus a SHA-256 hash of the player's secret key; never a picture, email or device id. One update per player every 4 minutes; points are capped by the activity behind them. Read by meiocg.org/players (CORS open, cached 60 s).
 
 The complete search index and complete database remain on the private GitHub side. The Worker caches origin responses server-side and returns only search results or the requested ruling record.
 

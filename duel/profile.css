@@ -1,0 +1,54 @@
+/* Player profiles: icon frames, banners and the profile card. Shared by the Arena and the KodeX app. */
+.pf-av { --pf: 40px; position: relative; display: inline-grid; place-items: center; width: var(--pf); height: var(--pf); flex: none; border-radius: 50%; isolation: isolate; }
+.pf-av img { position: relative; z-index: 1; width: calc(100% - 6px); height: calc(100% - 6px); border-radius: 50%; object-fit: cover; background: #0c1426; display: block; }
+.pf-av::before { content: ""; position: absolute; inset: 0; z-index: 0; border-radius: 50%; background: #2a3354; }
+.pf-av::after { content: ""; position: absolute; inset: -3px; z-index: -1; border-radius: 50%; opacity: 0; }
+.pf-av.fr-none::before { background: #2a3354; }
+.pf-av.fr-rookie::before { background: linear-gradient(135deg, #8a96b4, #4c5878); }
+.pf-av.fr-bronze::before { background: conic-gradient(from 30deg, #8a4b20, #e0a070, #8a4b20, #c27a44, #8a4b20); }
+.pf-av.fr-silver::before { background: conic-gradient(from 30deg, #8d97a8, #f4f7fb, #8d97a8, #dfe5ee, #8d97a8); }
+.pf-av.fr-gold::before { background: conic-gradient(from 30deg, #a8740b, #ffe08a, #b8860b, #fff1b8, #a8740b); }
+.pf-av.fr-gold::after { opacity: 1; box-shadow: 0 0 10px #f0b42988; }
+.pf-av.fr-platinum::before { background: conic-gradient(from 0deg, #5fd3c4, #f2fffd, #7ab8ff, #f2fffd, #5fd3c4); }
+.pf-av.fr-platinum::after { opacity: 1; box-shadow: 0 0 12px #8be1ffaa; }
+.pf-av.fr-diamond::before { background: conic-gradient(from 0deg, #8be1ff, #b46bff, #ffffff, #6f7dff, #8be1ff); animation: pfSpin 6s linear infinite; }
+.pf-av.fr-diamond::after { opacity: 1; box-shadow: 0 0 14px #8be1ffbb, 0 0 26px #b46bff55; }
+.pf-av.fr-master::before { background: conic-gradient(from 0deg, #e0102a, #ffb347, #fff1b8, #e0102a, #7a0a1a, #e0102a); animation: pfSpin 4s linear infinite; }
+.pf-av.fr-master::after { opacity: 1; box-shadow: 0 0 14px #ff5a3aaa, 0 0 30px #f0b42966; animation: pfPulse 2.4s ease-in-out infinite; }
+.pf-av.fr-premium::before { background: conic-gradient(from 0deg, #f0b429, #ffe08a, #7a4fd6, #b46bff, #ffe08a, #f0b429); animation: pfSpin 3.2s linear infinite; }
+.pf-av.fr-premium::after { opacity: 1; inset: -5px; background: radial-gradient(circle, transparent 58%, #f0b42933 70%, transparent 72%); box-shadow: 0 0 16px #f0b429aa, 0 0 32px #7a4fd666; animation: pfPulse 2s ease-in-out infinite; }
+@keyframes pfSpin { to { transform: rotate(1turn); } }
+@keyframes pfPulse { 50% { opacity: .55; } }
+@media (prefers-reduced-motion: reduce) { .pf-av::before, .pf-av::after, .pf-banner, .pf-banner i { animation: none !important; } }
+
+.pf-card { --pf-acc: #8d99ff; position: relative; overflow: hidden; border-radius: 18px; border: 1px solid #ffffff1f; background: #0e1228; color: #eef1ff; padding: 0 0 14px; }
+.pf-banner { height: 92px; position: relative; overflow: hidden; background: radial-gradient(120% 140% at 0% 0%, #3347f088, transparent 60%), linear-gradient(135deg, #182152, #0c0f1f); }
+.pf-banner i { position: absolute; inset: 0; }
+.th-ocean .pf-banner { background: linear-gradient(135deg, #0b3a6a, #0e6a8a 55%, #0c1a2b); }
+.th-dusk .pf-banner { background: linear-gradient(135deg, #5a2a6a, #c25a5a 55%, #2b1530); }
+.th-aurora .pf-banner { background: linear-gradient(120deg, #0c2b2a, #1f9d6b, #3347f0, #b46bff, #0c2b2a); background-size: 300% 100%; animation: pfDrift 9s ease-in-out infinite alternate; }
+.th-nebula .pf-banner { background: radial-gradient(60% 90% at 20% 30%, #b46bff99, transparent), radial-gradient(60% 90% at 80% 60%, #2b7fff99, transparent), #090a1f; background-size: 200% 200%; animation: pfDrift 12s ease-in-out infinite alternate; }
+.th-nebula .pf-banner i { background: radial-gradient(1px 1px at 20% 30%, #fff, transparent), radial-gradient(1px 1px at 60% 70%, #fff, transparent), radial-gradient(1.5px 1.5px at 80% 20%, #fff, transparent), radial-gradient(1px 1px at 40% 80%, #fff, transparent); animation: pfPulse 3s ease-in-out infinite; }
+.th-inferno .pf-banner { background: linear-gradient(0deg, #e0563a, #7a0a1a 60%, #1a0204); }
+.th-inferno .pf-banner i { background: radial-gradient(30% 60% at 20% 100%, #ffb347aa, transparent), radial-gradient(30% 60% at 60% 100%, #ff5a3aaa, transparent), radial-gradient(25% 50% at 90% 100%, #ffe066aa, transparent); animation: pfFlick 1.6s ease-in-out infinite alternate; }
+.th-royal .pf-banner { background: linear-gradient(110deg, #3a2a05, #b8860b 30%, #fff1b8 45%, #b8860b 60%, #3a2a05); background-size: 250% 100%; animation: pfDrift 5s linear infinite; }
+.th-synapse .pf-banner { background: linear-gradient(135deg, #10163a, #2a1a5a); }
+.th-synapse .pf-banner i { background-image: linear-gradient(#8d99ff33 1px, transparent 1px), linear-gradient(90deg, #8d99ff33 1px, transparent 1px); background-size: 18px 18px; animation: pfGrid 3s linear infinite; }
+@keyframes pfDrift { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
+@keyframes pfFlick { from { opacity: .6; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes pfGrid { to { background-position: 18px 18px; } }
+.pf-head { display: flex; align-items: flex-end; gap: 12px; padding: 0 16px; margin-top: -40px; position: relative; }
+.pf-head .pf-av { --pf: 84px; box-shadow: 0 8px 24px #000a; }
+.pf-who { display: grid; gap: 3px; min-width: 0; padding-bottom: 2px; }
+.pf-who b { font-size: 19px; font-weight: 850; line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pf-who > span { color: var(--pf-acc); font-size: 13px; font-weight: 700; }
+.pf-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.pf-tags em { font-style: normal; font-size: 10.5px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; background: #ffffff14; color: #c9d0ff; }
+.pf-tags .pf-prem { background: linear-gradient(90deg, #ffe08a, #f0b429); color: #140f02; }
+.pf-tags .t-bronze { background: #8a4b2055; color: #f2b88a; } .pf-tags .t-silver { background: #dfe5ee33; color: #f4f7fb; } .pf-tags .t-gold { background: #f0b42933; color: #ffe08a; }
+.pf-tags .t-platinum { background: #5fd3c433; color: #c6fff6; } .pf-tags .t-diamond { background: #8be1ff33; color: #dff7ff; } .pf-tags .t-master { background: #e0102a44; color: #ffd0b0; }
+.pf-bio { margin: 12px 16px 0; color: #c9d0f2; font-size: 13.5px; line-height: 1.5; }
+.pf-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 14px 12px 0; }
+.pf-stats div { display: grid; justify-items: center; gap: 2px; padding: 8px 4px; border-radius: 12px; background: #ffffff0a; border: 1px solid #ffffff12; text-align: center; }
+.pf-stats b { font-size: 16px; font-variant-numeric: tabular-nums; }
+.pf-stats span { font-size: 10px; color: #9aa3c7; line-height: 1.2; }

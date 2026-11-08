@@ -113,14 +113,16 @@
     sec.push(["stop", "Where to stop it", (D.stopIntro ? paras(D.stopIntro) : "") + '<div class="tbl stack"><table><thead><tr><th>Card</th><th>Where it works</th><th>What happens next</th></tr></thead><tbody>' + D.stops.map(function (r) { return '<tr><td data-l="Card">' + md(r[0]) + '</td><td data-l="Where it works">' + md(r[1]) + '</td><td data-l="What happens next">' + md(r[2]) + "</td></tr>"; }).join("") + "</tbody></table></div>" + "<h3>Takeaways</h3><ol>" + D.takeaways.map(function (x) { return "<li>" + md(x) + "</li>"; }).join("") + "</ol>"]);
     sec.push(["second", "Going second into " + D.name, ul(D.second)]);
     sec.push(["practice", "Practice against it", ul(D.practice) + duelCard(1)]);
-    sec.push(["list", "Decklist", '<div class="dkhead"><span class="src">' + md(D.source.text) + '</span><span class="badge ' + (issues.length ? "bad" : "ok") + '">' + (issues.length ? "✕ " + esc(issues.join("; ")) : "✓ OCG legal · " + esc(D.banlist)) + "</span></div>" + '<div id="mdkPrice"><p class="src">Loading today\'s prices…</p></div>' +
+    sec.push(["list", "Decklist", '<div class="dkhead"><span class="stamp">' + esc(D.listTag || "") + '</span><span class="src">' + md(D.source.text) + '</span><span class="badge ' + (issues.length ? "bad" : "ok") + '">' + (issues.length ? "✕ " + esc(issues.join("; ")) : "✓ OCG legal · " + esc(D.banlist)) + "</span></div>" + '<div id="mdkPrice"><p class="src">Loading today\'s prices…</p></div>' +
       '<div class="btns"><a class="btn p" href="' + arenaLink(D.name + " (MEIOCG)", L) + '" target="_blank" rel="noopener">Playtest in the Arena</a><button class="btn" data-copy="ydke">Copy deck link (ydke://)</button><button class="btn" data-copy="text">Copy text list</button><button class="btn" data-dl="ydk">Download .ydk</button></div>' +
       zone("Main Deck", L.main, true) + zone("Extra Deck", L.extra) + zone("Side Deck", L.side) + '<p class="src">Tap a card to read it and its official rulings in KodeX. Numbered dots mark OCG Limited (1) and Semi-Limited (2) cards.</p>']);
+    if (D.guide) sec.splice(sec.length - 1, 0, ["learn", "Learn to play it", '<div class="duel"><div class="ic">📘</div><div><h3>Want to pilot ' + esc(D.name) + ' yourself?</h3><p>The guide walks through its engine and core line in three free lessons, each with a drill in the Arena.</p></div><div class="acts"><a class="btn p" href="' + esc(D.guide) + '">Start the free lessons</a></div></div>']);
     sec.push(["faq", "FAQ", faq(D.faq)]);
     sec.push(["more", "Keep reading", more(D.more)]);
     var toc = tocHTML(sec.map(function (s) { return [s[0], s[1]]; }));
     var by = "<span>By <b>Meta Insider OCG</b></span><span>Updated " + esc(fmtDate(D.updated)) + "</span><span>" + D.readMin + " min read</span><span>" + esc(D.metaLine) + "</span>";
-    root.innerHTML = hero([D.label[0], D.label[1]], esc(D.name) + ": <span>how it plays, and how to beat it</span>", D.lead, by) +
+    var arch = D.archived ? '<div class="wrap"><div class="archived"><b>Archived list</b> · ' + esc(D.listTag || "") + ' · legal on the ' + esc(D.banlist) + '. <a href="' + esc(D.hubUrl) + '">See the current meta decks</a></div></div>' : "";
+    root.innerHTML = hero([D.label[0], D.label[1]], esc(D.name) + ": <span>how it plays, and how to beat it</span>", D.lead, by + '<span class="stamp">' + esc(D.listTag || "") + "</span>") + arch +
       '<div class="wrap"><details class="tocm"><summary>On this page</summary>' + toc + '</details><div class="grid"><aside>' + toc + "</aside><main>" + sec.map(function (s) { return section(s[0], s[1], s[2]); }).join("") + disc + "</main></div></div>";
     priceDeck(L, root.querySelector("#mdkPrice"));
     root.addEventListener("click", function (e) {
@@ -139,10 +141,99 @@
     }).join("");
     var rest = '<div class="tbl cmp"><table><thead><tr><th>#</th><th>Deck</th><th>Share of top decks</th></tr></thead><tbody>' + D.table.map(function (r, i) { return "<tr><td>" + (i + 1) + "</td><td>" + esc(r[0]) + "</td><td>" + r[1].toFixed(1) + "%</td></tr>"; }).join("") + "</tbody></table></div>";
     root.innerHTML = hero(["OCG", "Meta decks · " + D.period], "OCG meta decks: <span>how they combo, and how to beat them</span>", D.lead, "<span>By <b>Meta Insider OCG</b></span><span>Updated " + esc(fmtDate(D.updated)) + "</span>") +
-      '<div class="wrap"><main>' + section("top", "The decks to beat right now", '<div class="meta">' + cards + "</div>" + '<p class="src">' + md(D.source) + "</p>") +
+      '<div class="wrap"><main>' + section("top", "The decks to beat right now", '<div class="tabs" role="tablist"><button role="tab" class="on" data-tab="cur">Current lists <i>' + esc(D.listTag || "") + '</i></button><button role="tab" data-tab="arc">Archive <i>' + (D.archive || []).length + "</i></button></div>" +
+        '<div data-pane="cur"><div class="meta">' + cards + "</div>" + '<p class="src">' + md(D.source) + "</p></div>" +
+        '<div data-pane="arc" hidden>' + ((D.archive || []).length ? '<div class="arc">' + D.archive.map(function (a) { return '<a class="mc" href="' + esc(SITE + "/deck-" + a.slug) + '"><small>' + esc(a.tag) + "</small><b>" + esc(a.name) + "</b><span>Legal on the " + esc(a.banlist) + "</span></a>"; }).join("") + "</div>" : '<p class="empty">No archived lists yet. When the OCG Forbidden &amp; Limited list changes, the lists above move here with their date, and their pages and links keep working.</p>') + "</div>") +
       section("table", "Top 10 by share", rest) +
-      section("practice", "Practice against them", paras(D.practice) + '<div class="btns"><a class="btn p" href="' + SITE + '/duelsynapse">Open Duel Synapse</a><a class="btn" href="' + SITE + '/prices">OCG price guide</a><a class="btn" href="' + SITE + '/why-kodex">Why KodeX</a></div>') + disc + "</main></div>";
+      section("practice", "Practice against them", paras(D.practice) + '<div class="btns"><a class="btn p" href="' + SITE + '/duelsynapse">Open Duel Synapse</a><a class="btn" href="' + esc(D.links.guides) + '">Deck guides</a><a class="btn" href="' + esc(D.links.cup) + '">MEIOCG Cup</a><a class="btn" href="' + esc(D.links.players) + '">MEIOCG Players</a><a class="btn" href="' + SITE + '/prices">OCG price guide</a><a class="btn" href="' + SITE + '/why-kodex">Why KodeX</a></div>') + disc + "</main></div>";
+    tabs();
   }
+  function tabs() {
+    root.addEventListener("click", function (e) {
+      var t = e.target.closest("[data-tab]"); if (!t) return;
+      var box = t.closest("section") || root;
+      box.querySelectorAll("[data-tab]").forEach(function (b) { b.classList.toggle("on", b === t); b.setAttribute("aria-selected", b === t); });
+      box.querySelectorAll("[data-pane]").forEach(function (p) { p.hidden = p.dataset.pane !== t.dataset.tab; });
+      if (t.dataset.tab && typeof onTab === "function") onTab(t.dataset.tab);
+    });
+  }
+  var onTab = null;
+
+  /* ---------- guides ---------- */
+  var lockList = function () {
+    return '<div class="lessons">' + D.premium.map(function (l, i) { return '<div class="lesson lock"><span class="n">' + (i + 4) + '</span><div><b>' + esc(l[0]) + "</b><small>" + esc(l[1]) + '</small></div><em>🔒 Premium</em></div>'; }).join("") + '</div><p class="src">' + md(D.premiumNote) + "</p>";
+  };
+  function guidePage() {
+    var L = D.list, sec = [];
+    var drill = function (t, p) { return '<div class="duel"><div class="ic">⚔</div><div><h3>' + esc(t) + "</h3><p>" + md(p) + '</p></div><div class="acts"><a class="btn p" href="' + arenaLink(D.name + " (MEIOCG)", L) + '" target="_blank" rel="noopener">Open in the Arena</a></div></div>'; };
+    sec.push(["l1", "Lesson 1 · What " + D.name + " wants to do", '<span class="free">Free</span>' + paras(D.how.intro) + "<h3>The cards that make it work</h3>" + ul(D.how.keys) +
+      drill("Drill: find the engine", "Open the list in the Arena against the dummy and draw ten opening hands. For each one, say which of the cards above starts your turn.")]);
+    sec.push(["l2", "Lesson 2 · The core line", '<span class="free">Free</span><div class="start"><div><small>Start</small>' + md(D.line.start) + '</div><i>→</i><div><small>End</small>' + md(D.line.end) + '</div></div><ol class="steps">' + D.line.steps.map(function (x) { return "<li>" + md(x[0]) + (x[1] ? "<small>" + md(x[1]) + "</small>" : "") + "</li>"; }).join("") + "</ol>" + (D.line.note ? '<p class="board">' + md(D.line.note) + "</p>" : "") +
+      drill("Drill: play the line", D.duel[0])]);
+    sec.push(["l3", "Lesson 3 · Where opponents stop you", '<span class="free">Free</span>' + (D.stopIntro ? paras(D.stopIntro) : "") + "<p>These are the interruptions opponents aim at " + esc(D.name) + ". Know where each one lands before you start your turn, and plan which piece you can afford to lose.</p>" +
+      '<div class="tbl stack"><table><thead><tr><th>Their card</th><th>Where it hits you</th><th>What it costs you</th></tr></thead><tbody>' + D.stops.map(function (r) { return '<tr><td data-l="Their card">' + md(r[0]) + '</td><td data-l="Where it hits you">' + md(r[1]) + '</td><td data-l="What it costs you">' + md(r[2]) + "</td></tr>"; }).join("") + "</tbody></table></div>" +
+      drill("Drill: play into interruptions", D.duel[1])]);
+    sec.push(["more", "Lessons 4–6 · KodeX Premium", lockList()]);
+    var toc = tocHTML(sec.map(function (x) { return [x[0], x[1]]; }));
+    var by = "<span>By <b>Meta Insider OCG</b></span><span>Updated " + esc(fmtDate(D.updated)) + '</span><span>3 free lessons</span><span class="stamp">' + esc(D.listTag) + "</span>";
+    root.innerHTML = hero(["Guide", D.label[1]], "How to play <span>" + esc(D.name) + "</span>", D.lead, by) +
+      '<div class="wrap"><details class="tocm"><summary>On this page</summary>' + toc + '</details><div class="grid"><aside>' + toc + "</aside><main>" + sec.map(function (x) { return section(x[0], x[1], x[2]); }).join("") +
+      '<div class="btns"><a class="btn" href="' + esc(D.deckUrl) + '">How to beat ' + esc(D.name) + '</a><a class="btn" href="' + esc(D.guidesUrl) + '">All guides</a></div>' + disc + "</main></div></div>";
+  }
+  function guidesPage() {
+    var cards = D.guides.map(function (g) { return '<a class="dcard" href="' + esc(g.href) + '"><img loading="lazy" src="' + KX + "/img/" + g.art + '.jpg" alt=""><div><b>' + esc(g.name) + "</b><p>" + esc(g.label) + ' · 3 free lessons + 3 Premium</p></div><div class="share"><b>1–3</b><small>free</small></div></a>'; }).join("");
+    root.innerHTML = hero(["Guides", "OCG meta decks"], "Learn the <span>meta decks</span>", D.lead, "<span>By <b>Meta Insider OCG</b></span><span>Updated " + esc(fmtDate(D.updated)) + "</span>") +
+      '<div class="wrap"><main>' + section("all", "Guides", '<div class="meta">' + cards + "</div>") +
+      section("lessons", "What each guide covers", '<div class="lessons">' + ["What the deck wants to do", "The core line, step by step", "Where opponents stop you"].map(function (t, i) { return '<div class="lesson"><span class="n">' + (i + 1) + "</span><div><b>" + esc(t) + '</b><small>Free on meiocg.org, with a drill in Duel Synapse Arena</small></div><em class="ok">Free</em></div>'; }).join("") + "</div>" + lockList()) + disc + "</main></div>";
+  }
+
+  /* ---------- MEIOCG Cup ---------- */
+  function cupPage() {
+    var sec = [];
+    sec.push(["next", "Next Cup", '<div class="duel"><div class="ic">🏆</div><div><h3>' + esc(D.status) + "</h3><p>" + md(D.statusNote) + '</p></div><div class="acts"><a class="btn p" href="https://www.facebook.com/meiocgOfficial" target="_blank" rel="noopener">Follow MEIOCG</a><a class="btn" href="mailto:metainsiderocg@gmail.com?subject=MEIOCG%20Cup">Email us</a></div></div>']);
+    sec.push(["format", "Format", ul(D.format)]);
+    sec.push(["join", "How to join", '<ol class="steps">' + D.steps.map(function (x) { return "<li><b>" + esc(x[0]) + "</b> · " + md(x[1]) + "</li>"; }).join("") + "</ol>" + '<div class="btns"><a class="btn p" href="' + SITE + '/duelsynapse">Get KodeX</a><a class="btn" href="' + esc(D.links.decks) + '">Practise against the meta</a></div>']);
+    sec.push(["results", "Results", (D.past || []).length ? '<div class="more">' + D.past.map(function (c) { return '<a class="mc" href="' + esc(c.href) + '"><small>' + esc(fmtDate(c.date)) + " · " + c.players + " players</small><b>" + esc(c.name) + "</b><span>Won by " + esc(c.winner) + " with " + esc(c.deck) + "</span></a>"; }).join("") + "</div>" : '<p class="empty">Results, standings and the top decks of each Cup are published here after the event.</p>']);
+    sec.push(["faq", "FAQ", faq(D.faq)]);
+    var toc = tocHTML(sec.map(function (x) { return [x[0], x[1]]; }));
+    root.innerHTML = hero(["Tournament", "OCG · Swiss"], "The <span>MEIOCG Cup</span>", D.lead, "<span>By <b>Meta Insider OCG</b></span><span>Updated " + esc(fmtDate(D.updated)) + "</span>") +
+      '<div class="wrap"><details class="tocm"><summary>On this page</summary>' + toc + '</details><div class="grid"><aside>' + toc + "</aside><main>" + sec.map(function (x) { return section(x[0], x[1], x[2]); }).join("") + disc + "</main></div></div>";
+  }
+
+  /* ---------- MEIOCG Players ---------- */
+  function playersPage() {
+    var P = D.profile, tierName = function (id) { var t = P.tiers.filter(function (x) { return x[0] === id; })[0]; return t ? t[1] : "Rookie"; };
+    var icon = function (id) {
+      var p = P.icons[id]; if (!p) return "https://kodex.meiocg.org/duel/assets/meiocg-192.webp";
+      var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="' + p[0] + '"/><stop offset="1" stop-color="' + p[1] + '"/></linearGradient></defs><rect width="48" height="48" fill="url(#g)"/><g transform="translate(12 12)" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="' + p[2] + '"/></g></svg>';
+      return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+    };
+    var FR = { none: 1, rookie: 1, bronze: 1, silver: 1, gold: 1, platinum: 1, diamond: 1, master: 1, premium: 1 };
+    var av = function (p, n) { return '<span class="pf-av fr-' + (FR[p.frame] ? p.frame : "none") + '" style="--pf:' + n + 'px"><img src="' + esc(icon(p.icon)) + '" alt="" loading="lazy"></span>'; };
+    var ago = function (t) { var m = Math.round((Date.now() - t) / 60000); return m < 60 ? "active now" : m < 1440 ? "active " + Math.round(m / 60) + " h ago" : "active " + Math.round(m / 1440) + " d ago"; };
+    var row = function (p) {
+      var rate = p.duels ? Math.round(p.wins / p.duels * 100) + "%" : "–";
+      return '<div class="plr' + (p.rank <= 3 ? " top t" + p.rank : "") + '"><span class="rk">' + p.rank + "</span>" + av(p, 52) + '<div class="who"><b>' + esc(p.name) + "</b>" + (p.title ? "<span>" + esc(p.title) + "</span>" : "") +
+        '<div class="tags"><em class="t-' + esc(p.tier) + '">' + esc(tierName(p.tier)) + "</em>" + (p.premium ? '<em class="prem">Premium</em>' : "") + "<small>" + ago(p.last) + "</small></div>" + (p.bio ? "<p>" + esc(p.bio) + "</p>" : "") + "</div>" +
+        '<div class="st"><b>' + p.points + "</b><small>points</small></div><div class=\"st2\"><span><b>" + p.days + "</b> days</span><span><b>" + p.duels + "</b> duels</span><span><b>" + rate + "</b> wins</span></div></div>";
+    };
+    var frames = P.tiers.map(function (t) { return '<div class="frm">' + av({ frame: t[0], icon: "star" }, 48) + "<b>" + esc(t[1]) + "</b><small>" + t[2] + " pts</small></div>"; }).join("") + '<div class="frm">' + av({ frame: "premium", icon: "crown" }, 48) + "<b>Premium</b><small>KodeX Premium</small></div>";
+    root.innerHTML = hero(["Community", "KodeX duelists"], "MEIOCG <span>Players</span>", D.lead, "<span>By <b>Meta Insider OCG</b></span><span>Updates every few minutes</span>") +
+      '<div class="wrap"><main>' + section("board", "Most active players", '<div class="tabs" role="tablist"><button role="tab" class="on" data-tab="points">Most active</button><button role="tab" data-tab="recent">Recently active</button></div><div id="plist" class="plist"><p class="empty">Loading players…</p></div><p class="src" id="ptotal"></p>') +
+      section("frames", "Icon frames", '<div class="frames">' + frames + "</div>") +
+      section("join", "Get listed", ul(D.how) + '<div class="btns"><a class="btn p" href="' + SITE + '/duelsynapse">Get KodeX</a><a class="btn" href="' + esc(D.links.cup) + '">MEIOCG Cup</a><a class="btn" href="' + esc(D.links.why) + '">Why KodeX</a></div>') + disc + "</main></div>";
+    var list = root.querySelector("#plist"), tot = root.querySelector("#ptotal");
+    var load = function (sort) {
+      list.innerHTML = '<p class="empty">Loading players…</p>';
+      fetch(D.api + "?sort=" + sort + "&limit=100").then(function (r) { if (!r.ok) throw 0; return r.json(); }).then(function (j) {
+        var ps = j.players || [];
+        list.innerHTML = ps.length ? ps.map(row).join("") : '<p class="empty">No players listed yet. Be the first: turn on <b>Show me on MEIOCG Players</b> in your KodeX profile.</p>';
+        tot.textContent = j.total ? j.total + " player" + (j.total === 1 ? "" : "s") + " active in the last 90 days · updated " + new Date(j.updated).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+      }).catch(function () { list.innerHTML = '<p class="empty">The player list could not load. Please refresh in a moment.</p>'; });
+    };
+    onTab = load; tabs(); load("points");
+  }
+
 
   /* ---------- why kodex ---------- */
   function whyPage() {
@@ -158,5 +249,5 @@
       '<div class="wrap"><details class="tocm"><summary>On this page</summary>' + toc + '</details><div class="grid"><aside>' + toc + "</aside><main>" + sec.map(function (s) { return section(s[0], s[1], s[2]); }).join("") + disc + "</main></div></div>";
   }
 
-  try { ({ deck: deckPage, hub: hubPage, why: whyPage })[D.kind](); } catch (e) { console.error(e); root.innerHTML = '<div class="wrap"><p>This page could not load. Please refresh.</p></div>'; }
+  try { ({ deck: deckPage, hub: hubPage, why: whyPage, guide: guidePage, guides: guidesPage, cup: cupPage, players: playersPage })[D.kind](); } catch (e) { console.error(e); root.innerHTML = '<div class="wrap"><p>This page could not load. Please refresh.</p></div>'; }
 })();

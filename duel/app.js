@@ -13,6 +13,7 @@ import { rulingsFor } from "./rulings.js";
 import { runFinisher, zoneStrike, STYLES } from "./finisher.js";
 import { entrance, attack, ENTRANCES, ATTACKS } from "./moves.js";
 import { staple, finale, ace, SHOWS, pickShow, SHOW_MIN, SHOW_MAX } from "./cardfx.js";
+import { cleanProfile, avatarHTML, cardHTML } from "./profile.js";
 
 const M = C.MSG;
 const $ = (s) => document.querySelector(s);
@@ -597,7 +598,7 @@ function duelState(active) {
   if (window.parent !== window) window.parent.postMessage({ kx: "duel", active }, "*");
 }
 function enterTable() {
-  CARD_CACHE.clear(); S.fitted = false;
+  CARD_CACHE.clear(); S.fitted = false; S.pfDrawn = false;
   $("#lobby").hidden = true; $("#table").hidden = false; $("#result").hidden = true;
   duelState(true); S.unread = 0; badge(); toggleSide(false);
   trackReset();
@@ -863,8 +864,9 @@ function render(p) {
   const me = S.team === 2 ? 0 : S.team, op = 1 - me;
   $("#meName").textContent = p.names[me];
   $("#opName").textContent = p.names[op];
-  $("#meAvatar").textContent = (p.names[me] || "?").trim().charAt(0).toUpperCase();
-  $("#opAvatar").textContent = (p.names[op] || "?").trim().charAt(0).toUpperCase();
+  if (!profileOf("me")) $("#meAvatar").textContent = (p.names[me] || "?").trim().charAt(0).toUpperCase();
+  if (!profileOf("op")) $("#opAvatar").textContent = (p.names[op] || "?").trim().charAt(0).toUpperCase();
+  if (!S.pfDrawn) { S.pfDrawn = true; renderProfiles(); }
   $("#turnNo").textContent = `Turn ${p.turn}`;
   document.querySelector(".duelist.me").classList.toggle("active", !p.ended && p.turnPlayer === me);
   document.querySelector(".duelist.op").classList.toggle("active", !p.ended && p.turnPlayer === op);
@@ -995,6 +997,8 @@ function fillInfo(b, c, team, location) {
   if (data) {
     const pills = el("div", "pills");
     const pill = (t, hi) => pills.append(el("span", "pill" + (hi ? " hi" : ""), t));
+    const bn = S.ban && (S.ban[c.code] ?? S.ban[cc(c.code)]);
+    if (bn !== undefined) pills.append(el("span", "pill ban b" + bn, ["Forbidden", "Limited", "Semi-Limited"][bn]));
     if (def) pill("Defense Position", true);
     else if (location === C.LOCATION_MZONE && c.position && (c.position & C.POS_ATTACK) && data.type & C.TYPE.MONSTER) pill("Attack Position", true);
     if (data.type & C.TYPE.MONSTER) {
@@ -1942,7 +1946,15 @@ function bigFx(p) {
         if (big && !reduceMotion()) { document.body.classList.remove("shake"); void document.body.offsetWidth; document.body.classList.add("shake"); }
         break;
       }
-      case M.MOVE: if (e.to && e.to.location === C.LOCATION_GRAVE && e.reason & C.REASON.DESTROY) Sound.play("destroy"); break;
+      case M.MOVE: {
+        if (e.to && e.to.location === C.LOCATION_GRAVE && e.reason & C.REASON.DESTROY) Sound.play("destroy");
+        // an Ace card searched or added to the hand (from the Deck, GY, banishment or Extra Deck) gets its showdown too
+        if (e.to && e.to.location === C.LOCATION_HAND && e.from && e.code && (C.LOCATION_DECK | C.LOCATION_GRAVE | C.LOCATION_REMOVED | C.LOCATION_EXTRA) & e.from.location) {
+          const fx = fxOf(sideOf(e.to.controller));
+          if (fx.aces.has(cc(e.code))) showAce(e.code, e.to.controller, fx, "added to the hand");
+        }
+        break;
+      }
     }
   }
   if (p.ended && !S.fxEnded) {
@@ -2057,6 +2069,7 @@ function cleanVoices(v) {
 function cleanPart(k, v) {
   if (k === "fx") return cleanFx(v);
   if (k === "voices") return cleanVoices(v);
+  if (k === "profile") return cleanProfile(v, imgOk);
   if (k === "field") return v && imgOk(v.img) ? { img: v.img, zoom: clampN(v.zoom, 100, 300, 100), x: clampN(v.x, 0, 100, 50), y: clampN(v.y, 0, 100, 50), dim: clampN(v.dim, 0, 90, 35) } : null;
   return SKIN_PARTS.includes(k) && imgOk(v) ? v : null;
 }
@@ -2078,6 +2091,7 @@ function fxOf(side) {
     : { premium: false, finisher: "", signature: new Set(), sigFx: {}, entrance: "rise", attack: "lunge", entFx: {}, atkFx: {}, finale: "menacing", aceStyle: "spotlight", aces: new Set(), finaleMs: 3300, showFx: {} };
 }
 function applySkins() {
+  renderProfiles();
   const r = document.documentElement, sk = sideSkins();
   for (const side of ["me", "op"]) { const d = document.querySelector(`.duelist.${side}`); if (d) d.classList.toggle("is-premium", !!(sk[side] && sk[side].fx)); }
   for (const side of ["me", "op"]) {
@@ -2097,7 +2111,7 @@ function applySkins() {
     } else m.style.backgroundImage = "";
   }
 }
-const PARTS = [...SKIN_PARTS, "fx", "voices"];
+const PARTS = [...SKIN_PARTS, "fx", "voices", "profile"];
 /** One skin part to the room; anything over ~380 KB (HD GIFs, sounds) goes in pieces and is put back together. */
 function sendPart(to, part, v, of) {
   if (!S.room) return;
@@ -2141,6 +2155,7 @@ window.addEventListener("message", (e) => {
   if (!d || d.kx !== "skin") return;
   const next = {};
   for (const [k, v] of [["sleeve", d.sleeve], ["xsleeve", d.xsleeve], ["field", d.field]]) { const c = cleanPart(k, v); if (c) next[k] = c; }
+  if (S.myProfile) next.profile = S.myProfile;
   S.mySkin = next;
   S.premium = d.premium === true;
   $("#replayBtn").hidden = !S.premium;
@@ -2163,6 +2178,29 @@ window.addEventListener("message", (e) => {
   if (window.parent === window || e.source !== window.parent) return;
   const d = e.data;
   if (d && d.kx === "audio" && d.premium === true) Sound.setCustom(d);
+  // the player's KodeX profile (free and Premium): name, icon, frame, banner; the opponent sees it too
+  if (d && d.kx === "profile") {
+    S.myProfile = cleanProfile(d.p, imgOk);
+    document.body.classList.toggle("has-pf", !!S.myProfile);
+    if (S.myProfile) { S.mySkin.profile = S.myProfile; const n = $("#nameInput"); if (n && !n.value.trim()) { n.value = S.myProfile.name; n.dispatchEvent(new Event("input")); } }
+    applySkins();
+    if (S.room && (S.mode === "host" || S.mode === "guest")) sendSkin("others");
+  }
+  // the player's KodeX decks, so the lobby always has them (they're kept up to date by name)
+  if (d && d.kx === "decks" && Array.isArray(d.decks)) {
+    let changed = false;
+    for (const x of d.decks.slice(0, 200)) {
+      if (!x || typeof x.name !== "string" || !Array.isArray(x.main)) continue;
+      const clean = { name: x.name.slice(0, 60), main: x.main.map(Number).filter((n) => n > 0).slice(0, 60), extra: (x.extra || []).map(Number).filter((n) => n > 0).slice(0, 15), side: (x.side || []).map(Number).filter((n) => n > 0).slice(0, 15), kodex: true };
+      if (!clean.main.length) continue;
+      const i = S.decks.findIndex((y) => y.name === clean.name);
+      if (i < 0) { S.decks.push(clean); changed = true; }
+      else if (JSON.stringify(S.decks[i].main) !== JSON.stringify(clean.main) || JSON.stringify(S.decks[i].extra) !== JSON.stringify(clean.extra)) { S.decks[i] = clean; changed = true; }
+    }
+    if (changed) { save("duel:decks", S.decks); if (S.db) { renderSaved(); if (!S.deck && S.decks.length) selectDeck(load("duel:current", 0)); } }
+  }
+  // OCG Forbidden & Limited list from KodeX (card details show it)
+  if (d && d.kx === "banlist" && d.map && typeof d.map === "object") { S.ban = {}; for (const [k, v] of Object.entries(d.map)) if (/^\d{3,10}$/.test(k) && [0, 1, 2].includes(v)) S.ban[k] = v; }
   if (d && d.kx === "pics" && typeof d.base === "string" && /^https:\/\/appassets\.androidplatform\.net\/castel-files\/[\w/.-]*\/$/.test(d.base) && Array.isArray(d.ids)) {
     LOCAL_PICS.base = d.base; LOCAL_PICS.ids = new Set(d.ids.map(Number).filter((n) => n > 0 && n < 1e10));
     for (const [k, r] of ART) if (r && (r.fail || r.url) && localPic(k)) ART.delete(k);   // look again: the phone may have it now
@@ -2255,6 +2293,7 @@ function selectTab(b) {
 }
 function dockLayout() {
   const info = $("#info"), side = $("#side"), log = $("#log"), chat = document.querySelector(".chat[data-pane=chat]"), acts = document.querySelector(".side-actions");
+  if (!acts.dataset.pane) { acts.dataset.pane = "opts"; acts.hidden = true; }   // the settings have their own tab
   if (LANDSCAPE.matches) {
     if (log.parentNode === info) return;
     info.append(log, acts);
@@ -2266,7 +2305,7 @@ function dockLayout() {
     if (log.parentNode === side) return;
     side.insertBefore(log, chat);
     side.append(acts);
-    delete acts.dataset.pane; acts.hidden = false;
+    acts.dataset.pane = "opts";   // its own tab next to Chat and Log, so it never covers the chat
     $("#infoBody").hidden = false;
     selectTab(side.querySelector('.tabs [aria-selected="true"]') || side.querySelector(".tabs [data-tab]"));
   }
@@ -2397,14 +2436,47 @@ function finaleOf(controller, code) {
   if (!f.premium) return { style: "menacing", ms: 3300 };
   return { style: pickShow(f.showFx[cc(code)] || f.finale, seed), ms: f.finaleMs || 3300 };
 }
-function showAce(code, controller, fx) {
+function showAce(code, controller, fx, how = "") {
   const side = sideOfTeam(controller), who = (S.packet && S.packet.names && S.packet.names[controller]) || "";
+  // once per moment: a card summoned and then activating its effect right away shows once
+  S.aceLast = S.aceLast || {};
+  if (Date.now() - (S.aceLast[cc(code)] || 0) < 4500) return;
+  S.aceLast[cc(code)] = Date.now();
   const style = pickShow(fx.showFx[cc(code)] || fx.aceStyle, Number(code) ^ ((S.packet && S.packet.turn) || 0) * 104729 ^ (S.aceN = (S.aceN || 0) + 1));
   hold(2900);
   Sound.play("boss");
-  ace(style, { src: artUrl(code), title: name(code), owner: who, premiumNote: viewerFreeNow() && side === "op" ? "Ace cards · KodeX Premium" : "" });
+  ace(style, { src: artUrl(code), title: name(code), owner: who, line: how ? `${name(code)} is ${how}` : "", premiumNote: viewerFreeNow() && side === "op" ? "Ace cards · KodeX Premium" : "" });
 }
 const viewerFreeNow = () => !S.premium;
+// ----- profiles on the Life Point plates; tap one to see the player's profile card -----
+const LOGO = "./assets/meiocg-192.webp";
+const AI_PROFILE = { name: "Synapse AI", title: "Learns from every duel", bio: "MEIOCG's duel AI. It plays your decks' real lines and learns from players.", icon: "bolt", img: "", frame: "diamond", theme: "synapse", premium: false, tier: "diamond", stats: {} };
+function profileOf(side) {
+  const p = (sideSkins()[side] || {}).profile;
+  if (p) return p;
+  if (side === "op" && S.mode === "solo") return AI_PROFILE;
+  return null;
+}
+function renderProfiles() {
+  for (const side of ["me", "op"]) {
+    const a = document.querySelector(`.duelist.${side} .avatar`), p = profileOf(side);
+    if (!a) continue;
+    a.classList.toggle("has-pf", !!p);
+    if (p) { a.innerHTML = avatarHTML(p, LOGO); a.setAttribute("role", "button"); a.tabIndex = 0; a.setAttribute("aria-label", `${p.name}'s profile`); }
+    else { a.textContent = ((S.packet && S.packet.names && S.packet.names[side === "me" ? S.team : 1 - S.team]) || (side === "me" ? "Y" : "O")).slice(0, 1).toUpperCase(); a.removeAttribute("role"); a.tabIndex = -1; }
+  }
+}
+function openProfile(side) {
+  const p = profileOf(side), v = $("#pfView");
+  if (!p || !v) return;
+  v.querySelector(".pf-body").innerHTML = cardHTML(p, LOGO, { ai: p === AI_PROFILE });
+  v.hidden = false;
+}
+for (const side of ["me", "op"]) {
+  const a = document.querySelector(`.duelist.${side} .avatar`);
+  if (a) { a.addEventListener("click", (e) => { e.stopPropagation(); openProfile(side); }); a.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openProfile(side); } }); }
+}
+{ const v = document.getElementById("pfView"); if (v) v.addEventListener("click", (e) => { if (e.target === v || e.target.closest("[data-pfclose]")) v.hidden = true; }); }
 /** KodeX Premium card voices: the player's own sound when their chosen card is activated or summoned. */
 function cardVoice(controller, code) {
   const side = sideOfTeam(controller), sk = sideSkins()[side] || {};
