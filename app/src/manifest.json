@@ -1,0 +1,292 @@
+{
+ "about": "KodeX source: files are joined in this order. 'open'/'close' are the <style>/<script> tags around a file. Created by Castel Noleal, creator of MEIOCG. See app/BLUEPRINT.md.",
+ "version": 60,
+ "build": "9.3",
+ "files": [
+  {
+   "file": "0010-head.html",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0020-base-styles.css",
+   "open": "<style>",
+   "close": "</style>"
+  },
+  {
+   "file": "0030-app-markup.html",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0040-kx-v55-js.js",
+   "open": "<script id=\"kx-v55-js\">",
+   "close": "</script>"
+  },
+  {
+   "file": "0050-html.html",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0060-kx-v56-js.js",
+   "open": "<script id=\"kx-v56-js\">",
+   "close": "</script>"
+  },
+  {
+   "file": "0070-html.html",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0080-core-00-setup.js",
+   "open": "<script>",
+   "close": ""
+  },
+  {
+   "file": "0090-core-01-search-filters.js",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0100-core-02-layers-android-back-button.js",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0110-core-03-card-detail-rulings.js",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0120-core-04-machine-translation-restored-for-android.js",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0130-core-05-filters-ui.js",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0140-core-06-settings.js",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0150-core-07-icons-dialogs-toast.js",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0160-core-08-deck-data.js",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0170-core-09-deck-form-icon-crop.js",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0180-core-10-decks-screens.js",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0190-core-11-favorites-membership-add-to-deck-options.js",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0200-core-12-exports.js",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0210-core-13-official-kde-deck-list-konami-form-fille.js",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0220-core-14-v58-deck-links-text-lists-ocg-legality-m.js",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0230-core-15-deck-events.js",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0240-core-16-offline-rulings-download.js",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0250-core-17-wallpaper-offline-count-ruling-search-di.js",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0260-core-18-card-art-cache-indexeddb-survives-app-re.js",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0270-core-19-self-check.js",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0280-core-20-start.js",
+   "open": "",
+   "close": "</script>"
+  },
+  {
+   "file": "0290-html.html",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0300-scanner.css",
+   "open": "<style>",
+   "close": "</style>"
+  },
+  {
+   "file": "0310-html.html",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0320-kodex-card-scanner-turns-text-read-from.js",
+   "open": "<script>",
+   "close": "</script>"
+  },
+  {
+   "file": "0330-html.html",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0340-kodex-card-scanner-recognise-a-card-by-i.js",
+   "open": "<script>",
+   "close": "</script>"
+  },
+  {
+   "file": "0350-html.html",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0360-scanner-camera-ocr.js",
+   "open": "<script>",
+   "close": "</script>"
+  },
+  {
+   "file": "0370-html.html",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0380-kx-v55.css",
+   "open": "<style id=\"kx-v55\">",
+   "close": "</style>"
+  },
+  {
+   "file": "0390-html.html",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0400-kx-v55-poster.js",
+   "open": "<script id=\"kx-v55-poster\">",
+   "close": "</script>"
+  },
+  {
+   "file": "0410-html.html",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0420-kx-v56.css",
+   "open": "<style id=\"kx-v56\">",
+   "close": "</style>"
+  },
+  {
+   "file": "0430-html.html",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0440-kx-v56-late.js",
+   "open": "<script id=\"kx-v56-late\">",
+   "close": "</script>"
+  },
+  {
+   "file": "0450-html.html",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0460-kx-v57.css",
+   "open": "<style id=\"kx-v57\">",
+   "close": "</style>"
+  },
+  {
+   "file": "0470-html.html",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0480-kx-v57-late.js",
+   "open": "<script id=\"kx-v57-late\">",
+   "close": "</script>"
+  },
+  {
+   "file": "0490-html.html",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0500-kx-v59.css",
+   "open": "<style id=\"kx-v59\">",
+   "close": "</style>"
+  },
+  {
+   "file": "0510-html.html",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0520-kx-v59-late.js",
+   "open": "<script id=\"kx-v59-late\">",
+   "close": "</script>"
+  },
+  {
+   "file": "0530-html.html",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0540-kx-v60.css",
+   "open": "<style id=\"kx-v60\">",
+   "close": "</style>"
+  },
+  {
+   "file": "0550-html.html",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0560-kx-v60-late.js",
+   "open": "<script id=\"kx-v60-late\">",
+   "close": "</script>"
+  },
+  {
+   "file": "0570-html.html",
+   "open": "",
+   "close": ""
+  }
+ ]
+}

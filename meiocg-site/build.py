@@ -154,6 +154,14 @@ pages[C.PAGES["why"]] = ("Why KodeX: OCG Card Rulings, Deck Builder, Scanner & D
                          {"@context": "https://schema.org", "@graph": [{"@type": "SoftwareApplication", "name": "Duel Synapse: KodeX", "applicationCategory": "GameApplication",
                           "operatingSystem": "Android, Web", "publisher": {"@type": "Organization", "name": "Meta Insider OCG"}, "url": C.URL("why")}, faq_ld(C.WHY["faq"])]}, why)
 
+ds = dict(kind="ds", updated=C.UPDATED, links=dict(players=C.URL("players"), why=C.URL("why"), cup=C.URL("cup"), guides=C.URL("guides"), decks=C.URL("hub")), profile=PF_DATA, **C.DS)
+ds["ids"] = {}
+pages[C.PAGES["ds"]] = ("Duel Synapse: KodeX · OCG Card Rulings, Deck Builder & Duel Arena | Meta Insider OCG",
+                        "KodeX by Meta Insider OCG: every OCG card with rulings, a card scanner, deck builder with legality check, the Duel Synapse Arena and KodeX Premium showdowns.",
+                        C.URL("ds"), OG + "why-kodex.png",
+                        {"@context": "https://schema.org", "@graph": [{"@type": "SoftwareApplication", "name": "Duel Synapse: KodeX", "applicationCategory": "GameApplication",
+                         "operatingSystem": "Android, Web", "author": {"@type": "Person", "name": "Castel Noleal"}, "publisher": {"@type": "Organization", "name": "Meta Insider OCG"}, "url": C.URL("ds")}, faq_ld(C.DS["faq"])]}, ds)
+
 # guides
 GD = C.GUIDES
 for slug, d in C.DECKS.items():
@@ -200,7 +208,7 @@ out = R / "out"; prev = R / "preview"
 out.mkdir(exist_ok=True); prev.mkdir(exist_ok=True)
 for page, (title, desc, url, og, ld, data) in pages.items():
     data = links(data)
-    h, b = head_html(title, desc, url, og, ld, PF_CSS if data.get("kind") == "players" else ""), body_html(data)
+    h, b = head_html(title, desc, url, og, ld, PF_CSS if data.get("kind") in ("players", "ds") else ""), body_html(data)
     d = out / page; d.mkdir(exist_ok=True)
     (d / "head.html").write_text(h, "utf-8"); (d / "body.html").write_text(b, "utf-8")
     (d / "seo.txt").write_text(f"Page URL: {url}\nTitle: {title}\nDescription: {desc}\nSocial image: {og}\n", "utf-8")

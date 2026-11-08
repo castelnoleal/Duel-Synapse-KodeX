@@ -14,6 +14,7 @@ import { runFinisher, zoneStrike, STYLES } from "./finisher.js";
 import { entrance, attack, ENTRANCES, ATTACKS } from "./moves.js";
 import { staple, finale, ace, SHOWS, pickShow, SHOW_MIN, SHOW_MAX } from "./cardfx.js";
 import { cleanProfile, avatarHTML, cardHTML } from "./profile.js";
+import { breakProfile, comeback } from "./ending.js";
 
 const M = C.MSG;
 const $ = (s) => document.querySelector(s);
@@ -32,6 +33,7 @@ const S = {
 // ---------------------------------------------------------------------------
 // Utilities
 function toast(text, ms = 2600) {
+  if (document.body.classList.contains("ace-on")) { setTimeout(() => toast(text, ms), 400); return; }
   const t = $("#toast");
   t.textContent = text; t.classList.add("on");
   clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("on"), ms);
@@ -295,6 +297,7 @@ function renderDeck() {
       else if (count < 10) S.testHand.add(code);
       btn.setAttribute("aria-pressed", String(S.testHand.has(code)));
       $("#testHandCount").textContent = S.testHand.size ? `${S.testHand.size} chosen` : "";
+      ptSummary();
     };
     th.append(btn);
   });
@@ -358,13 +361,15 @@ function copy(text, msg) {
 
 function soloDecks() {
   const me = { main: [...S.deck.main], extra: [...S.deck.extra] };
-  const noShuffle = S.testHand.size > 0;
+  const order = ($("#soloOrder") && $("#soloOrder").value) || "shuffle";
+  if (order === "custom" && S.order && S.order.length === me.main.length) me.main = [...S.order];
+  const noShuffle = S.testHand.size > 0 || order !== "shuffle";
   if (noShuffle) {
     // Chosen cards on top (draw order), the rest shuffled underneath.
     const rest = [...me.main];
     const top = [];
     for (const c of S.testHand) { const i = rest.indexOf(c); if (i >= 0) { top.push(c); rest.splice(i, 1); } }
-    for (let i = rest.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [rest[i], rest[j]] = [rest[j], rest[i]]; }
+    if (order === "shuffle") for (let i = rest.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [rest[i], rest[j]] = [rest[j], rest[i]]; }
     me.main = [...top, ...rest];
   }
   const oppKind = $("#soloOppDeck").value;
@@ -387,6 +392,9 @@ async function startSolo() {
   const names = []; names[S.team] = myName(); names[oppTeam] = oppMode === "both" ? "Player 2" : oppMode === "passive" ? "Dummy" : oppMode === "smart" ? "Synapse AI" : "Bot";
   const bots = oppMode === "both" ? {} : { [oppTeam]: oppMode };
   S.lastSolo = { decks, names, bots };
+  S.match = $("#soloMatch") && $("#soloMatch").checked ? { w: [0, 0], game: 0 } : null;
+  S.timerLimit = Number(($("#soloTimer") || {}).value) || 0;
+  timerReset();
   const opt = { ...options(), noShuffle };
   // Shuffled test hands only apply to my deck: the opponent's deck is shuffled here.
   if (noShuffle) shuffleInPlace(decks[oppTeam].main);
@@ -395,6 +403,77 @@ async function startSolo() {
   S.worker.postMessage({ cmd: "start", decks, names, options: opt, bots, ...learningFor(decks) });
   
 }
+// ----- playtest settings: deck order, turn timer, match -----
+function ptSummary() {
+  const o = $("#soloOrder"), t = $("#soloTimer"), m = $("#soloMatch"), parts = [];
+  if (!o) return;
+  if (o.value !== "shuffle") parts.push(o.value === "built" ? "No shuffle" : "My order");
+  if (Number(t.value)) parts.push(t.options[t.selectedIndex].text + " timer");
+  if (m.checked) parts.push("Best of 3");
+  if (S.testHand.size) parts.push(`${S.testHand.size} in hand`);
+  $("#ptSummary").textContent = parts.join(" · ");
+  $("#orderBtn").hidden = o.value !== "custom";
+  save("duel:pt", { order: o.value, timer: t.value, match: m.checked });
+}
+function orderOpen() {
+  if (!S.deck) return;
+  if (!S.order || S.order.length !== S.deck.main.length || S.orderKey !== deckKey(S.deck)) { S.order = [...S.deck.main]; S.orderKey = deckKey(S.deck); }
+  const list = $("#orderList");
+  const draw = () => {
+    list.replaceChildren();
+    S.order.forEach((code, i) => {
+      const li = el("li", i < options().start ? "hand" : "");
+      const th = el("span", "th"); th.append(cardImg(code, name(code)));
+      const nm = el("span", "nm"); nm.append(el("b", null, `${i + 1}`), el("span", null, name(code)));
+      const ac = el("span", "ac");
+      for (const [lbl, aria, f] of [["⤒", "Move to top", () => { S.order.unshift(S.order.splice(i, 1)[0]); }], ["▲", "Move up", () => { if (i) [S.order[i - 1], S.order[i]] = [S.order[i], S.order[i - 1]]; }], ["▼", "Move down", () => { if (i < S.order.length - 1) [S.order[i + 1], S.order[i]] = [S.order[i], S.order[i + 1]]; }]]) {
+        const b = el("button", "icon", lbl); b.type = "button"; b.setAttribute("aria-label", aria + ": " + name(code)); b.onclick = () => { f(); draw(); list.children[Math.max(0, Math.min(S.order.length - 1, aria === "Move down" ? i + 1 : aria === "Move up" ? i - 1 : 0))].querySelector("button")?.focus(); };
+        ac.append(b);
+      }
+      li.append(th, nm, ac); list.append(li);
+    });
+  };
+  draw();
+  $("#orderReset").onclick = () => { S.order = [...S.deck.main]; draw(); };
+  $("#orderDlg").showModal();
+}
+function bindPlaytest() {
+  const o = $("#soloOrder"); if (!o) return;
+  const v = load("duel:pt", {});
+  if (v.order) o.value = v.order; if (v.timer) $("#soloTimer").value = v.timer; $("#soloMatch").checked = !!v.match;
+  for (const id of ["#soloOrder", "#soloTimer", "#soloMatch"]) $(id).addEventListener("change", ptSummary);
+  $("#orderBtn").addEventListener("click", orderOpen);
+  o.addEventListener("change", () => { if (o.value === "custom") orderOpen(); });
+  $("#orderOk").addEventListener("click", () => $("#orderDlg").close());
+  $("#orderClose").addEventListener("click", () => $("#orderDlg").close());
+  $("#testHand").addEventListener("click", () => setTimeout(ptSummary, 0));
+  ptSummary();
+}
+bindPlaytest();
+// the turn timer (playtests): counts down on turns the player controls, red under 1:30, the duel is lost at 0
+S.timerLimit = 0; S.timerLeft = 0;
+function timerReset() {
+  S.timerLeft = S.timerLimit;
+  const t = $("#turnTimer");
+  if (t) { t.hidden = !S.timerLimit; timerDraw(); }
+  document.body.classList.remove("timer-alert");
+}
+function timerDraw() {
+  const t = $("#turnTimer"); if (!t || !S.timerLimit) return;
+  const s = Math.max(0, Math.ceil(S.timerLeft));
+  t.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  const alert = s <= 90;
+  t.classList.toggle("alert", alert);
+  document.body.classList.toggle("timer-alert", alert && !!S.packet && !S.packet.ended);
+}
+setInterval(() => {
+  if (!S.timerLimit || S.mode !== "solo" || !S.packet || S.packet.ended || $("#table").hidden) return;
+  const p = S.packet, mine = S.control === "both" || p.turnPlayer === S.team;
+  if (!mine || Date.now() < S.holdUntil) return;
+  S.timerLeft -= 1; timerDraw();
+  if (S.timerLeft <= 0) { S.timerLeft = 0; document.body.classList.remove("timer-alert"); S.worker.postMessage({ cmd: "timeout", team: p.turnPlayer }); }
+}, 1000);
+
 // ----- replay files (.yrp from this Arena or desktop clients, .yrpX from desktop clients) -----
 async function watchReplay(file) {
   if (!file) return;
@@ -602,7 +681,7 @@ function enterTable() {
   $("#lobby").hidden = true; $("#table").hidden = false; $("#result").hidden = true;
   duelState(true); S.unread = 0; badge(); toggleSide(false);
   trackReset();
-  S.packet = null; S.log = []; S.fullLog = []; $("#feed").replaceChildren(); S.prevLP = [null, null]; S.fxEnded = false; S.turnStartLP = null; S.lastBlow = 0; S.lastBlowBy = [0, 0]; S.finPromise = null;
+  S.packet = null; S.log = []; S.fullLog = []; $("#feed").replaceChildren(); S.prevLP = [null, null]; S.fxEnded = false; S.turnStartLP = null; S.lastBlow = 0; S.lastBlowBy = [0, 0]; S.finPromise = null; S.behind = [false, false]; S.comeback = false;
   $("#log").replaceChildren(); $("#feed").replaceChildren();
   buildField();
   closeSheet();
@@ -676,9 +755,17 @@ function rematch() {
   $("#result").hidden = true;
   const ended = S.packet && S.packet.ended;
   if (S.mode === "solo" && S.lastSolo) {
-    S.packet = null; S.log = []; $("#log").replaceChildren(); $("#feed").replaceChildren(); S.prevLP = [null, null]; S.fxEnded = false; S.turnStartLP = null; S.lastBlow = 0; S.lastBlowBy = [0, 0]; S.finPromise = null;
+    S.packet = null; S.log = []; $("#log").replaceChildren(); $("#feed").replaceChildren(); S.prevLP = [null, null]; S.fxEnded = false; S.turnStartLP = null; S.lastBlow = 0; S.lastBlowBy = [0, 0]; S.finPromise = null; S.behind = [false, false]; S.comeback = false;
+    if (S.match && S.match.over) S.match = { w: [0, 0], game: 0 };
+    // in a match the loser of the last duel goes first
+    if (S.match && S.match.loserFirst && S.control !== "both") {
+      const t = S.match.loserFirst === "me" ? 0 : 1;
+      if (t !== S.team) { S.team = t; const n = S.lastSolo.names, b = S.lastSolo.bots; S.lastSolo.names = [n[1], n[0]]; S.lastSolo.bots = Object.fromEntries(Object.entries(b).map(([k, v]) => [String(1 - Number(k)), v])); }
+    }
     const { me, opp, noShuffle } = soloDecks();
     const decks = []; decks[S.team] = me; decks[1 - S.team] = opp;
+    if (noShuffle) shuffleInPlace(decks[1 - S.team].main);
+    timerReset();
     if (S.control === "both") { /* keep seats */ }
     S.worker.postMessage({ cmd: "start", decks, names: S.lastSolo.names, options: { ...options(), noShuffle }, bots: S.lastSolo.bots, ...learningFor(decks) });
   } else if (S.mode === "host") {
@@ -809,7 +896,7 @@ S.pq = []; S.holdUntil = 0; let pqTimer = 0;
 function hold(ms) { S.holdUntil = Math.max(S.holdUntil, Date.now() + ms); }
 function onPacket(p) {
   if (S.pq.length || Date.now() < S.holdUntil) { S.pq.push(p); pumpPackets(); return; }
-  if (effectFinale(p)) { S.pq.push(p); pumpPackets(); return; }
+  if (aceFirst(p) || effectFinale(p)) { S.pq.push(p); pumpPackets(); return; }
   applyPacket(p);
 }
 function pumpPackets() {
@@ -817,10 +904,29 @@ function pumpPackets() {
   const wait = S.holdUntil - Date.now();
   if (wait > 0) { pqTimer = setTimeout(pumpPackets, wait + 20); return; }
   while (S.pq.length) {
-    if (effectFinale(S.pq[0])) { pqTimer = setTimeout(pumpPackets, S.holdUntil - Date.now() + 20); return; }
+    if (aceFirst(S.pq[0]) || effectFinale(S.pq[0])) { pqTimer = setTimeout(pumpPackets, S.holdUntil - Date.now() + 20); return; }
     applyPacket(S.pq.shift());
     if (Date.now() < S.holdUntil) { pqTimer = setTimeout(pumpPackets, S.holdUntil - Date.now() + 20); return; }
   }
+}
+/** An Ace card in this packet (summoned, activated, or added to the hand): its showdown plays first, and the packet
+ *  (its prompt, chain, reveals and messages) waits until it has finished. */
+function aceFirst(p) {
+  if (!p || p.aceChecked || !p.events || S.mode === "replay") return false;
+  p.aceChecked = true;
+  for (const e of p.events) {
+    let code = 0, ctl = -1, how = "";
+    if ((e.type === M.SUMMONING || e.type === M.SPSUMMONING || e.type === M.FLIPSUMMONING) && e.location === C.LOCATION_MZONE) { code = e.code; ctl = e.controller; how = "summoned"; }
+    else if (e.type === M.CHAINING) { code = e.code; ctl = e.controller; how = "activated"; }
+    else if (e.type === M.MOVE && e.to && e.to.location === C.LOCATION_HAND && e.from && e.code && (C.LOCATION_DECK | C.LOCATION_GRAVE | C.LOCATION_REMOVED | C.LOCATION_EXTRA) & e.from.location) { code = e.code; ctl = e.to.controller; how = "added to the hand"; }
+    if (!code || ctl < 0) continue;
+    const fx = fxOf(sideOfTeam(ctl));
+    if (!fx.aces.has(cc(code))) continue;
+    const before = S.aceLast && S.aceLast[cc(code)];
+    showAce(code, ctl, fx, how === "added to the hand" ? how : "");
+    if (S.aceLast && S.aceLast[cc(code)] !== before) return true;
+  }
+  return false;
 }
 /** A winning blow that isn't an attack (a burn Spell or Trap, a monster effect): the finale plays before the damage
  *  shows, for the card that dealt it. Battle damage already had its finale when the attack was declared. */
@@ -1749,6 +1855,7 @@ function logEvent(e, p) {
 
 function showResult(p) {
   duelState(false);
+  document.body.classList.remove("timer-alert");
   $("#resultReplay").hidden = !(S.premium && S.mode !== "spec");
   setTimeout(() => Learning.flush(), 1500); // send what this duel taught
   const me = S.team;
@@ -1757,8 +1864,41 @@ function showResult(p) {
   $("#resultTitle").textContent = title;
   $("#resultTitle").className = w === me && S.mode !== "spec" ? "win" : "";
   $("#resultText").textContent = p.ended.reason || "";
+  // the winner: their profile, their finishing card and how they won
+  const wb = $("#resultWinner");
+  if (wb) {
+    wb.replaceChildren();
+    if (w === 0 || w === 1) {
+      const side = sideOfTeam(w), pf = profileOf(side), blow = (S.lastBlowBy && S.lastBlowBy[w]) || S.lastBlow;
+      const who = el("div", "rw-who");
+      const av = el("div", "rw-av"); av.innerHTML = pf ? avatarHTML(pf, LOGO, 76) : `<span class="pf-av fr-none" style="--pf:76px"><img src="${LOGO}" alt=""></span>`;
+      const nm = el("div", "rw-nm"); nm.append(el("b", null, p.names[w] || "Duelist"), el("span", null, S.comeback ? "Winner via Comeback" : pf && pf.title ? pf.title : "Winner"));
+      who.append(av, nm);
+      wb.append(who);
+      if (blow && S.db && S.db.get(Number(blow))) {
+        const fin = el("div", "rw-fin"); fin.append(cardImg(Number(blow), name(Number(blow))));
+        const cap = el("div", "rw-cap"); cap.append(el("small", null, "Finishing card"), el("b", null, name(Number(blow))));
+        fin.append(cap); wb.append(fin);
+      }
+      $("#result").classList.toggle("comeback", !!S.comeback);
+    }
+    wb.hidden = !wb.children.length;
+  }
+  // match mode (best of three, solo): the score and the next duel
+  const mt = $("#resultMatch");
+  if (mt) {
+    mt.hidden = true;
+    if (S.match && S.mode === "solo" && (w === 0 || w === 1)) {
+      if (!p.matchCounted) { p.matchCounted = true; S.match.w[w === S.team ? 0 : 1]++; S.match.game++; S.match.loserFirst = w === S.team ? "opp" : "me"; }
+      const [a, b] = S.match.w, done = a >= 2 || b >= 2;
+      mt.hidden = false;
+      mt.textContent = done ? (a > b ? `You win the match ${a}–${b}` : `You lose the match ${a}–${b}`) : `Match ${a}–${b} · Game ${S.match.game + 1} next`;
+      $("#rematchBtn").textContent = done ? "New match" : `Next duel (Game ${S.match.game + 1})`;
+      if (done) S.match.over = true;
+    }
+  }
   $("#rematchBtn").hidden = S.mode === "spec" || S.mode === "replay";
-  $("#rematchBtn").textContent = S.mode === "guest" ? "Ask for a rematch" : "Rematch";
+  if (!(S.match && S.mode === "solo")) $("#rematchBtn").textContent = S.mode === "guest" ? "Ask for a rematch" : "Rematch";
   addLog(`${title}${p.ended.reason ? ` — ${p.ended.reason}` : ""}`, "turn");
   trackEnd(p);
   Promise.resolve(S.finPromise).then(() => setTimeout(() => { $("#result").hidden = false; S.finPromise = null; }, 250));
@@ -1815,21 +1955,22 @@ function fxEvents(p) {
   runFx();
 }
 function showReveal(groups, p) {
-  const d = $("#reveal"), body = $("#revealBody");
-  if (!d.open) body.replaceChildren();
-  for (const g of groups) {
-    for (const c of g.cards) {
-      const o = el("div", "opt");
-      const card = cardEl({ code: c.code, position: C.POS_FACEUP_ATTACK }, c.controller, c.location, c.sequence, { static: true });
-      card.addEventListener("click", (ev) => { ev.stopPropagation(); showInfo({ code: c.code }, c.controller, c.location, true); });
-      o.append(card, el("small", null, name(c.code)));
-      body.append(o);
-    }
+  // a small glowing strip that shows the revealed cards for the chosen time, then leaves on its own
+  const box = $("#revealFx");
+  let strip = box.querySelector(".rv-strip:not(.out)");
+  if (!strip) { strip = el("div", "rv-strip"); strip.append(el("div", "rv-cap"), el("div", "rv-cards")); box.append(strip); requestAnimationFrame(() => strip.classList.add("in")); }
+  const cards = strip.querySelector(".rv-cards");
+  for (const g of groups) for (const c of g.cards) {
+    const b = el("button", "rv-card"); b.type = "button"; b.setAttribute("aria-label", name(c.code));
+    b.append(cardImg(c.code, name(c.code)));
+    b.addEventListener("click", (ev) => { ev.stopPropagation(); showInfo({ code: c.code }, c.controller, c.location, true); });
+    cards.append(b);
   }
-  const who = groups[0].cards[0].controller === S.team && S.mode !== "spec" ? "Your card" : `${p.names[groups[0].cards[0].controller] || "Opponent"}'s card`;
-  const n = body.children.length;
-  $("#revealTitle").textContent = n > 1 ? `Revealed (${n})` : `${who} revealed`;
-  if (!d.open) d.showModal();
+  const c0 = groups[0].cards[0], n = cards.children.length;
+  const who = c0.controller === S.team && S.mode !== "spec" ? "You" : (p.names[c0.controller] || "Opponent");
+  strip.querySelector(".rv-cap").textContent = n > 1 ? `${who} revealed ${n} cards` : `${who} revealed ${name(c0.code)}`;
+  clearTimeout(strip.t);
+  strip.t = setTimeout(() => { strip.classList.add("out"); setTimeout(() => strip.remove(), 320); }, Math.max(PREF.fxMs, 600) + Math.min(n - 1, 4) * 250);
 }
 function runFx() {
   if (fxBusy || !fxQueue.length) return;
@@ -1847,14 +1988,14 @@ function runFx() {
   cap.append(el("strong", null, `Chain ${e.chain_size}`), el("span", null, `${e.controller === S.team && S.mode !== "spec" ? "You" : f.name} activated ${name(e.code)}`));
   const ef = effectText(e.code, e.description, e.location); if (ef) cap.append(el("span", "eff", ef));
   card.addEventListener("click", () => showInfo({ code: e.code }, e.controller, e.location, true));
-  const wrap = el("div", "chain-show"); wrap.append(card, cap);
+  const wrap = el("div", "chain-show compact " + (e.controller === S.team && S.mode !== "spec" ? "me" : "op")); wrap.append(card, cap);
   box.replaceChildren(wrap);
   requestAnimationFrame(() => wrap.classList.add("in"));
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
   setTimeout(() => {
     wrap.classList.add("out");
-    setTimeout(() => { wrap.remove(); fxBusy = false; runFx(); }, reduce ? 0 : 320);
-  }, reduce ? 500 : 1100);
+    setTimeout(() => { wrap.remove(); fxBusy = false; runFx(); }, reduce ? 0 : 240);
+  }, reduce ? 500 : PREF.fxMs);
 }
 
 // ----- summon glow, boss splash, big damage and OTK (sounds come from audio.js) -----
@@ -1892,7 +2033,7 @@ function bigFx(p) {
   S.lastBlowBy = S.lastBlowBy || [0, 0];
   for (const e of p.events) {
     switch (e.type) {
-      case M.NEW_TURN: S.turnStartLP = p.state ? p.state.teams.map((t) => t.lp) : null; Sound.play("turn"); break;
+      case M.NEW_TURN: S.turnStartLP = p.state ? p.state.teams.map((t) => t.lp) : null; Sound.play("turn"); timerReset(); break;
       case M.NEW_PHASE: Sound.play("phase"); break;
       case M.DRAW: Sound.play("draw"); break;
       case M.SET: Sound.play("set"); break;
@@ -1919,7 +2060,7 @@ function bigFx(p) {
         if (!cardVoice(e.controller, e.code)) Sound.play(sig ? "boss" : e.chain_size > 1 ? "chain" : "activate", e.chain_size);
         if (fx.aces.has(cc(e.code))) showAce(e.code, e.controller, fx);
         else if (sig) splash(e.code, name(e.code), viewerFree ? "Signature card · KodeX Premium" : "Signature card", "boss sig");
-        if (!fx.aces.has(cc(e.code))) staple(name(e.code), document.getElementById(zoneId(e.controller, e.location, e.sequence)) || document.querySelector(`.duelist.${sideOf(e.controller)}`));
+        if (!fx.aces.has(cc(e.code)) && PREF.staples) staple(name(e.code), e.code, artUrl(e.code), document.getElementById(zoneId(e.controller, e.location, e.sequence)) || document.querySelector(`.duelist.${sideOf(e.controller)}`));
         break;
       }
       case M.ATTACK: {
@@ -1957,6 +2098,12 @@ function bigFx(p) {
       }
     }
   }
+  // comeback watch: a player who fell to a quarter of their Life Points while far behind
+  if (p.state && !p.ended) {
+    const lp = p.state.teams.map((t) => t.lp), full = options().lp;
+    S.behind = S.behind || [false, false];
+    for (const t of [0, 1]) if (lp[t] > 0 && lp[t] <= full * 0.25 && lp[1 - t] >= lp[t] * 2 && lp[1 - t] - lp[t] >= 2000) S.behind[t] = true;
+  }
   if (p.ended && !S.fxEnded) {
     S.fxEnded = true;
     const w = p.ended.winner, start = S.turnStartLP, full = options().lp;
@@ -1971,7 +2118,12 @@ function bigFx(p) {
       if (wfx.premium && viewerFree) setTimeout(() => toast(`${p.names[w]} finished with a KodeX Premium move: ${style[0].toUpperCase() + style.slice(1)}`), 2400);
       Sound.play("finish");
       setTimeout(() => Sound.play(otk ? "otk" : w === me && S.mode !== "spec" ? "win" : "lose"), 1600);
-      S.finPromise = runFinisher({ style, side, mat: $("#field"), title: otk ? "ONE TURN KILL" : "FINISH!" });
+      S.comeback = !!(S.behind && S.behind[w]);
+      // the field breaks, then the loser's profile icon cracks and shatters, then (a comeback) the comeback moment;
+      // only after all of it does the result show
+      S.finPromise = runFinisher({ style, side, mat: $("#field"), title: otk ? "ONE TURN KILL" : "FINISH!" })
+        .then(() => { const av = document.querySelector(`.duelist.${side} .avatar`), pf = profileOf(side); return breakProfile({ avatar: av, side, name: p.names[loser], html: pf ? avatarHTML(pf, LOGO) : `<span class="pf-av fr-none"><img src="${LOGO}" alt=""></span>` }); })
+        .then(() => (S.comeback ? (Sound.play("win"), comeback()) : null));
     } else Sound.play("lose");
   }
 }
@@ -2341,6 +2493,14 @@ let emoteAt = 0;
 const sentMedia = new Set();
 // mute: per device
 const MUTE = Object.assign({ opp: false, chat: false, emotes: false, voices: false }, load("duel:mute", {}));
+// v60: how long a revealed card or an activated effect stays on screen, and the staple card animations
+const PREF = Object.assign({ fxMs: 1000, staples: true }, load("duel:pref", {}));
+function bindPrefs() {
+  const t = $("#prefFxMs"), st = $("#prefStaples");
+  if (t) { t.value = String(PREF.fxMs); t.addEventListener("change", () => { PREF.fxMs = Math.max(300, Math.min(5000, Number(t.value) || 1000)); save("duel:pref", PREF); }); }
+  if (st) { st.checked = PREF.staples; st.addEventListener("change", () => { PREF.staples = st.checked; save("duel:pref", PREF); }); }
+}
+bindPrefs();
 function sideOfRole(role) {
   if (S.mode === "host") return role === "host" ? "me" : "op";
   if (S.mode === "guest") return role === "guest" ? "me" : "op";
@@ -2443,8 +2603,9 @@ function showAce(code, controller, fx, how = "") {
   if (Date.now() - (S.aceLast[cc(code)] || 0) < 4500) return;
   S.aceLast[cc(code)] = Date.now();
   const style = pickShow(fx.showFx[cc(code)] || fx.aceStyle, Number(code) ^ ((S.packet && S.packet.turn) || 0) * 104729 ^ (S.aceN = (S.aceN || 0) + 1));
-  hold(2900);
+  hold(3000);
   Sound.play("boss");
+  document.body.classList.add("ace-on"); clearTimeout(S.aceOff); S.aceOff = setTimeout(() => document.body.classList.remove("ace-on"), 2950);
   ace(style, { src: artUrl(code), title: name(code), owner: who, line: how ? `${name(code)} is ${how}` : "", premiumNote: viewerFreeNow() && side === "op" ? "Ace cards · KodeX Premium" : "" });
 }
 const viewerFreeNow = () => !S.premium;

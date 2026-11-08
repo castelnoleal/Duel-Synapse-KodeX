@@ -9,8 +9,9 @@ const post = (path, b) => pb.fetch(new Request("https://x" + path, { method: "PO
 const get = (q = "") => pb.fetch(new Request("https://x/api/players" + q)).then((r) => r.json());
 let fails = 0; const ok = (c, m) => { console.log((c ? "PASS " : "FAIL ") + m); if (!c) fails++; };
 const A = { id: "abcdefghijklmnop1", key: "k".repeat(30) };
-let r = await post("/api/players/ping", { ...A, name: "Kasuteru <b>", title: "Solfachord main", icon: "crown", frame: "gold", tier: "gold", premium: true, points: 999999, days: 10, duels: 20, wins: 25, decks: 3, img: "data:image/png;base64,AAAA" });
-ok(r[0] === 200 && r[1].rank === 1, "first ping lists the player");
+let r = await post("/api/players/ping", { ...A, name: "Kasuteru <b>", title: "Solfachord main", icon: "crown", frame: "gold", tier: "gold", theme: "aurora", premium: true, points: 999999, days: 10, duels: 20, wins: 25, decks: 3, img: "data:image/png;base64,AAAA" });
+ok(r[0] === 200 && r[1].rank === 1 && /^[a-f0-9]{12}$/.test(r[1].pid), "first ping lists the player and returns its public id");
+const PID = r[1].pid;
 r = await post("/api/players/ping", { ...A, key: "x".repeat(30), name: "Thief" });
 ok(r[0] === 403, "another key cannot change the entry");
 r = await post("/api/players/ping", { ...A, name: "Again" });
@@ -22,6 +23,11 @@ ok(l.total === 2 && l.players[0].name === "Kasuteru b", "listed by points, marku
 ok(k.points === 10 * 40 + 20 * 8 + 3 * 10 + 300 && k.wins === 20, "points capped by activity, wins capped by duels");
 ok(!("img" in k) && !("kh" in k) && !("id" in k), "no picture, key hash or id in the list");
 ok(l.players[1].icon === "meiocg", "unknown icon falls back to MEIOCG");
+ok(k.pid === PID, "the list carries the public id, not the private one");
+ok(k.theme === "aurora" && l.players[1].theme === "default", "banner kept (Premium themes only for Premium)");
+const one = await pb.fetch(new Request("https://x/api/players/p/" + PID)).then((x) => x.json());
+ok(one.player && one.player.name === "Kasuteru b" && one.player.rank === 1 && !("id" in one.player), "one player's public profile");
+ok((await pb.fetch(new Request("https://x/api/players/p/000000000000"))).status === 404, "unknown profile is 404");
 r = await post("/api/players/leave", A);
 ok(r[0] === 200 && (await get()).total === 1, "leave removes the entry");
 process.exit(fails ? 1 : 0);

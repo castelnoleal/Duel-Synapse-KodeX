@@ -91,7 +91,6 @@
             </label>
           </div>
           <p class="hint" id="aiNote" role="status"></p>
-          <label class="toggle ai-share"><input type="checkbox" id="aiShare" checked><span>Share my plays to teach Synapse AI for everyone (anonymous: card codes and counts only)</span></label>
           <label class="field"><span>Going first</span>
             <span class="chips" role="radiogroup" id="firstChips">
               <button type="button" role="radio" data-v="me" aria-checked="true">Me</button>
@@ -100,8 +99,22 @@
             </span>
             <select id="soloFirst" hidden><option value="me">Me</option><option value="opp">Opponent</option><option value="random">Coin toss</option></select>
           </label>
-          <details class="disclose">
-            <summary>Opening hand <span id="testHandCount" class="count"></span></summary>
+          <details class="disclose pt-opts">
+            <summary>Playtest settings <span id="ptSummary" class="count"></span></summary>
+            <div class="grid2">
+              <label class="field"><span>Deck order</span>
+                <select id="soloOrder"><option value="shuffle">Shuffled</option><option value="built">As built (no shuffle)</option><option value="custom">My order…</option></select>
+              </label>
+              <label class="field"><span>Turn timer</span>
+                <select id="soloTimer"><option value="0">No timer</option><option value="60">1 min</option><option value="120">2 min</option><option value="180">3 min</option><option value="300">5 min</option><option value="600">10 min</option></select>
+              </label>
+            </div>
+            <div class="pt-row">
+              <label class="toggle"><input type="checkbox" id="soloMatch"><span>Match (best of 3)</span></label>
+              <button type="button" class="btn ghost" id="orderBtn" hidden>Arrange deck</button>
+            </div>
+            <p class="hint pt-hint">Timer: lose if it runs out on your turn; it turns red under 1:30 and resets every turn.</p>
+            <div class="pt-hand-h">Opening hand <span id="testHandCount" class="count"></span> <small>tap cards to draw them first</small></div>
             <div id="testHand" class="test-hand"></div>
           </details>
           <button class="btn primary wide" id="soloStart" type="button" disabled>Start playtest</button>
@@ -142,6 +155,7 @@
             <label class="field"><span>Starting hand</span><input id="optHand" type="number" min="0" max="20" value="5"></label>
             <label class="field"><span>Draw per turn</span><input id="optDraw" type="number" min="0" max="10" value="1"></label>
           </div>
+          <label class="toggle ai-share"><input type="checkbox" id="aiShare" checked><span>Share my plays to teach Synapse AI for everyone (anonymous: card codes and counts only)</span></label>
         </details>
       </div>
       <div class="engine-line"><span class="dot" id="engineDot"></span><span id="engineStatus" role="status">Starting Duel Synapse Server…</span></div>
@@ -177,7 +191,7 @@
       <div class="lp"><span class="lp-label">LP</span><span class="lp-num" id="meLP">8000</span><span class="lp-bar"><i id="meLPBar"></i></span></div>
     </div>
     <div class="turnbar">
-      <span class="turn-no" id="turnNo">Turn 1</span>
+      <span class="turn-no" id="turnNo">Turn 1</span><span class="turn-timer" id="turnTimer" hidden role="timer" aria-label="Turn timer">0:00</span>
       <nav class="phases" id="phases" aria-label="Phases"></nav>
     </div>
     <div id="status" class="status" role="status"></div>
@@ -211,6 +225,8 @@
     </div>
     <div class="side-actions">
       <label class="toggle"><input type="checkbox" id="skipChains"><span>Auto-skip chain prompts</span></label>
+      <label class="field pref-row"><span>Reveal &amp; activation time</span><select id="prefFxMs"><option value="500">0.5 s</option><option value="1000">1 s</option><option value="1500">1.5 s</option><option value="2000">2 s</option><option value="3000">3 s</option><option value="5000">5 s</option></select></label>
+      <label class="toggle"><input type="checkbox" id="prefStaples"><span>Card animations for staples (Ash Blossom, Maxx "C"…)</span></label>
       <label class="toggle"><input type="checkbox" id="musicOn"><span>Music</span></label>
       <label class="toggle"><input type="checkbox" id="sfxOn"><span>Sounds</span></label>
       <div class="view-opts mute-opts" role="group" aria-label="Mute">
@@ -246,7 +262,8 @@
   <div id="result" class="result" hidden>
     <div class="result-card">
       <img src="./assets/meiocg-192.webp" alt="" width="64" height="64">
-      <h2 id="resultTitle"></h2><p id="resultText"></p>
+      <div id="resultWinner" class="result-winner" hidden></div>
+      <h2 id="resultTitle"></h2><p id="resultMatch" class="result-match" hidden></p><p id="resultText"></p>
       <div class="grid2"><button class="btn primary" id="rematchBtn" type="button">Rematch</button><button class="btn" id="leaveBtn" type="button">Lobby</button></div>
       <button class="btn ghost wide" id="resultReplay" type="button" hidden>Save replay file</button>
     </div>
@@ -257,6 +274,8 @@
 <div id="bigFx" class="big-fx" aria-live="polite"></div>
 <div id="hoverPeek" class="hover-peek" hidden></div>
 <dialog id="peek" class="dlg peek" aria-label="Card details"><button class="icon peek-close" id="peekClose" type="button" aria-label="Close">×</button><div id="peekBody" class="peek-body"></div></dialog>
+<dialog id="orderDlg" class="dlg order-dlg"><div class="pile-head"><h3>Arrange your deck</h3><button class="icon" id="orderClose" type="button" aria-label="Close">×</button></div><p class="hint">Top of the deck first. The first cards are your opening hand.</p><ol id="orderList" class="order-list"></ol><div class="dlg-actions"><button class="btn" id="orderReset" type="button">Reset</button><button class="btn primary" id="orderOk" type="button">Done</button></div></dialog>
+<div id="revealFx" class="reveal-fx" aria-live="polite"></div>
 <dialog id="reveal" class="dlg"><div class="pile-head"><h3 id="revealTitle">Revealed</h3><button class="icon" id="revealClose" type="button" aria-label="Close">×</button></div><div id="revealBody" class="pile-body reveal-body"></div><div class="dlg-actions"><button class="btn primary" id="revealOk" type="button">OK</button></div></dialog>
 <dialog id="ask" class="dlg"><h3 id="askTitle"></h3><p id="askText" class="hint"></p><div class="dlg-actions"><button class="btn" id="askNo" type="button">Cancel</button><button class="btn danger" id="askYes" type="button">OK</button></div></dialog>
 <dialog id="pile" class="dlg"><div class="pile-head"><h3 id="pileTitle"></h3><button class="icon" id="pileClose" type="button" aria-label="Close">×</button></div><div id="pileBody" class="pile-body"></div></dialog>

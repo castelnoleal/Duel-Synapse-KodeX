@@ -1,6 +1,6 @@
 # meiocg.org deck pages, guides, MEIOCG Cup, Players and Why KodeX
 
-DashNex pages for meiocg.org: the OCG meta deck hub (current lists and an archive tab), one page per meta deck (date-stamped list), a guide per meta deck (lessons 1–3 free, 4–6 listed as KodeX Premium), the guides hub, the MEIOCG Cup, MEIOCG Players and Why KodeX.
+DashNex pages for meiocg.org: the OCG meta deck hub (current lists and an archive tab), one page per meta deck (date-stamped list), a guide per meta deck (lessons 1–3 free, 4–6 listed as KodeX Premium), the guides hub, the MEIOCG Cup, MEIOCG Players, Why KodeX and the Duel Synapse landing page (meiocg.org/duelsynapse: features, KodeX Premium shown in action with real card art, Free vs Premium, the 5-day trial).
 
 - `content.py`: all page text. Card names in `[[double brackets]]` link to KodeX and are checked against `data/cards.min.json` on every build.
 - `decks_raw.py`: the decklists (passcodes and counts).
