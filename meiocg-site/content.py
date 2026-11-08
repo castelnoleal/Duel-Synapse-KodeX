@@ -458,6 +458,7 @@ DS = dict(
         ("⚔️", "Arena playtesting (and more)", "Test your deck or duel online in the KodeX Arena — perfect for tuning your list before the next event. Play Synapse AI or a dummy, choose your opening hand, set a turn timer or play best-of-three."),
         ("🧩", "Decks that check themselves", "Build, import deck links, files or text lists, and see at a glance if a deck is OCG legal."),
         ("🔄", "Always up to date", "Kept current by Meta Insider OCG — the team behind PH's leading Yu-Gi-Oh! OCG publication."),
+        ("🏁", "Duel endings", "A finishing move breaks the loser's field, their profile icon cracks and shatters, a comeback moment when you turn it around, then a winner screen with your finishing card."),
         ("🎨", "Make it yours", "Adjust text size, toggle card pictures and set your own wallpaper for a KodeX that feels like your deck box."),
         ("🏅", "Your profile", "Name, title, icon and a frame that levels up as you use KodeX: Rookie to Master. Opponents see it in every duel."),
         ("❓", "Help bubble", "Find any feature or setting by name, open the banlist and quick settings from anywhere, even mid-duel."),
@@ -472,6 +473,9 @@ DS = dict(
     compare=[("Ads", "Sponsor strip", "None"), ("Card scans", "4 a day", "Unlimited"), ("Winning showdowns", "Menacing", "13 styles + Random"),
              ("Ace cards", "–", "✓"), ("Finishing moves", "Shatter", "5 + one per card"), ("Profile", "MEIOCG icon, presets, earned frames", "Own picture, animated banner, Premium frame"),
              ("Skins, emotes, music", "–", "✓")],
+    # The live Arena demo (kodex.meiocg.org/duel/showcase.html): real cards and the Arena's own animation code.
+    arena_demo="https://kodex.meiocg.org/duel/showcase.html",
+    arena_scenes=["Playtest setup", "Summon entrance", "Staple cut-in", "Revealed card", "Ace showdown", "Turn timer", "Finishing move", "Comeback", "Winner screen"],
     scanner=dict(kicker="Only in the app", title="Scan it. Know it. Play it.",
                  lead="The KodeX scanner is the fastest way to look up a card you're holding — no typing, no guessing the English name.",
                  points=["Recognises artwork, not just printed text", "Works with Japanese cards — ideal for OCG players", "Jumps straight to rulings for the card you scanned"]),

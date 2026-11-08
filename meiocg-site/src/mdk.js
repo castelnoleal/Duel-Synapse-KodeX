@@ -237,6 +237,7 @@
       '<div class="wrap"><main>' +
       section("features", D.why_title || "Everything for the OCG, in one app", (D.why_lead ? "<p>" + md(D.why_lead) + "</p>" : "") + '<div class="ds-feat">' + D.features.map(function (f) { return '<div class="ds-f"><i>' + f[0] + "</i><b>" + esc(f[1]) + "</b><p>" + md(f[2]) + "</p></div>"; }).join("") + "</div>") +
       (D.scanner ? section("scanner", D.scanner.title, '<p class="ds-kick">' + esc(D.scanner.kicker) + "</p><p>" + md(D.scanner.lead) + "</p>" + ul(D.scanner.points)) : "") +
+      (D.arena_demo ? section("arena", "See it in the Arena", '<p>A real duel in Duel Synapse Arena, playing itself: real cards, and the same animations players see. Tap a moment to jump to it.</p><div class="ds-arena"><div class="ds-afr"><iframe src="' + esc(D.arena_demo) + '" title="Duel Synapse Arena demo" loading="lazy" allow="autoplay"></iframe></div><div class="ds-aside"><div class="ds-acap" id="dsACap"><b>Playtest</b><strong>Playtest your way</strong><p>Choose the deck order, your exact opening hand, a turn timer and best-of-three before you duel.</p></div><div class="ds-achips" role="tablist">' + D.arena_scenes.map(function (n, i) { return '<button type="button" role="tab" data-scene="' + i + '"' + (i ? "" : ' class="on"') + ">" + esc(n) + "</button>"; }).join("") + "</div></div></div>") : "") +
       section("premium", "KodeX Premium, in action", '<p>Real cards from the KodeX database, the way they play in Duel Synapse Arena.</p><div class="ds-show"><div class="ds-tabs" role="tablist">' + tabs + '</div><div class="ds-stage"><div class="ds-scr big" id="dsStage"></div><div class="ds-cap" id="dsCap"></div></div></div>') +
       section("compare", D.plans_title || "Free and Premium", (D.plans_lead ? "<p>" + md(D.plans_lead) + "</p>" : "") + (D.plans ? '<div class="ds-plans">' + D.plans.map(function (p) { return '<div class="ds-plan"><b>' + esc(p.name) + "</b><small>" + esc(p.price) + "</small>" + (p.tag ? "<em>" + esc(p.tag) + "</em>" : "") + ul(p.items) + "</div>"; }).join("") + "</div>" : "") + '<div class="tbl"><table><thead><tr><th></th><th>Free</th><th>Premium</th></tr></thead><tbody>' + D.compare.map(function (r) { return "<tr><td>" + esc(r[0]) + "</td><td>" + esc(r[1]) + '</td><td class="y">' + esc(r[2]) + "</td></tr>"; }).join("") + '</tbody></table></div><div class="ds-trial"><b>5 days of Premium, free</b><p>' + md(D.trial) + '</p>' + (D.play_premium ? '<a class="btn g" href="' + esc(D.play_premium) + '" target="_blank" rel="noopener">Get KodeX Premium</a>' : '<span class="btn g dis" aria-disabled="true">KodeX Premium · coming soon to Google Play</span>') + '</div>') +
       (D.get_title ? section("get", D.get_title, '<p class="ds-kick">' + esc(D.get_kicker) + "</p><p>" + md(D.get_lead) + '</p><div class="ds-get"><div class="btns">' + playBtn + '<a class="btn" href="' + esc(D.web) + '" target="_blank" rel="noopener">Use the web version</a></div>' + (D.qr ? '<div class="ds-qr"><img src="' + D.qr + '" alt="QR code" width="96" height="96"><small>' + esc(D.qr_note) + "</small></div>" : "") + "</div>") : "") +
@@ -253,6 +254,15 @@
     var auto = function () { clearInterval(timer); if (matchMedia("(prefers-reduced-motion: reduce)").matches) return; timer = setInterval(function () { show(order[(order.indexOf(cur) + 1) % order.length]); }, 5200); };
     root.addEventListener("click", function (e) { var t = e.target.closest("[data-ds]"); if (t) { show(t.dataset.ds); auto(); } });
     show(cur); auto();
+    var afr = root.querySelector(".ds-afr iframe");
+    if (afr) {
+      root.addEventListener("click", function (e) { var b = e.target.closest("[data-scene]"); if (b && afr.contentWindow) afr.contentWindow.postMessage({ mdkShow: "goto", i: +b.dataset.scene }, "*"); });
+      window.addEventListener("message", function (e) {
+        var d = e.data || {}; if (d.mdkShow !== "scene" || e.source !== afr.contentWindow) return;
+        root.querySelectorAll("[data-scene]").forEach(function (b) { b.classList.toggle("on", +b.dataset.scene === d.i); });
+        var cap = root.querySelector("#dsACap"); if (cap) cap.innerHTML = "<b" + (d.free ? ' class="free"' : "") + ">" + esc(d.free ? (d.tag === "Playtest" ? "Playtest" : "Free & Premium") : "KodeX Premium") + "</b><strong>" + esc(d.title) + "</strong><p>" + esc(d.text) + "</p>";
+      });
+    }
     // the phone in the hero loops the Ace showdown
     setInterval(function () { var s = root.querySelector(".ds-phone .ds-scr"); if (s && !document.hidden) { s.innerHTML = ""; void s.offsetWidth; s.innerHTML = demo.ace; } }, 5200);
   }

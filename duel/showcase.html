@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Duel Synapse Arena · showcase</title>
+<link rel="stylesheet" href="./arena.css">
+<link rel="stylesheet" href="./meiocg.css">
+<link rel="stylesheet" href="./profile.css">
+<style>
+  /* A self-playing Arena duel for meiocg.org/duelsynapse: real cards, and the Arena's own effect modules
+     (finisher.js, moves.js, cardfx.js, ending.js, profile.js), so every animation is exactly what players see. */
+  html, body { height: 100%; margin: 0; overflow: hidden; }
+  body { background: radial-gradient(900px 520px at 50% 0, #1d2563, transparent 70%), #0a0d1a; color: #e9eefc; }
+  :root { --z: min(calc((100vw - 20px) / 7.8), calc((100vh - 285px) / 5.3)); --zh: var(--z); --ch: calc(var(--z) * .92); --cw: calc(var(--ch) * 59 / 86); }
+  .sc { height: 100%; display: grid; grid-template-rows: auto auto 1fr auto auto; justify-items: center; align-items: center; gap: 6px; padding: 8px 10px 10px; box-sizing: border-box; }
+  .sc .duelist { width: min(100%, calc(var(--z) * 7.6 + 40px)); box-sizing: border-box; }
+  .sc .duelist .avatar { width: 40px; height: 40px; display: grid; place-items: center; flex: none; background: none; border: 0; }
+  .sc .duelist .avatar .pf-av { --pf: 40px; }
+  .sc .hand { display: flex; justify-content: center; gap: 6px; min-height: calc(var(--ch) * .82); }
+  .sc .hand .card { width: calc(var(--cw) * .82); height: calc(var(--ch) * .82); transition: transform .35s ease, opacity .35s; }
+  .sc .hand .card.lift { transform: translateY(-14px); box-shadow: 0 0 0 2px #8be1ff, 0 0 18px #8be1ffaa; }
+  .sc .mat { transform: perspective(1200px) rotateX(10deg); }
+  .sc .card .stat { position: absolute; left: 50%; bottom: -14px; transform: translateX(-50%); font: 700 10px/1 var(--f-display, sans-serif); background: #000c; padding: 2px 5px; border-radius: 4px; white-space: nowrap; }
+  .turnbar2 { display: flex; gap: 10px; align-items: center; font: 600 12px var(--f-display, sans-serif); letter-spacing: .08em; text-transform: uppercase; color: #9fb0d6; }
+  .turnbar2 .turn-timer { font-size: 15px; padding: 3px 10px; border-radius: 999px; background: #10141bcc; border: 1px solid #ffffff22; color: #e9eefc; }
+  .turnbar2 .turn-timer.alert { color: #fff; background: #b3262d; border-color: #ff6b6b; animation: scPulse 1s ease-in-out infinite; }
+  @keyframes scPulse { 50% { box-shadow: 0 0 0 6px #ff4d5a33; } }
+  .sc-cap { position: fixed; left: 50%; top: 8px; transform: translateX(-50%); z-index: 90; display: flex; gap: 8px; align-items: center; padding: 6px 14px 6px 6px; border-radius: 999px; background: #0b0f1ae6; border: 1px solid #ffffff22; font: 600 13px var(--f-display, sans-serif); white-space: nowrap; box-shadow: 0 10px 30px #0008; }
+  .sc-cap b { background: #f0b429; color: #1a1300; font-size: 11px; padding: 2px 9px; border-radius: 999px; letter-spacing: .06em; }
+  .sc-cap b.free { background: #61a8ff; color: #04122a; }
+  body.embedded .sc-cap { display: none; }
+  .pt { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; background: #000a; backdrop-filter: blur(3px); opacity: 0; transition: opacity .3s; pointer-events: none; }
+  .pt.on { opacity: 1; }
+  .pt-card { width: min(420px, 92vw); background: #10141bf8; border: 1px solid #ffffff26; border-radius: 18px; padding: 16px 18px; box-shadow: 0 30px 80px #000d; font-size: 13px; }
+  .pt-card h3 { margin: 0 0 10px; font: 700 18px var(--f-display, sans-serif); }
+  .pt-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid #ffffff14; }
+  .pt-row span { color: #9fb0d6; }
+  .pt-row em { font-style: normal; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: #61a8ff22; color: #8be1ff; }
+  .pt-hand { display: flex; gap: 5px; margin-top: 6px; }
+  .pt-hand img { width: 44px; height: 64px; object-fit: cover; border-radius: 4px; box-shadow: 0 0 0 2px #8be1ff66; opacity: 0; transform: translateY(8px); transition: .3s; }
+  .pt.on .pt-hand img { opacity: 1; transform: none; }
+  .pt-go { margin-top: 12px; text-align: center; padding: 10px; border-radius: 12px; background: linear-gradient(90deg, #3347f0, #7a4fd6); font-weight: 800; letter-spacing: .04em; }
+  #result .rw-fin img { width: 70px; }
+</style>
+</head>
+<body>
+<div class="sc">
+  <div class="duelist op"><span class="avatar" id="opAvatar"></span><div class="who"><b>Rival Duelist</b><span>Gold · Snake-Eye</span></div><div class="lp"><span class="lp-label">LP</span><span class="lp-num" id="opLP">8000</span><span class="lp-bar"><i id="opLPBar" style="width:100%"></i></span></div></div>
+  <div class="hand op-hand" id="opHand"></div>
+  <div class="mat-wrap"><div id="field" class="mat"></div></div>
+  <div class="hand my-hand" id="myHand"></div>
+  <div class="duelist me"><span class="avatar" id="meAvatar"></span><div class="who"><b>Kasuteru Kun</b><span>KodeX Premium</span></div><div class="lp"><span class="lp-label">LP</span><span class="lp-num" id="meLP">1200</span><span class="lp-bar"><i id="meLPBar" style="width:15%"></i></span></div></div>
+</div>
+<div class="sc-cap" id="cap"><b id="capTag">Playtest</b><span id="capText">Setting up</span></div>
+<div class="pt" id="pt"><div class="pt-card"><h3>Playtest · Game 1 of 3</h3>
+  <div class="pt-row"><span>Deck order</span><em>My order</em></div>
+  <div class="pt-row"><span>Turn timer</span><em>3:00 per turn</em></div>
+  <div class="pt-row"><span>Match</span><em>Best of three</em></div>
+  <div class="pt-row" style="display:block"><span>Opening hand</span><div class="pt-hand" id="ptHand"></div></div>
+  <div class="pt-go">Duel!</div></div></div>
+<div id="chainFx" class="chain-fx" aria-live="polite"></div>
+<div id="revealFx" class="reveal-fx" aria-live="polite"></div>
+<div id="result" class="result" hidden><div class="result-card"><img src="./assets/meiocg-192.webp" alt="" width="64" height="64"><div id="resultWinner" class="result-winner"></div><h2 id="resultTitle" class="win">You win</h2><p id="resultText">Game 1 · Kasuteru Kun leads 1–0</p></div></div>
+<script type="module">
+import { runFinisher, zoneStrike } from "./finisher.js";
+import { entrance, attack } from "./moves.js";
+import { ace, finale, staple } from "./cardfx.js";
+import { breakProfile, comeback } from "./ending.js";
+import { avatarHTML, cleanProfile } from "./profile.js";
+
+const LOGO = "./assets/meiocg-192.webp";
+const IMG = (id) => `../img/${id}.jpg`;
+const C = { ash: 14558127, maxx: 23434538, veiler: 97268402, nibiru: 27204311, snakeash: 9674034, solfa: 93481594, talker: 86066372, bewd: 89631139, dmg: 38033121, droll: 94145021 };
+const NAMES = { [C.ash]: "Ash Blossom & Joyous Spring", [C.maxx]: 'Maxx "C"', [C.veiler]: "Effect Veiler", [C.nibiru]: "Nibiru, the Primal Being", [C.snakeash]: "Snake-Eye Ash", [C.solfa]: "Solfachord Happiness", [C.talker]: "Accesscode Talker", [C.bewd]: "Blue-Eyes White Dragon", [C.dmg]: "Dark Magician Girl", [C.droll]: "Droll & Lock Bird" };
+const ME = cleanProfile({ name: "Kasuteru Kun", title: "KodeX Premium", icon: "crown", frame: "premium", premium: true, tier: "master" });
+const OP = cleanProfile({ name: "Rival Duelist", title: "Gold", icon: "flame", frame: "gold", tier: "gold" });
+const $ = (s) => document.querySelector(s);
+const el = (t, c, txt) => { const d = document.createElement(t); if (c) d.className = c; if (txt != null) d.textContent = txt; return d; };
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const embedded = window.parent !== window; if (embedded) document.body.classList.add("embedded");
+const f = $("#field");
+
+const cardOf = (id, stat) => { const c = el("div", "card"); const i = new Image(); i.src = IMG(id); i.alt = NAMES[id] || ""; i.draggable = false; c.append(i); if (stat) c.append(el("span", "stat", stat)); return c; };
+const back = () => el("div", "card back");
+function zone(row, col, cls, fill) { const z = el("div", "zone " + cls); z.style.gridRow = row + 1; z.style.gridColumn = col + 1; if (fill) z.append(fill()); f.append(z); return z; }
+let Z = {};
+function build() {
+  f.replaceChildren(); Z = {};
+  zone(0, 0, "op pile", back); for (let i = 1; i < 6; i++) zone(0, i, "op sz", i === 2 || i === 4 ? back : null); zone(0, 6, "op pile", back);
+  zone(1, 0, "op pile", null); for (let i = 1; i < 6; i++) Z["op" + i] = zone(1, i, "op mz", null); zone(1, 6, "op sz", null);
+  Z.op2.append(cardOf(C.bewd, "3000 / 2500")); Z.op4.append(cardOf(C.dmg, "2000 / 1700"));
+  zone(2, 0, "op pile", null); Z.emzL = zone(2, 2, "emz", null); Z.emzR = zone(2, 4, "emz", null); zone(2, 6, "me pile", null);
+  zone(3, 0, "me sz", null); for (let i = 1; i < 6; i++) Z["me" + i] = zone(3, i, "me mz", null); zone(3, 6, "me pile", back);
+  zone(4, 0, "me pile", back); for (let i = 1; i < 6; i++) Z["ms" + i] = zone(4, i, "me sz", i === 4 ? back : null); zone(4, 6, "me pile", back);
+  $("#opHand").replaceChildren(...[0, 1, 2, 3].map(back));
+  $("#myHand").replaceChildren(...[C.snakeash, C.solfa, C.veiler, C.nibiru, C.droll].map((id) => cardOf(id)));
+  $("#opAvatar").style.visibility = ""; $("#opAvatar").innerHTML = avatarHTML(OP, LOGO); $("#meAvatar").innerHTML = avatarHTML(ME, LOGO);
+  setLP("op", 8000, true); setLP("me", 1200, true);
+  $("#result").hidden = true; $("#chainFx").replaceChildren(); $("#revealFx").replaceChildren();
+}
+function setLP(side, v, now) {
+  const n = $("#" + side + "LP"), bar = $("#" + side + "LPBar"), from = Number(n.textContent) || 0;
+  bar.style.width = Math.max(0, v / 8000 * 100) + "%";
+  if (now) { n.textContent = v; return Promise.resolve(); }
+  return new Promise((done) => { const t0 = performance.now(), T = 700; (function step(t) { const k = Math.min(1, (t - t0) / T); n.textContent = Math.round(from + (v - from) * k); if (k < 1) requestAnimationFrame(step); else done(); })(t0); });
+}
+function chainShow(id, who, text) {
+  const card = el("button", "chain-card"); card.type = "button"; const i = new Image(); i.src = IMG(id); card.append(i, el("b", null, "1"));
+  const cap = el("div", "chain-cap"); cap.append(el("strong", null, "Chain 1"), el("span", null, `${who} activated ${NAMES[id]}`)); if (text) cap.append(el("span", "eff", text));
+  const wrap = el("div", "chain-show compact op"); wrap.append(card, cap); $("#chainFx").replaceChildren(wrap);
+  requestAnimationFrame(() => wrap.classList.add("in"));
+  return wait(1200).then(() => { wrap.classList.add("out"); return wait(260); }).then(() => wrap.remove());
+}
+function reveal(id, who) {
+  const strip = el("div", "rv-strip"); strip.append(el("div", "rv-cap", `${who} revealed ${NAMES[id]}`), el("div", "rv-cards"));
+  const b = el("button", "rv-card"); b.type = "button"; const i = new Image(); i.src = IMG(id); b.append(i); strip.querySelector(".rv-cards").append(b);
+  $("#revealFx").replaceChildren(strip); requestAnimationFrame(() => strip.classList.add("in"));
+  return wait(1400).then(() => { strip.classList.add("out"); return wait(320); }).then(() => strip.remove());
+}
+function fromHand(id) { const h = [...$("#myHand").children].find((c) => (c.querySelector("img") || {}).alt === NAMES[id]); if (h) { h.classList.add("lift"); return wait(450).then(() => h.remove()); } return Promise.resolve(); }
+let timerIv = 0;
+function timer(sec) {
+  const t = $("#timer"); clearInterval(timerIv);
+  const draw = () => { t.textContent = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`; t.classList.toggle("alert", sec <= 90); };
+  draw(); timerIv = setInterval(() => { sec = Math.max(0, sec - 1); draw(); }, 1000);
+}
+
+const SCENES = [
+  { tag: "Playtest", free: true, title: "Playtest your way", text: "Choose the deck order, your exact opening hand, a turn timer and best-of-three before you duel.", run: async () => {
+      const pt = $("#pt"); $("#ptHand").replaceChildren(...[C.snakeash, C.solfa, C.veiler, C.nibiru, C.droll].map((id) => { const i = new Image(); i.src = IMG(id); return i; }));
+      [...$("#ptHand").children].forEach((im, k) => (im.style.transitionDelay = k * 90 + "ms"));
+      pt.classList.add("on"); await wait(2600); pt.classList.remove("on"); await wait(300); } },
+  { tag: "Premium", title: "Summon entrances", text: "KodeX Premium monsters arrive with their own entrance in the Arena.", run: async () => {
+      await fromHand(C.snakeash); const c = cardOf(C.snakeash, "800 / 1200"); Z.me2.append(c); entrance("portal", Z.me2, { big: true }); await wait(2000); } },
+  { tag: "Everyone", free: true, title: "Staple cut-ins", text: "The opponent chains Ash Blossom: staples get a cut-in with their real art, for every player.", run: async () => {
+      const p = chainShow(C.ash, "Rival Duelist", "Negate an effect that adds a card from the Deck to the hand.");
+      staple(NAMES[C.ash], C.ash, IMG(C.ash), Z.op3); await p; await wait(900); } },
+  { tag: "Everyone", free: true, title: "Revealed cards glow", text: "Revealed cards and activated effects show as a small glowing card for the time you set.", run: async () => { await reveal(C.maxx, "Rival Duelist"); await wait(300); } },
+  { tag: "Premium", title: "Ace showdowns", text: "Your Ace card takes the whole screen when it is activated, summoned or added to the hand.", run: async () => {
+      await fromHand(C.solfa); await ace("radiant", { src: IMG(C.solfa), title: NAMES[C.solfa], owner: "Kasuteru Kun" }); await wait(300); } },
+  { tag: "Playtest", free: true, title: "Turn timer", text: "The turn timer turns red under 1:30, and you lose when it runs out.", run: async () => { timer(94); await wait(5200); } },
+  { tag: "Premium", title: "Winning blow & finishing move", text: "The winning attack gets a showdown, then your finishing move breaks the opponent's field.", run: async () => {
+      const c = cardOf(C.talker, "2300 / L4"); Z.emzR.append(c); entrance("rise", Z.emzR, { big: true }); await wait(900);
+      await finale("finalblow", { src: IMG(C.talker), title: NAMES[C.talker], line: "the winning blow" });
+      attack("beam", c, $("#opAvatar"), { direct: true }); await wait(500); setLP("op", 0);
+      zoneStrike("meteor", Z.emzR); await wait(900);
+      await runFinisher({ style: "meteor", side: "op", mat: f, title: "FINISH!" }); } },
+  { tag: "Everyone", free: true, title: "Comeback ending", text: "The loser's profile icon cracks and shatters, then a comeback moment when the winner was far behind.", run: async () => {
+      await breakProfile({ avatar: $("#opAvatar"), side: "op", name: "Rival Duelist", html: avatarHTML(OP, LOGO) });
+      await comeback(); } },
+  { tag: "Everyone", free: true, title: "Winner screen", text: "Your profile, your finishing card and YOU WIN.", run: async () => {
+      const wb = $("#resultWinner"); wb.replaceChildren();
+      const who = el("div", "rw-who"), av = el("div", "rw-av"); av.innerHTML = avatarHTML(ME, LOGO, 76);
+      const nm = el("div", "rw-nm"); nm.append(el("b", null, "Kasuteru Kun"), el("span", null, "Winner via Comeback")); who.append(av, nm); wb.append(who);
+      const fin = el("div", "rw-fin"), i = new Image(); i.src = IMG(C.talker); fin.append(i); const cap = el("div", "rw-cap"); cap.append(el("small", null, "Finishing card"), el("b", null, NAMES[C.talker])); fin.append(cap); wb.append(fin);
+      $("#result").classList.add("comeback"); $("#result").hidden = false; await wait(3400); } },
+];
+
+let cur = -1, token = 0;
+function announce(i) {
+  const s = SCENES[i]; $("#capTag").textContent = s.tag; $("#capTag").className = s.free ? "free" : ""; $("#capText").textContent = s.title;
+  if (embedded) parent.postMessage({ mdkShow: "scene", i, n: SCENES.length, tag: s.tag, free: !!s.free, title: s.title, text: s.text }, "*");
+}
+async function play(from = 0) {
+  const my = ++token;
+  for (let i = from; ; i = (i + 1) % SCENES.length) {
+    if (my !== token) return;
+    if (i === 0 || i < cur) { clearInterval(timerIv); $("#timer").textContent = "3:00"; $("#timer").classList.remove("alert"); build(); await wait(400); }
+    cur = i; announce(i);
+    try { await SCENES[i].run(); } catch (e) { console.error(e); }
+    if (my !== token) return;
+    await wait(700);
+  }
+}
+window.addEventListener("message", (e) => { const d = e.data || {}; if (d.mdkShow === "goto" && SCENES[d.i]) { cur = 99; replay(d.i); } });
+async function replay(i) {
+  token++; clearInterval(timerIv);
+  ["finFx", "cardFx", "endFx", "moveFx"].forEach((id) => { const l = document.getElementById(id); if (l) l.replaceChildren(); });
+  document.body.classList.remove("fin-shake", "ef-comeback", "cf-hold"); [...document.body.classList].filter((c) => c.startsWith("cf-")).forEach((c) => document.body.classList.remove(c));
+  build(); $("#timer").textContent = "3:00"; $("#timer").classList.remove("alert");
+  // get the board into the state the scene expects
+  if (i >= 2) { const sa = [...$("#myHand").children][0]; sa && sa.remove(); Z.me2.append(cardOf(C.snakeash, "800 / 1200")); }
+  if (i >= 5) { const so = [...$("#myHand").children].find((c) => c.querySelector("img").alt === NAMES[C.solfa]); so && so.remove(); }
+  if (i >= 7) { Z.emzR.append(cardOf(C.talker, "2300 / L4")); setLP("op", 0, true); }
+  if (i >= 8) { $("#opAvatar").style.visibility = "hidden"; } else $("#opAvatar").style.visibility = "";
+  await wait(200); play(i);
+}
+const tb = el("div", "turnbar2"); tb.append(el("span", null, "Turn 3"), Object.assign(el("span", "turn-timer", "3:00"), { id: "timer" }), el("span", null, "Main Phase 1"));
+document.querySelector(".sc").insertBefore(tb, document.querySelector(".duelist.me"));
+document.querySelector(".sc").style.gridTemplateRows = "auto auto 1fr auto auto auto";
+build(); play(0);
+</script>
+</body>
+</html>
