@@ -146,7 +146,7 @@ const SCENES = [
       await finale("finalblow", { src: IMG(C.talker), title: NAMES[C.talker], line: "the winning blow" });
       attack("beam", c, $("#opAvatar"), { direct: true }); await wait(500); setLP("op", 0);
       zoneStrike("meteor", Z.emzR); await wait(900);
-      await runFinisher({ style: "meteor", side: "op", mat: f, title: "FINISH!" }); } },
+      await runFinisher({ style: "meteor", side: "op", mat: f, title: "FINISH!", art: "https://kodex.meiocg.org/img/27204311.jpg" }); } },
   { tag: "Everyone", free: true, title: "Comeback ending", text: "The loser's profile icon cracks and shatters, then a comeback moment when the winner was far behind.", run: async () => {
       await breakProfile({ avatar: $("#opAvatar"), side: "op", name: "Rival Duelist", html: avatarHTML(OP, LOGO) });
       await comeback(); } },

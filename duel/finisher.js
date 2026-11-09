@@ -22,8 +22,50 @@ function bolt(x, y0, y1) {
   return svg;
 }
 
+/** A burning rock from space (Nibiru's fall): an uneven rock, its glowing cracks, a fire corona and a long plasma
+ *  trail along its path. Returns the element; it is moved by its caller. */
+function meteorRock(size, angle) {
+  const w = div("fin-met"); w.style.width = w.style.height = px(size);
+  const trail = div("fin-trail"); trail.style.width = px(size * 5.5); trail.style.height = px(size * 0.9); trail.style.transform = `translateY(-50%) rotate(${angle}deg)`;
+  const pts = []; for (let i = 0; i < 11; i++) { const a = (i / 11) * Math.PI * 2, r = 42 + rnd(-7, 6); pts.push(`${(50 + Math.cos(a) * r).toFixed(1)},${(50 + Math.sin(a) * r).toFixed(1)}`); }
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 100 100"); svg.setAttribute("class", "fin-rock");
+  svg.innerHTML = `<defs><radialGradient id="mr" cx="38%" cy="34%" r="70%"><stop offset="0" stop-color="#ffd27a"/><stop offset=".22" stop-color="#ff7a1a"/><stop offset=".5" stop-color="#7a2a0a"/><stop offset="1" stop-color="#1c0803"/></radialGradient></defs>
+    <polygon points="${pts.join(" ")}" fill="url(#mr)"/>
+    <path d="M30 40l12 6 6 14 12 4M58 26l-4 12 10 8M36 66l10-4" fill="none" stroke="#ffcf6a" stroke-width="2.4" stroke-linecap="round" opacity=".95"/>
+    <circle cx="64" cy="62" r="6" fill="#3a1405" opacity=".7"/><circle cx="40" cy="30" r="4" fill="#3a1405" opacity=".6"/>`;
+  w.append(trail, div("fin-corona"), svg);
+  return w;
+}
+function meteorFall(L, from, to, ms, size, art) {
+  const ang = Math.atan2(to.y - from.y, to.x - from.x) * 180 / Math.PI;
+  if (art) {
+    // the Primal Being itself, high in the sky behind its fall
+    const ghost = div("fin-nibiru", { left: px(innerWidth / 2), top: px(innerHeight * .3), backgroundImage: `url("${art}")` }); L.append(ghost);
+    ghost.animate([{ opacity: 0, transform: "translate(-50%,-50%) scale(1.25)" }, { opacity: .55, transform: "translate(-50%,-50%) scale(1.05)", offset: .45 }, { opacity: 0, transform: "translate(-50%,-50%) scale(.9)" }], { duration: ms + 500, easing: "ease-out", fill: "forwards" });
+    setTimeout(() => ghost.remove(), ms + 560);
+  }
+  const sky = div("fin-sky"); L.append(sky);
+  sky.animate([{ opacity: 0 }, { opacity: 1, offset: .5 }, { opacity: .6 }], { duration: ms, fill: "forwards" });
+  setTimeout(() => sky.remove(), ms + 900);
+  const m = meteorRock(size, ang + 180);
+  m.style.left = px(from.x); m.style.top = px(from.y); L.append(m);
+  m.animate([{ transform: "translate(-50%,-50%) scale(.45)" }, { transform: `translate(calc(-50% + ${px(to.x - from.x)}), calc(-50% + ${px(to.y - from.y)})) scale(1.15)` }], { duration: ms, easing: "cubic-bezier(.45,0,.85,.6)", fill: "forwards" });
+  m.querySelector(".fin-rock").animate([{ transform: "rotate(0)" }, { transform: "rotate(260deg)" }], { duration: ms, fill: "forwards" });
+  // sparks shed along the way
+  const t0 = performance.now(), iv = setInterval(() => {
+    const k = Math.min(1, (performance.now() - t0) / ms), e = k * k, x = from.x + (to.x - from.x) * e, y = from.y + (to.y - from.y) * e;
+    for (let i = 0; i < 3; i++) {
+      const sp = div("fin-spark", { left: px(x + rnd(-size * .3, size * .3)), top: px(y + rnd(-size * .3, size * .3)) }); L.append(sp);
+      sp.animate([{ transform: "scale(1)", opacity: 1 }, { transform: `translate(${px(rnd(-40, 80) - (to.x - from.x) * .08)},${px(rnd(-60, 10) - (to.y - from.y) * .08)}) scale(0)`, opacity: 0 }], { duration: rnd(350, 700), easing: "ease-out", fill: "forwards" });
+      setTimeout(() => sp.remove(), 720);
+    }
+  }, 45);
+  setTimeout(() => { clearInterval(iv); m.remove(); }, ms + 20);
+}
+
 /** The finishing move on `side` ("me" or "op"). Resolves when the show is over (about 2.6 s). */
-export function runFinisher({ style = "shatter", side = "op", mat, title = "FINISH!" }) {
+export function runFinisher({ style = "shatter", side = "op", mat, title = "FINISH!", art = "" }) {
   return new Promise((done) => {
     if (!mat || reduced()) { done(); return; }
     style = STYLES.includes(style) ? style : "shatter";
@@ -38,14 +80,13 @@ export function runFinisher({ style = "shatter", side = "op", mat, title = "FINI
       : side === "op" ? { x: m.left, y: m.top, w: m.width, h: m.height * .4 } : { x: m.left, y: m.top + m.height * .6, w: m.width, h: m.height * .4 };
     const cx = half.x + half.w / 2, cy = half.y + half.h / 2;
     const cards = [...mat.querySelectorAll(`.zone.${side} .card, #${side}-grave .card, #${side}-banished .card, #${side}-extra .card, #${side}-deck .card, #${side === "op" ? "opHand" : "myHand"} .card, .zone.emz .card[data-side="${side}"]`)].filter((c) => c.getBoundingClientRect().width > 4);
-    const t0 = style === "meteor" ? 650 : style === "thunder" ? 700 : style === "vortex" ? 300 : style === "slash" ? 520 : 380;
+    const t0 = style === "meteor" ? 1300 : style === "thunder" ? 700 : style === "vortex" ? 300 : style === "slash" ? 520 : 380;
 
     // --- prelude
     if (style === "meteor") {
-      const met = div("fin-meteor", { left: px(innerWidth * .95), top: px(-120) });
-      L.append(met);
-      met.animate([{ transform: "translate(0,0) scale(.6)" }, { transform: `translate(${px(cx - innerWidth * .95)},${px(cy + 120)}) scale(1.3)` }], { duration: t0, easing: "cubic-bezier(.5,0,1,1)", fill: "forwards" });
-      setTimeout(() => met.remove(), t0 + 40);
+      const size = Math.max(80, Math.min(innerWidth, innerHeight) * .26);
+      meteorFall(L, { x: Math.min(innerWidth + size * .3, cx + innerWidth * .6), y: -size * .8 }, { x: cx, y: cy }, t0, size, art);
+      setTimeout(() => { const cr = div("fin-crater", { left: px(cx), top: px(cy) }); L.append(cr); cr.animate([{ transform: "translate(-50%,-50%) scale(.2)", opacity: 1 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 1, offset: .3 }, { transform: "translate(-50%,-50%) scale(1.1)", opacity: 0 }], { duration: 1800, easing: "ease-out", fill: "forwards" }); }, t0);
     } else if (style === "thunder") {
       [0, 220, 420].forEach((d, i) => setTimeout(() => {
         const b = bolt(cx + (i - 1) * half.w * .28, 0, cy + rnd(-10, 20)); L.append(b);
@@ -125,11 +166,7 @@ export function zoneStrike(style, zone) {
   const box = div("fin-mini " + style, { left: px(cx), top: px(cy) });
   L.append(box);
   if (style === "thunder") { const b = bolt(cx, 0, cy); L.append(b); b.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 420, fill: "forwards" }); setTimeout(() => b.remove(), 460); }
-  if (style === "meteor") {
-    const met = div("fin-meteor small", { left: px(cx + 260), top: px(cy - 300) }); L.append(met);
-    met.animate([{ transform: "translate(0,0)" }, { transform: "translate(-260px,300px)" }], { duration: 380, easing: "cubic-bezier(.5,0,1,1)", fill: "forwards" });
-    setTimeout(() => met.remove(), 420);
-  }
+  if (style === "meteor") meteorFall(L, { x: cx + 300, y: cy - 340 }, { x: cx, y: cy }, 420, 44, "");
   box.animate([{ transform: "translate(-50%,-50%) scale(.2)", opacity: 1 }, { transform: "translate(-50%,-50%) scale(1.6)", opacity: 0 }], { duration: 900, delay: style === "meteor" ? 360 : 0, easing: "ease-out", fill: "forwards" });
   setTimeout(() => box.remove(), 1300);
 }

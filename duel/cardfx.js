@@ -198,8 +198,12 @@ function sfx(L, txt, n, col, ms) {
   }
 }
 /** Big title text across the screen. */
+// keep a big word inside the screen on narrow (portrait) screens: shrink the font, never cut the text
+function fitWord(t, L) {
+  try { const W = (L.clientWidth || innerWidth) * .94, w = t.scrollWidth; if (w > W) { const fs = parseFloat(getComputedStyle(t).fontSize); t.style.fontSize = Math.max(14, Math.floor(fs * W / w)) + "px"; } } catch {}
+}
 function word(L, txt, cls, T, at = .3, top = "62%") {
-  const t = div("cf-word2 " + (cls || ""), { top }, txt); L.append(t); later(t, T);
+  const t = div("cf-word2 " + (cls || ""), { top }, txt); L.append(t); later(t, T); fitWord(t, L);
   A(t, [{ opacity: 0, transform: "scale(1.6)" }, { opacity: 0, transform: "scale(1.6)", offset: Math.max(0, at - .08) }, { opacity: 1, transform: "scale(1)", offset: at }, { opacity: 1, transform: "scale(1.02)", offset: .88 }, { opacity: 0, transform: "scale(1.08)" }], { duration: T, fill: "both", easing: "cubic-bezier(.2,.9,.3,1)" });
   return t;
 }
@@ -262,7 +266,7 @@ export function show(style, { kind = "finale", src = "", title = "", line = "", 
         // comic panels slam in, red and black, with a cut-out title
         for (let i = 0; i < 5; i++) { const p = div("cf-panel p" + i); if (src) p.style.backgroundImage = `url("${src}")`; L.append(p); later(p, T); A(p, [{ transform: `translateX(${i % 2 ? 130 : -130}%) skewX(-14deg)`, opacity: 0 }, { transform: "translateX(0) skewX(-14deg)", opacity: 1, offset: .08 + i * .05 }, { transform: "translateX(0) skewX(-14deg)", opacity: 1, offset: .86 }, { transform: `translateX(${i % 2 ? -40 : 40}%) skewX(-14deg)`, opacity: 0 }], { duration: T, fill: "both", easing: "cubic-bezier(.2,.9,.3,1)" }); }
         const t = div("cf-cutout"); "ALL-OUT ATTACK".split("").forEach((ch, i) => { const b = document.createElement("b"); b.textContent = ch; b.style.setProperty("--r", `${(i * 37 % 13) - 6}deg`); t.append(b); });
-        L.append(t); later(t, T); A(t, [{ transform: "translate(-50%,-50%) scale(2.4) rotate(-8deg)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(2.4) rotate(-8deg)", opacity: 0, offset: .3 }, { transform: "translate(-50%,-50%) scale(1) rotate(-6deg)", opacity: 1, offset: .38 }, { transform: "translate(-50%,-50%) scale(1.04) rotate(-6deg)", opacity: 1, offset: .9 }, { transform: "translate(-50%,-50%) scale(1.2) rotate(-6deg)", opacity: 0 }], { duration: T, fill: "both", easing: "cubic-bezier(.2,.9,.3,1)" });
+        L.append(t); later(t, T); fitWord(t, L); A(t, [{ transform: "translate(-50%,-50%) scale(2.4) rotate(-8deg)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(2.4) rotate(-8deg)", opacity: 0, offset: .3 }, { transform: "translate(-50%,-50%) scale(1) rotate(-6deg)", opacity: 1, offset: .38 }, { transform: "translate(-50%,-50%) scale(1.04) rotate(-6deg)", opacity: 1, offset: .9 }, { transform: "translate(-50%,-50%) scale(1.2) rotate(-6deg)", opacity: 0 }], { duration: T, fill: "both", easing: "cubic-bezier(.2,.9,.3,1)" });
         flag("cf-redshift", T * .3, T * .9);
         break;
       }

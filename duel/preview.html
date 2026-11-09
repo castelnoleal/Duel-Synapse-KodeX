@@ -88,7 +88,7 @@ async function loop() {
     await new Promise((r) => setTimeout(r, 500));
     zoneStrike(style, sig);
     await new Promise((r) => setTimeout(r, 1300));
-    await runFinisher({ style, side: "op", mat: f, title: "FINISH!" });
+    await runFinisher({ style, side: "op", mat: f, title: "FINISH!", art: style === "meteor" ? "https://kodex.meiocg.org/img/27204311.jpg" : "" });
     await new Promise((r) => setTimeout(r, 700));
   }
 }

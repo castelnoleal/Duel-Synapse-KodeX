@@ -118,7 +118,7 @@
             <div id="testHand" class="test-hand"></div>
           </details>
           <button class="btn primary wide" id="soloStart" type="button" disabled>Start playtest</button>
-          <label class="btn ghost wide replay-open" id="replayOpen"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M10 9l5 3-5 3z"/></svg><span>Watch a replay file (.yrp / .yrpX)</span><input type="file" id="replayFile" accept=".yrp,.yrpx,.yrpX,application/octet-stream" hidden></label>
+          <button type="button" class="btn ghost wide replay-open" id="replayOpen"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M10 9l5 3-5 3z"/></svg><span>Replays</span><small id="rpCount" class="count"></small></button>
         </div>
 
         <div class="pane" data-pane="host" id="hostMode" hidden>
@@ -200,12 +200,19 @@
   </section>
 
   <div id="replayBar" class="replay-bar" hidden role="toolbar" aria-label="Replay">
-    <b class="rb-t">Replay</b>
-    <button type="button" class="rb-b" id="rbPlay" aria-label="Pause">❚❚</button>
-    <button type="button" class="rb-b" id="rbStep" aria-label="Next step">▶|</button>
-    <span class="rb-speed" role="radiogroup" aria-label="Speed"><button type="button" data-sp="0.5">½×</button><button type="button" data-sp="1" aria-pressed="true">1×</button><button type="button" data-sp="2">2×</button><button type="button" data-sp="4">4×</button></span>
-    <span class="rb-pos" id="rbPos"></span>
-    <button type="button" class="rb-b" id="rbExit" aria-label="Close the replay">×</button>
+    <input type="range" id="rbSeek" class="rb-seek" min="0" max="1" value="0" step="1" aria-label="Replay position">
+    <div class="rb-row">
+      <button type="button" class="rb-b" id="rbPrevTurn" aria-label="Back to the start of the turn"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 5v14M19 5l-9 7 9 7z"/></svg></button>
+      <button type="button" class="rb-b" id="rbBack" aria-label="Previous move"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <button type="button" class="rb-b rb-main" id="rbPlay" aria-label="Pause">❚❚</button>
+      <button type="button" class="rb-b" id="rbStep" aria-label="Next move"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+      <button type="button" class="rb-b" id="rbNextTurn" aria-label="Next turn"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 5v14M5 5l9 7-9 7z"/></svg></button>
+      <span class="rb-pos" id="rbPos"></span>
+      <button type="button" class="rb-b rb-txt" id="rbSpeed" aria-label="Speed">1×</button>
+      <button type="button" class="rb-b" id="rbView" aria-label="Switch view (watch from the other player's side)"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M3 8l4-4 4 4M17 20V4M13 16l4 4 4-4"/></svg></button>
+      <button type="button" class="rb-b rb-rec" id="rbRec" hidden aria-label="Record a video clip (KodeX Premium)"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="6" fill="currentColor" stroke="none"/></svg></button>
+      <button type="button" class="rb-b" id="rbExit" aria-label="Close the replay">×</button>
+    </div>
   </div>
   <button id="panelBtn" class="panel-fab" type="button" aria-label="Duel log and options"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg></button>
   <button id="emoteBtn" class="emote-fab" type="button" aria-label="Emotes" aria-expanded="false" aria-controls="emotePick"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0"/><path d="M9 9.5h.01M15 9.5h.01"/></svg></button>
@@ -274,6 +281,29 @@
 <div id="bigFx" class="big-fx" aria-live="polite"></div>
 <div id="hoverPeek" class="hover-peek" hidden></div>
 <dialog id="peek" class="dlg peek" aria-label="Card details"><button class="icon peek-close" id="peekClose" type="button" aria-label="Close">×</button><div id="peekBody" class="peek-body"></div></dialog>
+<dialog id="recDlg" class="dlg rec-dlg"><div class="pile-head"><h3>Record a video clip</h3><button class="icon" id="recClose" type="button" aria-label="Close">×</button></div>
+  <p class="hint">The replay is drawn as a video (not a screen recording), from where it is now. KodeX Premium.</p>
+  <div class="rec-fmt" role="radiogroup" aria-label="Shape">
+    <label><input type="radio" name="recFmt" value="landscape" checked><span><i class="r169"></i>Landscape<small>16:9 · YouTube</small></span></label>
+    <label><input type="radio" name="recFmt" value="portrait"><span><i class="r916"></i>Portrait<small>9:16 · Reels, TikTok, Shorts</small></span></label>
+    <label><input type="radio" name="recFmt" value="square"><span><i class="r11"></i>Square<small>1:1 · Posts</small></span></label>
+  </div>
+  <div class="grid2">
+    <label class="field"><span>Quality</span><select id="recSize"><option value="1080">1080p (Full HD)</option><option value="1440">1440p (2K)</option><option value="2160">2160p (4K)</option></select></label>
+    <label class="field"><span>Frames per second</span><select id="recFps"><option value="30">30</option><option value="60">60</option></select></label>
+  </div>
+  <div class="grid2">
+    <label class="field"><span>Until</span><select id="recUntil"><option value="end">The end of the duel</option><option value="turn">The end of this turn</option><option value="stop">I press stop</option></select></label>
+    <label class="field"><span>Speed</span><select id="recSpeed"><option value="1">1×</option><option value="2">2×</option><option value="0.5">½×</option></select></label>
+  </div>
+  <label class="toggle"><input type="checkbox" id="recMark" checked><span>KodeX · meiocg.org mark in the corner</span></label>
+  <p class="hint" id="recNote"></p>
+  <div class="dlg-actions"><button class="btn" id="recCancel" type="button">Cancel</button><button class="btn primary" id="recGo" type="button">Start recording</button></div></dialog>
+<div id="recBox" class="rec-box" hidden><div class="rec-top"><i></i><b id="recTime">0:00</b><button type="button" class="btn" id="recStop">Stop &amp; save</button></div></div>
+<dialog id="rpLib" class="dlg rp-lib"><div class="pile-head"><h3>Replays</h3><button class="icon" id="rpLibClose" type="button" aria-label="Close">×</button></div>
+  <p class="hint">Saved duels stay here to watch anytime. Open a .yrp file to add one.</p>
+  <ul id="rpList" class="rp-list"></ul>
+  <div class="dlg-actions"><label class="btn" id="rpOpenFile">Open a replay file<input type="file" id="replayFile2" accept=".yrp,.yrpx,application/octet-stream" hidden></label></div></dialog>
 <dialog id="orderDlg" class="dlg order-dlg"><div class="pile-head"><h3>Arrange your deck</h3><button class="icon" id="orderClose" type="button" aria-label="Close">×</button></div><p class="hint">Top of the deck first. The first cards are your opening hand.</p><ol id="orderList" class="order-list"></ol><div class="dlg-actions"><button class="btn" id="orderReset" type="button">Reset</button><button class="btn primary" id="orderOk" type="button">Done</button></div></dialog>
 <div id="revealFx" class="reveal-fx" aria-live="polite"></div>
 <dialog id="reveal" class="dlg"><div class="pile-head"><h3 id="revealTitle">Revealed</h3><button class="icon" id="revealClose" type="button" aria-label="Close">×</button></div><div id="revealBody" class="pile-body reveal-body"></div><div class="dlg-actions"><button class="btn primary" id="revealOk" type="button">OK</button></div></dialog>

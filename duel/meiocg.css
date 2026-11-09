@@ -360,11 +360,11 @@ body.at-table .blob { animation-duration: 60s; }
   -webkit-text-stroke: 2px #0c0f1f; paint-order: stroke fill; text-shadow: 4px 4px 0 #f0b429, 0 0 30px #c48bff; transform: skewX(-8deg); }
 .cf-sfx { position: fixed; font: 900 italic 60px/1 "Chakra Petch", system-ui, sans-serif; -webkit-text-stroke: 2px #0c0f1f; paint-order: stroke fill; text-shadow: 4px 4px 0 #0c0f1f, 0 0 20px currentColor; white-space: nowrap; }
 .cf-fist { font-size: clamp(36px, 10vmin, 90px); filter: drop-shadow(0 0 10px #ff5a3a); }
-.cf-rushword { left: 0; right: 0; top: 70%; text-align: center; font: 900 italic clamp(30px, 9vmin, 84px)/1 "Chakra Petch", system-ui, sans-serif; color: #ffcf5a; -webkit-text-stroke: 2px #0c0f1f; paint-order: stroke fill; white-space: nowrap; }
+.cf-rushword { left: 0; right: 0; top: 78%; text-align: center; font: 900 italic clamp(30px, 9vmin, 84px)/1 "Chakra Petch", system-ui, sans-serif; color: #ffcf5a; -webkit-text-stroke: 2px #0c0f1f; paint-order: stroke fill; white-space: nowrap; }
 .cf-tswave { left: 50%; top: 50%; width: 260vmax; height: 260vmax; border-radius: 50%; background: #fff; mix-blend-mode: difference; }
 .cf-clock { left: 50%; top: 40%; font-size: clamp(80px, 24vmin, 200px); }
 .cf-tsword { left: 0; right: 0; top: 62%; text-align: center; font: 900 clamp(34px, 10vmin, 96px)/1 "Chakra Petch", system-ui, sans-serif; color: #fff; text-shadow: 0 0 30px #8d99ff, 4px 4px 0 #000; }
-.cf-tbc { left: 3vw; bottom: 8vh; display: flex; align-items: center; height: clamp(44px, 9vmin, 76px); padding: 0 34px 0 18px; background: #3b2a12; border: 3px solid #e8c46a; clip-path: polygon(0 0, 88% 0, 100% 50%, 88% 100%, 0 100%); }
+.cf-tbc { left: 3vw; bottom: 14vh; display: flex; align-items: center; height: clamp(44px, 9vmin, 76px); padding: 0 34px 0 18px; background: #3b2a12; border: 3px solid #e8c46a; clip-path: polygon(0 0, 88% 0, 100% 50%, 88% 100%, 0 100%); }
 .cf-tbc-t { font: 900 italic clamp(16px, 4.2vmin, 36px)/1 "Chakra Petch", system-ui, sans-serif; color: #f6e2a8; letter-spacing: .06em; white-space: nowrap; }
 .cf-line { left: 50%; bottom: 8vh; transform: translateX(-50%); font: 800 clamp(13px, 2.6vmin, 20px)/1.2 "Chakra Petch", system-ui, sans-serif; letter-spacing: .14em; text-transform: uppercase; color: #ffe9a8; text-shadow: 0 0 12px #000, 0 2px 0 #000; white-space: nowrap; }
 .cf-ace-bg { inset: 0; background: radial-gradient(ellipse at 50% 45%, #1b2a8a99 10%, #0c0f1ff0 72%); }
@@ -403,7 +403,7 @@ body.cf-sepia .arena, body.cf-sepia #table > :not(.card-fx) { filter: sepia(.85)
 .cf-panel.p0 { left: -4vw; } .cf-panel.p1 { left: 18vw; } .cf-panel.p2 { left: 40vw; } .cf-panel.p3 { left: 62vw; } .cf-panel.p4 { left: 84vw; }
 .cf-panel::after { content: ""; position: absolute; inset: 0; background: linear-gradient(160deg, #e0102acc, #0a0002aa 60%); mix-blend-mode: multiply; }
 .cf-cutout { left: 50%; top: 48%; display: flex; flex-wrap: nowrap; gap: 2px; white-space: nowrap; }
-.cf-cutout b { display: inline-block; font: 900 clamp(26px, 8vmin, 80px)/1 "Chakra Petch", system-ui, sans-serif; padding: .08em .14em; background: #fff; color: #0a0002; transform: rotate(var(--r)); box-shadow: 4px 4px 0 #e0102a; }
+.cf-cutout b { display: inline-block; font: 900 min(clamp(26px, 8vmin, 80px), 5.6vw)/1 "Chakra Petch", system-ui, sans-serif; padding: .08em .14em; background: #fff; color: #0a0002; transform: rotate(var(--r)); box-shadow: 4px 4px 0 #e0102a; }
 .cf-cutout b:nth-child(3n) { background: #e0102a; color: #fff; box-shadow: 4px 4px 0 #0a0002; }
 .cf-cutout b:nth-child(4n+1) { background: #0a0002; color: #fff; font-style: italic; }
 .cf-cutout b:nth-child(4) { width: .4em; background: none; box-shadow: none; }
@@ -531,3 +531,33 @@ body.ef-comeback .arena, body.ef-comeback #table > :not(.end-fx):not(.card-fx) {
 .order-list .nm { display: flex; gap: 8px; min-width: 0; font-size: 13px; } .order-list .nm b { color: var(--muted); min-width: 20px; } .order-list .nm span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .order-list .ac { display: flex; gap: 2px; } .order-list .ac .icon { width: 32px; height: 32px; font-size: 14px; }
 .pref-row { margin: 6px 0; } .pref-row select { min-height: 36px; }
+
+/* ---------- v61: steady effects on phones ----------
+   On phones, very large animated layers (several times the screen), blend modes and blurred backgrounds behind them
+   ran the graphics memory out: parts of the table went black or the effects looked cut. Effects are now clipped to the
+   screen, never bigger than they need to be, and the table has no blurred backgrounds. */
+.card-fx, .move-fx, #finFx, .fin-fx, .end-fx, .chain-fx, .reveal-fx { contain: layout paint; overflow: hidden; }
+.card-fx > *, .move-fx > * { will-change: auto; }
+body.at-table .duelist, body.at-table .panel, body.at-table .top, body.at-table .side, body.at-table .sheet, body.at-table .chain-show { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+body.at-table .duelist { background: #121734; }
+.cf-flash, .mv-slice, .mv-impact, .cf-panel::after { mix-blend-mode: normal !important; }
+.mv-impact { opacity: .85; }
+.cf-wave, .ef-wave { width: min(220vmax, 2400px) !important; height: min(220vmax, 2400px) !important; }
+.cf-tswave { width: min(260vmax, 2600px) !important; height: min(260vmax, 2600px) !important; }
+.cf-starburst, .ef-rays { width: min(150vmax, 1900px) !important; height: min(150vmax, 1900px) !important; }
+.cf-slash, .fin-slash { width: min(140vmax, 2200px) !important; }
+@keyframes finRing { to { width: min(160vmax, 2200px); height: min(160vmax, 2200px); opacity: 0; border-width: 1px; } }
+/* v61 Meteor: Nibiru's fall — a burning rock with a plasma trail, not a ball */
+.fin-met { position: absolute; display: grid; place-items: center; transform: translate(-50%, -50%); }
+.fin-rock { position: relative; z-index: 2; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 0 10px #ffb347); }
+.fin-corona { position: absolute; inset: -38%; z-index: 1; border-radius: 50%; background: radial-gradient(circle, #fff6d0 0 18%, #ffb347cc 32%, #ff5a1a88 50%, transparent 68%); animation: finCorona .12s steps(2) infinite; }
+@keyframes finCorona { 50% { transform: scale(1.07) rotate(8deg); } }
+.fin-trail { position: absolute; left: 50%; top: 50%; z-index: 0; transform-origin: 0 50%; border-radius: 50% 0 0 50% / 50% 0 0 50%;
+  background: linear-gradient(90deg, #fff7e0 0%, #ffd36b 8%, #ff7a1a 26%, #c2300a99 52%, #5a1a0a44 74%, transparent 100%);
+  -webkit-mask: linear-gradient(0deg, transparent, #000 30%, #000 70%, transparent); mask: linear-gradient(0deg, transparent, #000 30%, #000 70%, transparent); }
+.fin-spark { position: absolute; width: 7px; height: 7px; border-radius: 50%; background: #ffd36b; box-shadow: 0 0 8px #ff7a1a; }
+.fin-sky { position: absolute; inset: 0; background: radial-gradient(120% 80% at 90% 0%, #ff5a1a44, transparent 55%), linear-gradient(180deg, #05020899, transparent 70%); }
+.fin-nibiru { position: absolute; width: min(70vmin, 520px); aspect-ratio: 1; background: center 30% / cover no-repeat; border-radius: 50%;
+  -webkit-mask: radial-gradient(circle, #000 35%, transparent 70%); mask: radial-gradient(circle, #000 35%, transparent 70%); }
+.fin-crater { position: absolute; width: min(60vmin, 460px); aspect-ratio: 2.2; border-radius: 50%; background: radial-gradient(ellipse, #1a0803 0 22%, #ff7a1a88 34%, #ffb34744 46%, transparent 64%); }
+.fin-meteor { display: none; }

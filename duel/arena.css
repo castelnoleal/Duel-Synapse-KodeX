@@ -982,3 +982,43 @@ body.replaying #table { padding-top: 54px; }
   .play-panel #aiNote { display: none; }
   .play-panel .pane-body .btn.primary.wide { box-shadow: 0 -14px 0 2px #121838, 0 -30px 16px #121838e6, 0 6px 18px #3347f055; }
 }
+/* v61 replays: controls at the bottom, out of the way of the plates; they fade while it plays */
+.replay-bar { top: auto; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); flex-direction: column; align-items: stretch; gap: 4px; width: min(560px, calc(100vw - 16px)); padding: 6px 8px 8px; border-radius: 18px; background: #0b1024e6; border: 1px solid #ffffff1f; box-shadow: 0 12px 30px #000a; z-index: 61; transition: opacity .3s, transform .3s; }
+.replay-bar.dim { opacity: 0; transform: translateX(-50%) translateY(12px); pointer-events: none; }
+.replay-bar .rb-row { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+.replay-bar .rb-b { min-width: 38px; height: 38px; padding: 0 8px; display: grid; place-items: center; background: #1d2450; }
+.replay-bar .rb-main { min-width: 46px; background: #3347f0; }
+.replay-bar .rb-txt { font-weight: 800; }
+.replay-bar .rb-rec { color: #ff4d5e; }
+.replay-bar .rb-pos { flex: 1; text-align: center; font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block !important; }
+.rb-seek { width: 100%; height: 18px; margin: 0; accent-color: #f0b429; }
+body.replaying #table { padding-top: 0; padding-bottom: 92px; }
+body.replaying #status, body.replaying #emoteBtn, body.replaying #panelBtn { visibility: hidden; }
+@media (max-width: 420px) { .replay-bar .rb-b { min-width: 34px; height: 36px; padding: 0 4px; } .replay-bar .rb-pos { font-size: 10.5px; } }
+.rp-lib { width: min(560px, 94vw); }
+.rp-list { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 6px; max-height: 60vh; overflow-y: auto; }
+.rp-list li { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: #ffffff08; border: 1px solid #ffffff12; }
+.rp-list li.empty { color: var(--muted); justify-content: center; text-align: center; }
+.rp-t { flex: 1; min-width: 0; display: grid; } .rp-t b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .rp-t small { color: var(--muted); font-size: 11.5px; }
+.rp-ac { display: flex; gap: 6px; align-items: center; } .rp-ac .btn { min-height: 36px; padding: 0 12px; }
+.replay-open .count { margin-left: auto; }
+/* v61 video clips (KodeX Premium) */
+.rec-dlg { width: min(520px, 94vw); }
+.rec-fmt { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; }
+.rec-fmt input { position: absolute; opacity: 0; }
+.rec-fmt span { display: grid; justify-items: center; gap: 4px; padding: 12px 6px; border-radius: 14px; border: 2px solid #ffffff1a; background: #ffffff08; text-align: center; font-weight: 800; font-size: 13px; cursor: pointer; }
+.rec-fmt small { font-weight: 500; color: var(--muted); font-size: 10.5px; }
+.rec-fmt input:checked + span { border-color: #f0b429; background: #f0b42914; }
+.rec-fmt input:focus-visible + span { outline: 2px solid #8d99ff; }
+.rec-fmt i { display: block; border: 2px solid currentColor; border-radius: 4px; opacity: .8; }
+.rec-fmt .r169 { width: 40px; height: 22px; } .rec-fmt .r916 { width: 18px; height: 32px; } .rec-fmt .r11 { width: 26px; height: 26px; }
+.rec-box { position: fixed; z-index: 62; right: calc(10px + env(safe-area-inset-right, 0px)); top: calc(10px + env(safe-area-inset-top, 0px)); padding: 8px; border-radius: 14px; background: #0b1024f0; border: 1px solid #ff4d5e66; box-shadow: 0 10px 30px #000a; display: grid; gap: 6px; }
+.rec-box[hidden] { display: none; }
+.rec-top { display: flex; align-items: center; gap: 8px; }
+.rec-top i { width: 10px; height: 10px; border-radius: 50%; background: #ff4d5e; animation: recBlink 1s steps(2) infinite; }
+.rec-top b { font-variant-numeric: tabular-nums; font-size: 13px; }
+.rec-top .btn { min-height: 32px; padding: 0 10px; font-size: 12px; margin-left: auto; }
+@keyframes recBlink { 50% { opacity: .2; } }
+.rec-prev { display: block; border-radius: 8px; width: 180px; height: auto; } .rec-prev.portrait { width: 96px; } .rec-prev.square { width: 130px; }
+body.recording .replay-bar .rb-rec { background: #ff4d5e; color: #fff; }
+body.replaying #sideFab { bottom: calc(118px + env(safe-area-inset-bottom, 0px)); }

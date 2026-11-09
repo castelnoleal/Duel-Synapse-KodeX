@@ -71,6 +71,7 @@ async function init(base) {
 }
 
 // Replay files: the recorded answers are fed back one at a time, at the chosen speed.
+const soon = (f) => { const ch = new MessageChannel(); ch.port1.onmessage = () => { ch.port1.close(); f(); }; ch.port2.postMessage(0); };   // next task, without the 4 ms timer floor
 let rp = null;
 function replayStep() {
   if (!rp || !host || host.ended) return;
@@ -87,10 +88,27 @@ function replayStep() {
 const C_PROMPT_DELAY = { 11: 900, 10: 800, 16: 380, 12: 420, 13: 420 };   // idle and battle commands linger a little longer
 
 function emit(viewer, packet) {
+  // replays: while seeking (going back, or skipping ahead) nothing is shown until the target move
+  if (rp && rp.seek != null) {
+    if (viewer !== 3) return;
+    if (packet.events.some((e) => e.type === 40)) rp.turnSeen++;               // MSG_NEW_TURN
+    const there = packet.ended || (rp.seek === "turn" ? rp.turnSeen >= rp.seekTurn : rp.i >= rp.seek);
+    if (!there && host && host.pending && !host.ended && rp.i < rp.r.responses.length) { soon(() => { if (rp && host && host.pending && !host.ended && rp.seek != null) host.respondRaw(rp.r.responses[rp.i++]); }); return; }
+    rp.seek = null; rp.paused = rp.pauseAfter; rp.turnSeenNow = rp.turnSeen;
+    post({ t: "packet", viewer, packet: { ...packet, seek: true } });
+    post({ t: "replaypos", i: rp.i, n: rp.r.responses.length, turns: rp.turnAt });
+    replayStep();
+    return;
+  }
   post({ t: "packet", viewer, packet });
   if (rp && viewer === 3) {
-    if (packet.events.some((e) => e.type === 1)) { host.finish(-1, "The replay went out of step here: it was recorded with different card scripts.", []); return; }
-    post({ t: "replaypos", i: rp.i, n: rp.r.responses.length });
+    if (packet.events.some((e) => e.type === 40)) { rp.turnSeenNow = (rp.turnSeenNow || 0) + 1; if (!rp.turnAt.includes(rp.i)) rp.turnAt.push(rp.i); }
+    // a rejected answer in an older replay: the engine asks again and the next recorded answer is the one it took
+    if (packet.events.some((e) => e.type === 1)) {
+      rp.retries = (rp.retries || 0) + 1;
+      if (rp.retries > 8) { host.finish(-1, "The replay went out of step here: it was recorded with different card scripts.", []); return; }
+    } else rp.retries = 0;
+    post({ t: "replaypos", i: rp.i, n: rp.r.responses.length, turns: rp.turnAt });
     replayStep();
     return;
   }
@@ -143,10 +161,28 @@ self.onmessage = async (ev) => {
       const unknown = [...new Set(codes)].filter((c) => !db.has(c));
       core.missing.clear();
       await store.preload(codes.filter((c) => db.has(c)), (done, total) => post({ t: "progress", done, total }));
-      rp = { r, i: 0, speed: m.speed || 1, paused: false, timer: 0 };
+      rp = { r, i: 0, speed: m.speed || 1, paused: false, timer: 0, turnAt: [], turnSeen: 0, seek: null };
       post({ t: "replayinfo", names: r.names, kind: r.kind, turns: r.turns || 0, answers: r.responses.length, unknown: unknown.length, time: r.time });
       host = new DuelHost({ core, db, scripts: store, decks: r.decks, names: r.names, options: { replay: r }, emit });
       host.start();
+    } else if (m.cmd === "replaySeek") {
+      // go to a move (an answer number) or the start of a turn: back means re-running the duel from the start, fast
+      if (!rp || !host) return;
+      clearTimeout(rp.timer);
+      const target = m.turn != null ? null : Math.max(0, Math.min(rp.r.responses.length, m.to | 0));
+      const back = m.turn != null ? m.turn <= rp.turnSeenNow : target < rp.i;
+      rp.pauseAfter = m.paused !== false;
+      if (m.turn != null) { rp.seek = "turn"; rp.seekTurn = m.turn; } else rp.seek = target;
+      if (back || host.ended) {
+        host.destroy();
+        rp.i = 0; rp.turnSeen = 0; rp.retries = 0;
+        host = new DuelHost({ core, db, scripts: store, decks: rp.r.decks, names: rp.r.names, options: { replay: rp.r }, emit });
+        host.start();
+      } else if (host.pending && !host.ended) {
+        rp.turnSeen = rp.turnSeenNow || 0;
+        if (rp.seek !== "turn" && rp.i >= rp.seek) { rp.seek = null; rp.paused = rp.pauseAfter; post({ t: "replaypos", i: rp.i, n: rp.r.responses.length, turns: rp.turnAt }); return; }
+        host.respondRaw(rp.r.responses[rp.i++]);
+      }
     } else if (m.cmd === "replayCtl") {
       if (!rp) return;
       if (m.speed) rp.speed = m.speed;
