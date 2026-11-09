@@ -165,7 +165,9 @@ export class DuelHost {
       let stop = false;
       for (const msg of msgs) {
         if (msg.type === M.RETRY) {
-          // Invalid answer: ask the same player again.
+          // Invalid answer: ask the same player again. The rejected answer is left out of the replay, so a replay
+          // only holds answers the engine took (a replay with a rejected answer in it plays out of step).
+          if (this.rec && !this.opt.replay && this.rec.responses.length) this.rec.responses.pop();
           if (this.lastPrompt) { this.pending = this.lastPrompt; events.push({ type: M.RETRY, player: this.lastPrompt.player }); stop = true; }
           continue;
         }

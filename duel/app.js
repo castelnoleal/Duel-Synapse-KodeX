@@ -15,6 +15,7 @@ import { entrance, attack, ENTRANCES, ATTACKS } from "./moves.js";
 import { staple, finale, ace, SHOWS, pickShow, SHOW_MIN, SHOW_MAX } from "./cardfx.js";
 import { cleanProfile, avatarHTML, cardHTML } from "./profile.js";
 import { breakProfile, comeback } from "./ending.js";
+import { Clip, canRecord } from "./video.js";
 
 const M = C.MSG;
 const $ = (s) => document.querySelector(s);
@@ -475,29 +476,154 @@ setInterval(() => {
 }, 1000);
 
 // ----- replay files (.yrp from this Arena or desktop clients, .yrpX from desktop clients) -----
-async function watchReplay(file) {
-  if (!file) return;
-  if (file.size > 8e6) { toast("That file is too large to be a replay."); return; }
-  const bytes = await file.arrayBuffer();
+// Saved replays live on this device (IndexedDB) to watch anytime; a replay plays with full controls: back and
+// forward a move or a turn, a position slider, speed, either player's side, and (KodeX Premium) video clips.
+const RPDB = (() => { let p = null; const open = () => p || (p = new Promise((ok, no) => { const r = indexedDB.open("arena-replays", 1); r.onupgradeneeded = () => r.result.createObjectStore("r", { keyPath: "id" }); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); }));
+  const tx = async (mode, f) => { const db = await open(); return new Promise((ok, no) => { const t = db.transaction("r", mode), st = t.objectStore("r"); const q = f(st); t.oncomplete = () => ok(q && q.result); t.onerror = () => no(t.error); }); };
+  return { all: () => tx("readonly", (st) => st.getAll()).then((x) => (x || []).sort((a, b) => b.saved - a.saved)).catch(() => []), put: (v) => tx("readwrite", (st) => st.put(v)).catch(() => null), del: (id) => tx("readwrite", (st) => st.delete(id)).catch(() => null), get: (id) => tx("readonly", (st) => st.get(id)).catch(() => null) }; })();
+function rpTitle(names) { return (names || []).filter(Boolean).join(" vs ") || "Replay"; }
+async function rpKeep(bytes, names, how) {
+  if (!bytes || !bytes.length) return null;
+  const all = await RPDB.all(), sig = bytes.length + ":" + Array.from(bytes.subarray(Math.max(0, bytes.length - 24))).join(",");
+  const same = all.find((r) => r.sig === sig); if (same) return same;
+  const v = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), sig, title: rpTitle(names), names: names || [], saved: Date.now(), how: how || "", size: bytes.length, bytes: new Uint8Array(bytes) };
+  await RPDB.put(v);
+  // keep the newest 60
+  for (const old of all.slice(59)) await RPDB.del(old.id);
+  rpBadge();
+  return v;
+}
+async function rpBadge() { const n = (await RPDB.all()).length; const c = $("#rpCount"); if (c) c.textContent = n ? String(n) : ""; }
+async function rpOpenLib() {
+  const list = $("#rpList"), all = await RPDB.all();
+  list.replaceChildren();
+  if (!all.length) list.append(el("li", "empty", "No saved replays yet. Save one after a duel, or open a .yrp file."));
+  for (const r of all) {
+    const li = el("li"), d = new Date(r.saved);
+    const t = el("div", "rp-t"); t.append(el("b", null, r.title), el("small", null, `${d.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })} · ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}${r.how ? " · " + r.how : ""}`));
+    const play = el("button", "btn primary", "Watch"); play.type = "button"; play.onclick = () => { $("#rpLib").close(); watchReplay(r.bytes.slice().buffer); };
+    const file = el("button", "btn ghost", "File"); file.type = "button"; file.setAttribute("aria-label", "Save as a .yrp file"); file.onclick = () => saveFile(`${r.title.replace(/[^\w-]+/g, "_").slice(0, 40)}.yrp`, "data:application/octet-stream;base64," + b64(r.bytes));
+    const del = el("button", "icon", "🗑"); del.type = "button"; del.setAttribute("aria-label", "Delete " + r.title); del.onclick = async () => { await RPDB.del(r.id); rpOpenLib(); rpBadge(); };
+    const ac = el("div", "rp-ac"); ac.append(play, file, del);
+    li.append(t, ac); list.append(li);
+  }
+  if (!$("#rpLib").open) $("#rpLib").showModal();
+}
+$("#replayOpen").addEventListener("click", rpOpenLib);
+$("#rpLibClose").addEventListener("click", () => $("#rpLib").close());
+$("#replayFile2").addEventListener("change", async (e) => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (!f) return; if (f.size > 8e6) { toast("That file is too large to be a replay."); return; } const b = new Uint8Array(await f.arrayBuffer()); await rpKeep(b, [f.name.replace(/\.yrpx?$/i, "").replace(/_/g, " ")], "file"); $("#rpLib").close(); watchReplay(b.slice().buffer); });
+rpBadge();
+async function watchReplay(src) {
+  if (!src) return;
+  const bytes = src instanceof ArrayBuffer ? src : await src.arrayBuffer();
+  if (bytes.byteLength > 8e6) { toast("That file is too large to be a replay."); return; }
   await startWorker();
-  S.mode = "replay"; S.team = 0; S.control = "one";
+  S.mode = "replay"; S.replayTeam = 0; S.team = 0; S.control = "one";
   enterTable();
   $("#loadingText").textContent = "Reading the replay…";
   $("#replayBar").hidden = false; $("#rbPos").textContent = ""; document.body.classList.add("replaying");
-  S.replay = { paused: false, speed: 1 };
-  replayBarState();
+  S.replay = { paused: false, speed: 1, i: 0, n: 0, turns: [] };
+  replayBarState(); rbWake();
+  $("#rbRec").hidden = !S.premium;
   S.worker.postMessage({ cmd: "playReplay", bytes, speed: 1 }, [bytes]);
 }
 function replayBarState() {
   const r = S.replay || {};
   $("#rbPlay").textContent = r.paused ? "▶" : "❚❚"; $("#rbPlay").setAttribute("aria-label", r.paused ? "Play" : "Pause");
-  document.querySelectorAll("#replayBar [data-sp]").forEach((b) => b.setAttribute("aria-pressed", String(Number(b.dataset.sp) === r.speed)));
+  $("#rbSpeed").textContent = (r.speed === 0.5 ? "½" : r.speed) + "×";
+  const sk = $("#rbSeek"); sk.max = String(Math.max(1, r.n || 1)); if (!S.rbDragging) sk.value = String(r.i || 0);
+  const t = S.packet ? S.packet.turn : 0;
+  $("#rbPos").textContent = r.n ? `Turn ${t} · ${r.i}/${r.n}` : "";
+  document.body.classList.toggle("rb-paused", !!r.paused);
 }
-$("#replayFile").addEventListener("change", (e) => { const f = e.target.files && e.target.files[0]; e.target.value = ""; watchReplay(f); });
+function rbSeek(msg) {
+  if (!S.replay || !S.worker) return;
+  S.pq = []; S.holdUntil = 0; clearTimeout(pqTimer);
+  S.replay.paused = msg.paused !== false; replayBarState();
+  S.worker.postMessage({ cmd: "replaySeek", paused: S.replay.paused, ...msg });
+}
+function rbTurnStart(turn) { return (S.replay.turns || [])[turn - 1]; }
 $("#rbPlay").addEventListener("click", () => { S.replay.paused = !S.replay.paused; replayBarState(); S.worker.postMessage({ cmd: "replayCtl", paused: S.replay.paused }); });
 $("#rbStep").addEventListener("click", () => { S.replay.paused = true; replayBarState(); S.worker.postMessage({ cmd: "replayCtl", step: true }); });
-document.querySelectorAll("#replayBar [data-sp]").forEach((b) => b.addEventListener("click", () => { S.replay.speed = Number(b.dataset.sp); replayBarState(); S.worker.postMessage({ cmd: "replayCtl", speed: S.replay.speed }); }));
-$("#rbExit").addEventListener("click", () => leaveTable());
+$("#rbBack").addEventListener("click", () => { if (S.replay.i > 0) rbSeek({ to: S.replay.i - 1 }); });
+$("#rbPrevTurn").addEventListener("click", () => { const t = S.packet ? S.packet.turn : 1, st = rbTurnStart(t); rbSeek({ turn: st != null && S.replay.i > st ? t : Math.max(1, t - 1) }); });
+$("#rbNextTurn").addEventListener("click", () => { const t = S.packet ? S.packet.turn : 0; rbSeek({ turn: t + 1 }); });
+$("#rbSpeed").addEventListener("click", () => { const sp = [0.5, 1, 2, 4], r = S.replay; r.speed = sp[(sp.indexOf(r.speed) + 1) % sp.length]; replayBarState(); S.worker.postMessage({ cmd: "replayCtl", speed: r.speed }); });
+$("#rbSeek").addEventListener("input", () => { S.rbDragging = true; $("#rbPos").textContent = `${$("#rbSeek").value}/${S.replay.n}`; });
+$("#rbSeek").addEventListener("change", () => { S.rbDragging = false; rbSeek({ to: Number($("#rbSeek").value) }); });
+$("#rbView").addEventListener("click", () => {
+  // watch from the other player's side
+  S.replayTeam = 1 - (S.replayTeam || 0); S.team = S.replayTeam; CARD_CACHE.clear(); S.pfDrawn = false;
+  if (S.packet) { const p = S.packet; S.prevLP = [p.state ? p.state.teams[0].lp : null, p.state ? p.state.teams[1].lp : null]; render(p); renderProfiles(); }
+  toast(`Watching from ${S.packet ? S.packet.names[S.team] : "the other side"}'s side`);
+});
+$("#rbExit").addEventListener("click", () => { recStop(false); leaveTable(); });
+// ----- KodeX Premium: video clips of replays -----
+function cardKind(code) { const c = S.db && S.db.get(Number(code)), t = c ? c.type : 0; return !c ? "x" : t & C.TYPE.SPELL ? "spell" : t & C.TYPE.TRAP ? "trap" : t & C.TYPE.LINK ? "link" : t & C.TYPE.XYZ ? "xyz" : t & C.TYPE.SYNCHRO ? "synchro" : t & C.TYPE.FUSION ? "fusion" : t & C.TYPE.RITUAL ? "ritual" : t & C.TYPE.EFFECT ? "effect" : "normal"; }
+$("#rbRec").addEventListener("click", () => {
+  if (!S.premium) { toast("Video clips come with KodeX Premium"); return; }
+  if (S.rec) { recStop(true); return; }
+  if (!canRecord()) { toast("This device can't record video here. Try the newest Chrome or Android System WebView."); return; }
+  S.replay.paused = true; replayBarState(); S.worker.postMessage({ cmd: "replayCtl", paused: true });
+  const v = load("duel:rec", {});
+  if (v.fmt) { const r = document.querySelector(`input[name=recFmt][value="${v.fmt}"]`); if (r) r.checked = true; }
+  for (const [id, k] of [["#recSize", "size"], ["#recFps", "fps"], ["#recUntil", "until"], ["#recSpeed", "speed"]]) if (v[k]) $(id).value = v[k];
+  $("#recMark").checked = v.mark !== false;
+  $("#recNote").textContent = `Recording starts at turn ${S.packet ? S.packet.turn : 1}. Go back first to start earlier.`;
+  $("#recDlg").showModal();
+});
+for (const id of ["#recClose", "#recCancel"]) $(id).addEventListener("click", () => $("#recDlg").close());
+$("#recGo").addEventListener("click", () => {
+  const fmt = (document.querySelector("input[name=recFmt]:checked") || {}).value || "landscape";
+  const cfg = { fmt, size: $("#recSize").value, fps: $("#recFps").value, until: $("#recUntil").value, speed: $("#recSpeed").value, mark: $("#recMark").checked };
+  save("duel:rec", cfg);
+  $("#recDlg").close();
+  const clip = new Clip({ format: fmt, size: Number(cfg.size), fps: Number(cfg.fps), watermark: cfg.mark,
+    packet: () => S.packet, team: () => S.team, art: (code) => artUrl(code), name: (code) => name(Number(code)), kind: cardKind,
+    profile: (team) => profileOf(team === S.team ? "me" : "op"), logo: LOGO, aces: (team) => fxOf(sideOfTeam(team)).aces });
+  let done;
+  try { done = clip.start(); } catch (e) { toast(e.message || "Could not start recording"); return; }
+  S.rec = { clip, cfg, turn: S.packet ? S.packet.turn : 0, t0: Date.now() };
+  const box = $("#recBox"); box.hidden = false;
+  clip.cv.className = "rec-prev " + fmt; box.append(clip.cv);
+  document.body.classList.add("recording");
+  S.recTimer = setInterval(() => { const s = Math.floor(clip.elapsed()); $("#recTime").textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; }, 500);
+  S.replay.speed = Number(cfg.speed); S.replay.paused = false; replayBarState();
+  S.worker.postMessage({ cmd: "replayCtl", speed: S.replay.speed, paused: false });
+  done.then((r) => recSave(r));
+});
+$("#recStop").addEventListener("click", () => recStop(true));
+function recFeed(p) {
+  if (!S.rec) return;
+  S.rec.clip.feed(p);
+  const until = S.rec.cfg.until;
+  if (p.ended && until !== "stop" && !S.rec.ending) { S.rec.ending = true; setTimeout(() => recStop(true), 4500); }
+  if (until === "turn" && p.turn > S.rec.turn && !S.rec.ending) { S.rec.ending = true; setTimeout(() => recStop(true), 600); }
+}
+function recStop(keep) {
+  if (!S.rec) return;
+  const r = S.rec; S.rec = null; r.keep = keep;
+  clearInterval(S.recTimer); document.body.classList.remove("recording");
+  S.recKeep = keep;
+  r.clip.stop();
+  $("#recBox").hidden = true; r.clip.cv.remove();
+  if (keep) toast("Saving the video…");
+}
+async function recSave(r) {
+  if (!S.recKeep || !r || !r.blob || !r.blob.size) return;
+  const n = S.packet ? S.packet.names : ["Duelist", "Opponent"], safe = (x) => String(x || "").replace(/[^\w-]+/g, "_").slice(0, 20);
+  const d = new Date(), z = (x) => String(x).padStart(2, "0");
+  const fileName = `KodeX_${safe(n[0])}_vs_${safe(n[1])}_${d.getFullYear()}${z(d.getMonth() + 1)}${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}.${r.ext}`;
+  const buf = await r.blob.arrayBuffer();
+  if (window.parent !== window) { window.parent.postMessage({ kx: "saveVideo", name: fileName, mime: r.mime.split(";")[0], buf }, "*", [buf]); toast(`Video ready (${(r.blob.size / 1048576).toFixed(1)} MB)`); return; }
+  const url = URL.createObjectURL(r.blob), a = el("a"); a.href = url; a.download = fileName; document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+  toast(`Video saved (${(r.blob.size / 1048576).toFixed(1)} MB, ${r.ext.toUpperCase()})`);
+}
+// the controls fade while the replay plays (clean video) and come back on any touch
+let rbIdle = 0;
+function rbWake() { const b = $("#replayBar"); b.classList.remove("dim"); clearTimeout(rbIdle); rbIdle = setTimeout(() => { if (S.mode === "replay" && S.replay && !S.replay.paused && !b.matches(":hover,:focus-within") && !S.rec) b.classList.add("dim"); }, 3200); }
+for (const t of ["pointerdown", "pointermove", "keydown"]) addEventListener(t, () => { if (S.mode === "replay") rbWake(); }, { passive: true });
 function learningFor(decks) {
   const codes = decks.flatMap((d) => deckCodes(d));
   return { book: Learning.rowsFor(codes), learn: true };
@@ -623,7 +749,7 @@ function onGuestMessage(m) {
   else if (msg.t === "error") toast(msg.error);
   else if (msg.t === "chat") addChat(m.name, msg.text, true, sideOfRole(m.from));
   else if (msg.t === "emote") { const role = msg.of && m.from === "host" ? msg.of : m.from; showEmote(sideOfRole(role), msg.id, role); }
-  else if (msg.t === "replay" && typeof msg.b64 === "string" && msg.b64.length < 400000) saveFile(msg.name || "duel.yrp", "data:application/octet-stream;base64," + msg.b64);
+  else if (msg.t === "replay" && typeof msg.b64 === "string" && msg.b64.length < 400000) rpKeep(Uint8Array.from(atob(msg.b64), (c) => c.charCodeAt(0)), S.packet ? S.packet.names : null, "saved"), saveFile(msg.name || "duel.yrp", "data:application/octet-stream;base64," + msg.b64);
   else if (msg.t === "lobby" && S.mode === "guest") $("#joinStatus").textContent = `Joined ${msg.host}'s room. Waiting for them to start…`;
 }
 function netStatus(s, err) {
@@ -644,11 +770,11 @@ function onWorker(m) {
     toast(m.error); return;
   }
   if (m.t === "replayinfo") { S.replayInfo = m; addLog(`Replay: ${m.names.join(" vs ")} · ${m.answers} answers${m.turns ? ` · ${m.turns} turns` : ""}${m.unknown ? ` · ${m.unknown} cards this Arena doesn't know yet` : ""}`, "sys"); return; }
-  if (m.t === "replaypos") { $("#rbPos").textContent = `${m.i} / ${m.n}`; return; }
+  if (m.t === "replaypos") { if (S.replay) { S.replay.i = m.i; S.replay.n = m.n; if (m.turns) S.replay.turns = m.turns; replayBarState(); } return; }
   if (m.t === "replayerr") { toast(m.error, 6000); leaveTable(); return; }
   if (m.t !== "packet") return;
   const p = m.packet, v = m.viewer;
-  if (S.mode === "replay") { if (v === 3) { S.team = 0; onPacket(p); } return; }
+  if (S.mode === "replay") { if (v === 3) { S.team = S.replayTeam || 0; if (p.seek) applyQuiet(p); else onPacket(p); } return; }
   S.packets[v] = p;
   if (S.mode === "host") {
     if (v === 1 - S.hostTeam) S.room.send({ to: "guest", m: { t: "packet", packet: p } });
@@ -951,9 +1077,24 @@ function effectFinale(p) {
   finale(sh.style, { ms: sh.ms, src: artUrl(code), title: name(code), line: `${name(code)} deals the final blow` });
   return true;
 }
+/** A replay jumped (back, or ahead): show where it is now, without replaying the effects on the way. */
+function applyQuiet(p) {
+  S.pq = []; S.holdUntil = 0; clearTimeout(pqTimer);
+  for (const id of ["#chainFx", "#bigFx", "#revealFx", "#finFx", "#endFx"]) { const x = document.querySelector(id); if (x) x.replaceChildren(); }
+  document.querySelectorAll(".card-fx, .move-fx").forEach((x) => x.replaceChildren());
+  document.body.classList.remove("ace-on", "ef-comeback");
+  S.fxEnded = !!p.ended; S.finPromise = null;
+  if (p.state) S.prevLP = p.state.teams.map((t) => t.lp);
+  S.packet = p;
+  render(p);
+  if (S.rec) S.rec.clip.lp = [null, null];
+  if (p.ended) showResult(p); else $("#result").hidden = true;
+  replayBarState();
+}
 function applyPacket(p) {
   const prev = S.packet;
   S.packet = p;
+  if (S.rec) recFeed(p);
   if (p.log && p.log.length) for (const l of p.log) addLog("Script: " + l, "sys");
   trackEvents(p);
   for (const e of p.events) logEvent(e, p);
@@ -1860,7 +2001,7 @@ function showResult(p) {
   setTimeout(() => Learning.flush(), 1500); // send what this duel taught
   const me = S.team;
   const w = p.ended.winner;
-  const title = w === 2 || w < 0 ? "Draw" : S.mode === "spec" ? `${p.names[w]} wins` : w === me ? "You win" : "You lose";
+  const title = S.mode === "replay" ? (w === 0 || w === 1 ? `${p.names[w]} wins` : "End of the replay") : w === 2 || w < 0 ? "Draw" : S.mode === "spec" ? `${p.names[w]} wins` : w === me ? "You win" : "You lose";
   $("#resultTitle").textContent = title;
   $("#resultTitle").className = w === me && S.mode !== "spec" ? "win" : "";
   $("#resultText").textContent = p.ended.reason || "";
@@ -2121,7 +2262,7 @@ function bigFx(p) {
       S.comeback = !!(S.behind && S.behind[w]);
       // the field breaks, then the loser's profile icon cracks and shatters, then (a comeback) the comeback moment;
       // only after all of it does the result show
-      S.finPromise = runFinisher({ style, side, mat: $("#field"), title: otk ? "ONE TURN KILL" : "FINISH!" })
+      S.finPromise = runFinisher({ style, side, mat: $("#field"), title: otk ? "ONE TURN KILL" : "FINISH!", art: style === "meteor" ? artUrl(27204311) : "" })
         .then(() => { const av = document.querySelector(`.duelist.${side} .avatar`), pf = profileOf(side); return breakProfile({ avatar: av, side, name: p.names[loser], html: pf ? avatarHTML(pf, LOGO) : `<span class="pf-av fr-none"><img src="${LOGO}" alt=""></span>` }); })
         .then(() => (S.comeback ? (Sound.play("win"), comeback()) : null));
     } else Sound.play("lose");
@@ -2150,6 +2291,7 @@ async function saveReplay() {
   if (!S.worker) return;
   const bytes = await workerReplay();
   if (!bytes || !bytes.length) { toast("No replay for this duel"); return; }
+  await rpKeep(bytes, S.packet ? S.packet.names : null, "saved");
   saveFile(replayName(), "data:application/octet-stream;base64," + b64(bytes));
 }
 async function sendReplay(to) {
@@ -2169,7 +2311,7 @@ if (window.parent === window) addEventListener("beforeunload", (e) => { if (S.ac
 window.__duel = S; // for automated tests and debugging
 window.__arena = { fxEvents, showReveal, toggleSide };
 window.__arenaFx = (p) => bigFx(p);
-window.__arenaFin = (side, style) => runFinisher({ side, style, mat: $("#field") });
+window.__arenaFin = (side, style) => runFinisher({ side, style, mat: $("#field"), art: style === "meteor" ? artUrl(27204311) : "" });
 window.__arenaDmg = (side, lvl) => matDamage(side, lvl);
 boot();
 
@@ -2613,6 +2755,11 @@ const viewerFreeNow = () => !S.premium;
 const LOGO = "./assets/meiocg-192.webp";
 const AI_PROFILE = { name: "Synapse AI", title: "Learns from every duel", bio: "MEIOCG's duel AI. It plays your decks' real lines and learns from players.", icon: "bolt", img: "", frame: "diamond", theme: "synapse", premium: false, tier: "diamond", stats: {} };
 function profileOf(side) {
+  if (S.mode === "replay") {
+    // a replay: the player's own profile on whichever side has their name
+    const team = side === "me" ? S.team : 1 - S.team, nm = S.packet && S.packet.names[team];
+    return S.myProfile && nm && S.myProfile.name === nm ? S.myProfile : null;
+  }
   const p = (sideSkins()[side] || {}).profile;
   if (p) return p;
   if (side === "op" && S.mode === "solo") return AI_PROFILE;

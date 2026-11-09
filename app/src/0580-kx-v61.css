@@ -1,0 +1,18 @@
+/* KodeX 9.4 (v61): deck image options */
+.mdl[data-k=pm] .di-wrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
+.di-prev{position:sticky;top:0;display:flex;flex-direction:column;gap:6px;align-items:center}
+.di-prev .di-svg{width:100%;aspect-ratio:1;border-radius:14px;overflow:hidden;box-shadow:0 6px 24px #0006;background:#0c0f1f}
+.di-prev .di-svg svg{display:block;width:100%;height:100%}
+.di-prev small{opacity:.65;font-size:12px}
+.di-wrap>*,.di-2>*{min-width:0}
+.di-f input,.di-f select{width:100%;min-width:0;box-sizing:border-box}
+.di-f{display:flex;flex-direction:column;gap:10px}
+.di-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.di-des{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.di-des button{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 6px;border-radius:12px;border:1.5px solid #ffffff22;background:#ffffff0a;color:inherit;font-size:12px;font-weight:600;line-height:1.2;min-width:0;cursor:pointer}
+.di-des button.on{border-color:#f0b429;box-shadow:0 0 0 2px #f0b42944}
+.di-sw{display:block;width:100%;height:30px;border-radius:7px}
+.di-sw.di-clean{background:linear-gradient(#3347f0 0 4px,#fff 4px);box-shadow:inset 0 0 0 1px #0002}
+.di-sw.di-night{background:linear-gradient(135deg,#121a4a,#0c0f1f 60%,#1c1236);box-shadow:inset 0 0 0 1.5px #7a4fd6}
+.di-sw.di-gold{background:linear-gradient(135deg,#241a08,#0b0906);box-shadow:inset 0 0 0 1.5px #ffd45a}
+@media (max-width:760px){.mdl[data-k=pm] .di-wrap{grid-template-columns:1fr}.di-prev{position:static}.di-prev .di-svg{max-width:340px}}
