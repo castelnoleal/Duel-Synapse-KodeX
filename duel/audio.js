@@ -74,6 +74,67 @@ const SFX = {
   },
   otk(t) { SFX.boss(t); [1046.5, 1318.5, 1568, 2093].forEach((f, i) => tone(f, t + 0.9 + i * 0.09, { type: "square", d: 0.3, peak: 0.07 })); },
 };
+// ---- v62: a sound for every moment (shuffles, searches, the graveyard, banishing, negations), every premium
+// entrance, attack and finishing move, and every showdown. All synthesised here.
+const sweep = (t, f1, f2, d, peak = 0.25, q = 1.2, type = "bandpass") => noise(t, { d, peak, f: f1, f2, q, type });
+Object.assign(SFX, {
+  shuffle(t) { for (let i = 0; i < 9; i++) noise(t + i * 0.05 + Math.random() * 0.012, { d: 0.045, peak: 0.16 + (i % 3) * 0.04, f: 2200 + Math.random() * 2600, q: 2.2 }); noise(t + 0.5, { d: 0.09, peak: 0.2, type: "lowpass", f: 700 }); tone(150, t + 0.5, { d: 0.08, peak: 0.1 }); },
+  search(t) { sweep(t, 700, 5200, 0.2, 0.16, 0.9); bell(1174.7, t + 0.12, 0.12, 0.5); bell(1568, t + 0.2, 0.1, 0.6); },
+  tograve(t) { tone(150, t, { d: 0.22, peak: 0.22, glide: 0.5 }); noise(t, { d: 0.18, peak: 0.14, type: "lowpass", f: 900, f2: 200 }); },
+  banish(t) { sweep(t, 6000, 500, 0.4, 0.16, 0.8, "highpass"); tone(420, t, { type: "sine", a: 0.02, d: 0.42, peak: 0.12, glide: 3.6 }); },
+  negate(t) { tone(520, t, { type: "square", d: 0.28, peak: 0.1, glide: 0.32 }); tone(262, t + 0.02, { type: "sawtooth", d: 0.3, peak: 0.08, glide: 0.4 }); noise(t, { d: 0.12, peak: 0.22, f: 1800, q: 3 }); },
+  flip(t) { sweep(t, 1400, 3800, 0.1, 0.18, 1.5); tone(740, t + 0.05, { type: "triangle", d: 0.1, peak: 0.1 }); },
+  heal(t) { [784, 987.8, 1318.5].forEach((f, i) => bell(f, t + i * 0.08, 0.1, 0.8)); },
+  reveal(t) { bell(1568, t, 0.1, 0.5); bell(2093, t + 0.07, 0.07, 0.5); },
+  cutin(t) { sweep(t, 400, 5200, 0.34, 0.26, 0.8); tone(92, t + 0.26, { d: 0.35, peak: 0.4, glide: 0.6 }); noise(t + 0.26, { d: 0.2, peak: 0.2, type: "lowpass", f: 1400, f2: 200 }); },
+  counter(t) { tone(988, t, { type: "triangle", d: 0.09, peak: 0.1 }); tone(1318.5, t + 0.06, { type: "triangle", d: 0.12, peak: 0.1 }); },
+  // entrances
+  ent_portal(t) { tone(160, t, { type: "sine", a: 0.3, d: 0.6, peak: 0.25, glide: 3 }); sweep(t, 300, 4200, 0.8, 0.14, 4); bell(1318.5, t + 0.7, 0.12, 0.8); },
+  ent_storm(t) { sweep(t, 500, 2600, 0.9, 0.22, 0.6); noise(t + 0.45, { d: 0.12, peak: 0.4, type: "highpass", f: 3500 }); tone(70, t + 0.45, { d: 0.7, peak: 0.4, glide: 0.5 }); },
+  ent_inferno(t) { noise(t, { d: 1.0, peak: 0.3, type: "lowpass", f: 500, f2: 2600 }); tone(82, t, { type: "sawtooth", a: 0.2, d: 0.8, peak: 0.1, glide: 1.8 }); for (let i = 0; i < 8; i++) noise(t + 0.2 + i * 0.09, { d: 0.03, peak: 0.12, type: "highpass", f: 5000 }); },
+  ent_nova(t) { tone(1760, t, { type: "sine", a: 0.25, d: 0.1, peak: 0.1, glide: 0.5 }); noise(t + 0.3, { d: 0.6, peak: 0.34, type: "lowpass", f: 6000, f2: 200 }); tone(60, t + 0.3, { d: 0.9, peak: 0.5, glide: 0.5 }); [1046.5, 1568, 2093].forEach((f, i) => bell(f, t + 0.36 + i * 0.05, 0.1, 0.9)); },
+  ent_glitch(t) { for (let i = 0; i < 10; i++) tone(200 + Math.random() * 2400, t + i * 0.045, { type: "square", d: 0.03, peak: 0.07 }); noise(t + 0.2, { d: 0.08, peak: 0.2, f: 3000, q: 6 }); tone(110, t + 0.46, { type: "sawtooth", d: 0.2, peak: 0.12 }); },
+  // attacks
+  atk_beam(t) { tone(1400, t, { type: "sawtooth", a: 0.01, d: 0.45, peak: 0.12, glide: 0.25 }); sweep(t, 5000, 800, 0.45, 0.2, 2); tone(70, t + 0.3, { d: 0.4, peak: 0.35, glide: 0.5 }); },
+  atk_comet(t) { tone(1900, t, { type: "sine", a: 0.01, d: 0.4, peak: 0.12, glide: 0.2 }); sweep(t, 3000, 300, 0.4, 0.18, 1.2); tone(55, t + 0.38, { d: 0.7, peak: 0.6, glide: 0.5 }); noise(t + 0.38, { d: 0.45, peak: 0.3, type: "lowpass", f: 2500, f2: 150 }); },
+  atk_claw(t) { for (let i = 0; i < 3; i++) { sweep(t + i * 0.08, 5200, 1200, 0.1, 0.26, 2.5); tone(900 - i * 140, t + i * 0.08, { type: "sawtooth", d: 0.07, peak: 0.05, glide: 0.5 }); } },
+  atk_phantom(t) { tone(330, t, { type: "sine", a: 0.15, d: 0.5, peak: 0.14, glide: 0.5 }); tone(495, t + 0.04, { type: "sine", a: 0.15, d: 0.5, peak: 0.08, glide: 0.5 }); sweep(t, 900, 300, 0.6, 0.12, 5); },
+  // finishing moves
+  fin_meteor(t) { tone(2200, t, { type: "sine", a: 0.05, d: 1.1, peak: 0.12, glide: 0.12 }); sweep(t, 4000, 300, 1.15, 0.2, 1); tone(40, t + 1.2, { d: 2.0, peak: 0.9, glide: 0.5 }); noise(t + 1.2, { d: 1.3, peak: 0.55, type: "lowpass", f: 4500, f2: 90 }); for (let i = 0; i < 10; i++) noise(t + 1.4 + Math.random() * 0.9, { d: 0.08, peak: 0.12, type: "lowpass", f: 900 }); },
+  fin_thunder(t) { noise(t, { d: 0.07, peak: 0.7, type: "highpass", f: 2500 }); noise(t + 0.06, { d: 1.6, peak: 0.45, type: "lowpass", f: 900, f2: 70 }); tone(48, t + 0.05, { d: 1.6, peak: 0.6, glide: 0.6 }); noise(t + 0.5, { d: 0.05, peak: 0.5, type: "highpass", f: 3000 }); },
+  fin_vortex(t) { for (let i = 0; i < 4; i++) sweep(t + i * 0.28, 300 + i * 200, 2600 + i * 600, 0.3, 0.16, 5); tone(220, t, { type: "sawtooth", a: 0.6, d: 0.7, peak: 0.08, glide: 0.2 }); tone(44, t + 1.2, { d: 1.2, peak: 0.6, glide: 0.5 }); },
+  fin_slash(t) { sweep(t, 7000, 1500, 0.14, 0.4, 2, "highpass"); bell(2637, t + 0.1, 0.12, 1.2); sweep(t + 0.32, 7000, 1500, 0.14, 0.4, 2, "highpass"); tone(52, t + 0.6, { d: 1.2, peak: 0.6, glide: 0.5 }); noise(t + 0.6, { d: 0.6, peak: 0.3, type: "lowpass", f: 3000, f2: 150 }); },
+  // showdowns
+  sd_menacing(t) { for (let i = 0; i < 6; i++) { tone(52, t + i * 0.42, { type: "sine", d: 0.34, peak: 0.5, glide: 0.8 }); noise(t + i * 0.42, { d: 0.2, peak: 0.12, type: "lowpass", f: 300 }); } tone(104, t, { type: "sawtooth", a: 1.6, d: 0.8, peak: 0.07, glide: 1.5 }); },
+  sd_rush(t) { for (let i = 0; i < 22; i++) { noise(t + 0.3 + i * 0.085, { d: 0.05, peak: 0.26, f: 900 + (i % 4) * 300, q: 2 }); tone(120 + (i % 3) * 30, t + 0.3 + i * 0.085, { d: 0.05, peak: 0.16 }); } sweep(t, 400, 3000, 0.3, 0.2); },
+  sd_timestop(t) {
+    for (let i = 0; i < 9; i++) { const d = t + [0, .16, .3, .42, .53, .63, .72, .8, .87][i]; tone(i % 2 ? 1900 : 2400, d, { type: "square", d: 0.025, peak: 0.07 }); noise(d, { d: 0.02, peak: 0.1, type: "highpass", f: 6000 }); }
+    tone(880, t + 0.95, { type: "sine", a: 0.01, d: 1.1, peak: 0.22, glide: 0.12 }); tone(1320, t + 0.95, { type: "sine", a: 0.01, d: 1.1, peak: 0.12, glide: 0.1 });
+    noise(t + 0.95, { d: 0.9, peak: 0.3, type: "lowpass", f: 5000, f2: 120 }); tone(46, t + 0.98, { d: 1.6, peak: 0.6, glide: 0.7 });
+    bell(2093, t + 1.5, 0.06, 1.6); bell(3136, t + 1.62, 0.04, 1.6);
+  },
+  sd_resume(t) { tone(120, t, { type: "sine", a: 0.01, d: 0.4, peak: 0.2, glide: 6 }); sweep(t, 300, 6000, 0.35, 0.22, 1); tone(2000, t + 0.3, { type: "square", d: 0.03, peak: 0.07 }); },
+  sd_freeze(t) { noise(t, { d: 0.05, peak: 0.4, type: "highpass", f: 4000 }); for (let i = 0; i < 8; i++) bell(2200 + Math.random() * 2400, t + 0.05 + i * 0.05, 0.05, 0.5); [392, 370, 330].forEach((f, i) => tone(f, t + 0.9 + i * 0.3, { type: "triangle", d: 0.5, peak: 0.12 })); },
+  sd_domain(t) { tone(36, t, { type: "sine", a: 0.5, d: 2.2, peak: 0.7, glide: 0.9 }); for (const f of [110, 116.5, 164.8]) tone(f, t + 0.2, { type: "sawtooth", a: 0.8, d: 1.6, peak: 0.05 }); sweep(t + 0.15, 200, 3000, 0.9, 0.2, 3); bell(523.3, t + 1.0, 0.14, 2); },
+  sd_allout(t) { for (let i = 0; i < 5; i++) { sweep(t + i * 0.14, 6000, 900, 0.1, 0.3, 2.5, "highpass"); tone(70, t + i * 0.14 + 0.05, { d: 0.14, peak: 0.3 }); } [329.6, 392, 493.9].forEach((f) => tone(f, t + 0.9, { type: "square", a: 0.01, d: 0.5, peak: 0.07 })); tone(55, t + 0.9, { d: 0.9, peak: 0.5, glide: 0.6 }); },
+  sd_impact(t) { for (const d of [0.5, 0.85, 1.2, 1.8]) { tone(48, t + d, { d: 0.35, peak: 0.7, glide: 0.5 }); noise(t + d, { d: 0.09, peak: 0.5, type: "highpass", f: 1800 }); noise(t + d, { d: 0.3, peak: 0.3, type: "lowpass", f: 1200, f2: 120 }); } },
+  sd_destiny(t) { sweep(t, 600, 6000, 0.8, 0.16, 1); for (let i = 0; i < 10; i++) bell(1400 + i * 180, t + 0.1 + i * 0.07, 0.05, 0.4); [523.3, 784, 1046.5, 1568].forEach((f, i) => bell(f, t + 1.05 + i * 0.06, 0.16, 1.6)); tone(65, t + 1.05, { d: 0.8, peak: 0.4, glide: 0.6 }); },
+  sd_finalblow(t) { tone(180, t, { type: "sawtooth", a: 1.7, d: 0.1, peak: 0.1, glide: 5 }); sweep(t, 300, 7000, 1.8, 0.16, 1); tone(40, t + 1.9, { d: 1.6, peak: 0.9, glide: 0.5 }); noise(t + 1.9, { d: 0.8, peak: 0.5, type: "lowpass", f: 5000, f2: 120 }); bell(1046.5, t + 1.95, 0.14, 1.4); },
+  sd_powerup(t) { tone(110, t, { type: "sawtooth", a: 1.4, d: 0.5, peak: 0.1, glide: 4 }); tone(220, t, { type: "square", a: 1.4, d: 0.5, peak: 0.04, glide: 4 }); for (let i = 0; i < 14; i++) noise(t + 0.2 + i * 0.1, { d: 0.05, peak: 0.1 + i * 0.008, type: "highpass", f: 4000 }); [659.3, 830.6, 987.8, 1318.5].forEach((f, i) => bell(f, t + 1.5 + i * 0.05, 0.12, 1.2)); },
+  sd_beam(t) { tone(200, t, { type: "sine", a: 1.3, d: 0.1, peak: 0.16, glide: 7 }); for (let i = 0; i < 12; i++) tone(900 + i * 120, t + 0.1 + i * 0.1, { type: "sine", d: 0.06, peak: 0.05 }); tone(1500, t + 1.5, { type: "sawtooth", a: 0.01, d: 1.0, peak: 0.14, glide: 0.4 }); noise(t + 1.5, { d: 1.0, peak: 0.4, type: "bandpass", f: 2600, f2: 500, q: 0.7 }); tone(44, t + 1.5, { d: 1.2, peak: 0.6, glide: 0.7 }); },
+  sd_spotlight(t) { noise(t, { d: 0.03, peak: 0.4, type: "highpass", f: 3000 }); tone(140, t, { d: 0.12, peak: 0.3 }); [659.3, 987.8, 1318.5, 1975.5].forEach((f, i) => bell(f, t + 0.35 + i * 0.09, 0.1, 1.2)); },
+  sd_radiant(t) { for (const [f, d] of [[523.3, 0], [659.3, 0.06], [784, 0.12], [1046.5, 0.18], [1318.5, 0.26]]) bell(f, t + 0.2 + d, 0.13, 1.8); sweep(t, 2000, 9000, 1.2, 0.08, 0.6, "highpass"); },
+});
+// ---- vibration (phones): showdowns, Ace cards, big hits. Inside KodeX the app is asked to vibrate too.
+prefs.vibe = ls.get("duel:vibe", true);
+export function vibrate(pattern) {
+  if (!prefs.vibe) return;
+  try { if (navigator.vibrate) navigator.vibrate(pattern); } catch { /* not allowed */ }
+  try { if (window.parent !== window) window.parent.postMessage({ kx: "vibrate", p: pattern }, "*"); } catch { /* not embedded */ }
+}
+/** True when a named effect exists. */
+export const has = (name) => !!SFX[name];
+
 // ---- sound emotes: short original sounds in the style of well-known meme sounds, all synthesised here
 const MEME = {
   boom(t) { tone(48, t, { type: "sine", a: 0.004, d: 1.3, peak: 0.9, glide: 0.55 }); noise(t, { d: 0.5, peak: 0.4, type: "lowpass", f: 600, f2: 80 }); tone(96, t, { type: "triangle", d: 0.6, peak: 0.25, glide: 0.5 }); },
@@ -156,7 +217,7 @@ function stopMusic() {
 /** Music plays during duels (when switched on). */
 export function music(on) { musicOn = on; if (on && prefs.music) startMusic(); else stopMusic(); }
 export function setPref(k, v) {
-  prefs[k] = v; ls.set(k === "music" ? "duel:music" : "duel:sfx", v);
+  prefs[k] = v; ls.set(k === "music" ? "duel:music" : k === "vibe" ? "duel:vibe" : "duel:sfx", v);
   if (k === "music") { if (v && musicOn) { unlock(); startMusic(); } else stopMusic(); }
 }
 export const getPrefs = () => ({ ...prefs });

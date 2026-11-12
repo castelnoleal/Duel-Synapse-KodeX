@@ -4,6 +4,7 @@
 //  • ace(): a KodeX Premium "Ace card" shown big on screen before its effect resolves
 // Only transforms and opacity are animated; everything sits on one fixed layer that ignores taps.
 // Showdowns: one set of styles for the winning-attack finale and for Ace cards (any card type).
+import { play, vibrate } from "./audio.js";
 export const SHOWS = ["menacing", "rush", "timestop", "freeze", "domain", "allout", "impact", "destiny", "finalblow", "powerup", "beam", "spotlight", "radiant"];
 export const SHOW_NAMES = { menacing: "Menacing", rush: "Rush", timestop: "Time Stop", freeze: "Freeze Frame", domain: "Domain Expansion", allout: "All-Out Attack",
   impact: "Impact Frame", destiny: "Destiny Draw", finalblow: "Final Blow", powerup: "Power Up", beam: "Energy Blast", spotlight: "Spotlight", radiant: "Radiant" };
@@ -161,6 +162,7 @@ export function staple(name, code, src, at) {
   const from = r && r.width ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : { x: innerWidth / 2, y: innerHeight / 2 };
   overlay(L, spec, from);
   glyphs(L, spec, from);
+  play("cutin");
   if (src) cutIn(L, src, name, spec.col);
   else stamp(L, spec.word, spec.sub, spec.col);
   if (src) stamp(L, spec.word, "", spec.col, false, true);
@@ -220,6 +222,7 @@ export function show(style, { kind = "finale", src = "", title = "", line = "", 
     const veil = div("cf-veil-all " + style); L.append(veil); later(veil, T);
     A(veil, [{ opacity: 0 }, { opacity: 1, offset: .08 }, { opacity: 1, offset: .9 }, { opacity: 0 }], { duration: T, fill: "both" });
     root.classList.add(...cls);
+    play("sd_" + style); if (style !== "timestop") vibrate(kind === "ace" ? [40, 50, 120] : [70, 40, 70, 40, 220]);
     const flag = (c, from, to) => { at(from, () => root.classList.add(c)); cls.push(c); if (to) at(to, () => root.classList.remove(c)); };
     let h;
     switch (style) {
@@ -237,13 +240,37 @@ export function show(style, { kind = "finale", src = "", title = "", line = "", 
         break;
       }
       case "timestop": {
-        const w = div("cf-tswave"); L.append(w); later(w, T);
-        A(w, [{ transform: "translate(-50%,-50%) scale(0)", opacity: 1 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 1, offset: .25 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 1, offset: .8 }, { transform: "translate(-50%,-50%) scale(0)", opacity: 0 }], { duration: T, easing: "cubic-bezier(.3,0,.3,1)", fill: "both" });
-        const clock = div("cf-clock", null, "🕰"); L.append(clock); later(clock, T);
-        A(clock, [{ transform: "translate(-50%,-50%) scale(0) rotate(0)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(1) rotate(0)", opacity: 1, offset: .25 }, { transform: "translate(-50%,-50%) scale(1) rotate(30deg)", opacity: 1, offset: .5 }, { transform: "translate(-50%,-50%) scale(1) rotate(60deg)", opacity: 1, offset: .75 }, { transform: "translate(-50%,-50%) scale(1.6) rotate(90deg)", opacity: 0 }], { duration: T, easing: "steps(12)", fill: "both" });
-        const t = div("cf-tsword", null, "TIME STOP"); L.append(t); later(t, T);
-        A(t, [{ opacity: 0, letterSpacing: ".6em" }, { opacity: 1, letterSpacing: ".18em", offset: .3 }, { opacity: 1, offset: .85 }, { opacity: 0 }], { duration: T, fill: "both" });
-        flag("cf-frozen", 800);
+        // A great clock races, slows and locks. At that instant the screen flashes to its negative, the world loses
+        // its colour and everything in the air hangs still; only the card keeps its light. Then time resumes.
+        const stop = 950, sf = stop / T, resume = .86;
+        const dial = div("cf-ts-dial");
+        dial.innerHTML = `<svg viewBox="-100 -100 200 200" aria-hidden="true"><circle r="97" class="rim"/><circle r="88" class="rim2"/><circle r="52" class="rim3"/>${Array.from({ length: 60 }, (_, i) => `<line class="${i % 5 ? "tk" : "tk big"}" x1="0" y1="${i % 5 ? -93 : -95}" x2="0" y2="${i % 5 ? -89 : -80}" transform="rotate(${i * 6})"/>`).join("")}${["XII", "III", "VI", "IX"].map((n, i) => `<text class="num" x="${[0, 68, 0, -68][i]}" y="${[-62, 6, 74, 6][i]}" text-anchor="middle">${n}</text>`).join("")}<g class="gear"><path d="M0-40 6-30 16-37 18-25 30-27 27-15 38-11 31-1 39 8 29 13 33 25 21 25 19 37 9 31 0 40-9 31-19 37-21 25-33 25-29 13-39 8-31-1-38-11-27-15-30-27-18-25-16-37-6-30Z"/></g><g class="hand h"><path d="M-3.4 9 0-50 3.4 9Z"/></g><g class="hand m"><path d="M-2.2 12 0-80 2.2 12Z"/></g><g class="hand sec"><path d="M-.8 16 0-86 .8 16Z"/></g><circle r="5.5" class="hub"/></svg>`;
+        L.append(dial); later(dial, T);
+        A(dial, [{ transform: "translate(-50%,-50%) scale(.25) rotate(-40deg)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(1) rotate(0)", opacity: 1, offset: .12 }, { transform: "translate(-50%,-50%) scale(1.03) rotate(0)", opacity: 1, offset: resume }, { transform: "translate(-50%,-50%) scale(1.35) rotate(12deg)", opacity: 0 }], { duration: T, fill: "both", easing: "cubic-bezier(.2,.9,.3,1)" });
+        const spin = (sel, turns, after) => dial.querySelector(sel).animate([{ transform: "rotate(0deg)", easing: "cubic-bezier(.05,.6,.15,1)" }, { transform: `rotate(${turns}deg)`, offset: sf }, { transform: `rotate(${turns}deg)`, offset: resume, easing: "cubic-bezier(.6,0,.9,.4)" }, { transform: `rotate(${turns + after}deg)` }], { duration: T, fill: "both" });
+        spin(".hand.sec", 2880, 720); spin(".hand.m", 1080, 240); spin(".hand.h", 300, 40); spin(".gear", -540, -120);
+        // a digital readout that runs down to zero
+        const tm = div("cf-ts-timer", null, "00:09.99"); L.append(tm); later(tm, T);
+        A(tm, [{ opacity: 0 }, { opacity: 1, offset: .1 }, { opacity: 1, offset: resume }, { opacity: 0 }], { duration: T, fill: "both" });
+        const t0 = performance.now(), tick = setInterval(() => { const left = Math.max(0, stop - (performance.now() - t0)); const v = (left / stop) ** 2 * 9.99; tm.textContent = "00:0" + v.toFixed(2); if (!left) { clearInterval(tick); tm.textContent = "00:00.00"; tm.classList.add("zero"); } }, 33);
+        at(T, () => clearInterval(tick));
+        // dust and shards in the air: they fly, then hang where they are, then fall away
+        for (let i = 0; i < 34; i++) {
+          const x0 = rnd(4, 96), y0 = rnd(6, 94), dx = rnd(-22, 22), dy = rnd(-26, 10), r = rnd(-200, 200);
+          const sh = div("cf-ts-shard" + (i % 3 ? "" : " big"), { left: x0 + "%", top: y0 + "%" }); L.append(sh); later(sh, T);
+          A(sh, [{ transform: "translate(0,0) rotate(0)", opacity: 0 }, { transform: `translate(${dx * .9}vmin, ${dy * .9}vmin) rotate(${r}deg)`, opacity: 1, offset: sf }, { transform: `translate(${dx}vmin, ${dy}vmin) rotate(${r + 4}deg)`, opacity: 1, offset: resume }, { transform: `translate(${dx * 1.4}vmin, ${dy + 40}vmin) rotate(${r * 2}deg)`, opacity: 0 }], { duration: T, fill: "both" });
+        }
+        // the instant time stops: a ring sweeps out and the picture flips to its negative for a few frames
+        const ring = div("cf-ts-ring"); L.append(ring); later(ring, T);
+        A(ring, [{ transform: "translate(-50%,-50%) scale(0)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(0)", opacity: 1, offset: sf }, { transform: "translate(-50%,-50%) scale(1)", opacity: 0, offset: Math.min(.8, sf + .28) }, { opacity: 0 }], { duration: T, fill: "both", easing: "cubic-bezier(.1,.7,.2,1)" });
+        flag("cf-inv", stop, stop + 120); flag("cf-frozen", stop + 120, T * resume);
+        at(stop, () => vibrate([30, 40, 160]));
+        at(T * resume, () => { play("sd_resume"); const f = div("cf-flash"); L.append(f); later(f, 420); A(f, [{ opacity: .7 }, { opacity: 0 }], { duration: 400, fill: "both" }); });
+        // the card arrives as time locks, with its after-images closing in
+        for (const [k, dx] of [["g1", -16], ["g2", 16]]) { const g = bigCard(L, src, "", "timestop ghost " + k, T); A(g, [{ transform: `translate(calc(-50% + ${dx}vmin),-50%) scale(1.08)`, opacity: 0 }, { transform: `translate(calc(-50% + ${dx}vmin),-50%) scale(1.08)`, opacity: 0, offset: Math.max(0, sf - .04) }, { transform: `translate(calc(-50% + ${dx * .5}vmin),-50%) scale(1.04)`, opacity: .5, offset: sf + .03 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 0, offset: sf + .14 }, { opacity: 0 }], { duration: T, fill: "both" }); }
+        h = bigCard(L, src, title, "timestop", T);
+        A(h, [{ transform: "translate(-50%,-50%) scale(1.5)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(1.5)", opacity: 0, offset: Math.max(0, sf - .03) }, { transform: "translate(-50%,-50%) scale(1)", opacity: 1, offset: sf + .08 }, { transform: "translate(-50%,-50%) scale(1.03)", opacity: 1, offset: resume }, { transform: "translate(-50%,-50%) scale(1.3)", opacity: 0 }], { duration: T, fill: "both", easing: "cubic-bezier(.2,.9,.3,1)" });
+        word(L, "TIME STOP", "timestop", T, sf + .06, "7%");
         break;
       }
       case "freeze": {

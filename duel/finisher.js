@@ -1,6 +1,7 @@
 // Finishing moves: when a duel is won, the loser's half of the field breaks apart and their cards are torn up.
 // Styles: shatter (default), meteor, thunder, vortex, slash. KodeX Premium lets players pick the style and give
 // signature cards their own; zoneStrike() plays a small version of a style on one zone when such a card arrives.
+import { play, vibrate } from "./audio.js";
 export const STYLES = ["shatter", "meteor", "thunder", "vortex", "slash"];
 const rnd = (a, b) => a + Math.random() * (b - a);
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -70,6 +71,7 @@ export function runFinisher({ style = "shatter", side = "op", mat, title = "FINI
     if (!mat || reduced()) { done(); return; }
     style = STYLES.includes(style) ? style : "shatter";
     const L = layer(); L.replaceChildren(); L.className = "fin-fx on " + style;
+    play(style === "shatter" ? "finish" : "fin_" + style); vibrate(style === "meteor" ? [60, 900, 400] : [120, 60, 320]);
     // The broken area is the loser's own two rows only. The middle row (Extra Monster Zones, banished piles) is
     // left whole, so a monster in an Extra Monster Zone is never sliced by the edge of the hole: it is torn up
     // whole with the loser's other cards instead.

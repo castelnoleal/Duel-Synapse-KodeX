@@ -193,6 +193,7 @@
     <div class="turnbar">
       <span class="turn-no" id="turnNo">Turn 1</span><span class="turn-timer" id="turnTimer" hidden role="timer" aria-label="Turn timer">0:00</span>
       <nav class="phases" id="phases" aria-label="Phases"></nav>
+      <button type="button" class="quick-btn" id="quickBtn" aria-label="Restart or surrender" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg></button>
     </div>
     <div id="status" class="status" role="status"></div>
     <div id="feed" class="feed" aria-label="Duel log"></div>
@@ -217,6 +218,10 @@
   <button id="panelBtn" class="panel-fab" type="button" aria-label="Duel log and options"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg></button>
   <button id="emoteBtn" class="emote-fab" type="button" aria-label="Emotes" aria-expanded="false" aria-controls="emotePick"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0"/><path d="M9 9.5h.01M15 9.5h.01"/></svg></button>
   <div id="emotePick" class="emote-pick" hidden role="menu" aria-label="Emotes"></div>
+  <div id="quickMenu" class="quick-menu" hidden role="menu" aria-label="Restart or surrender">
+    <button type="button" role="menuitem" id="qmRestart"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>Restart duel</button>
+    <button type="button" role="menuitem" id="qmSurrender" class="danger"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg>Surrender</button>
+  </div>
   <button id="sideFab" class="side-fab" type="button" aria-label="Log and chat" aria-expanded="false" aria-controls="side"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-5.1A8 8 0 1 1 21 12z"/><path d="M8.5 10.5h7M8.5 13.5h4.5"/></svg><i id="sideBadge" hidden>0</i></button>
   <aside class="side panel" id="side" aria-label="Log and chat">
     <div class="tabs" role="tablist">
@@ -236,6 +241,8 @@
       <label class="toggle"><input type="checkbox" id="prefStaples"><span>Card animations for staples (Ash Blossom, Maxx "C"…)</span></label>
       <label class="toggle"><input type="checkbox" id="musicOn"><span>Music</span></label>
       <label class="toggle"><input type="checkbox" id="sfxOn"><span>Sounds</span></label>
+      <label class="toggle"><input type="checkbox" id="vibeOn"><span>Vibration on showdowns and Ace cards</span></label>
+      <label class="toggle"><input type="checkbox" id="prefTapOut"><span>Tap outside a panel to close it</span></label>
       <div class="view-opts mute-opts" role="group" aria-label="Mute">
         <span class="vo-l">Mute</span>
         <label class="toggle"><input type="checkbox" id="mute-opp"><span>Opponent (chat, emotes, sounds)</span></label>

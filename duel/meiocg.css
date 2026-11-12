@@ -361,9 +361,6 @@ body.at-table .blob { animation-duration: 60s; }
 .cf-sfx { position: fixed; font: 900 italic 60px/1 "Chakra Petch", system-ui, sans-serif; -webkit-text-stroke: 2px #0c0f1f; paint-order: stroke fill; text-shadow: 4px 4px 0 #0c0f1f, 0 0 20px currentColor; white-space: nowrap; }
 .cf-fist { font-size: clamp(36px, 10vmin, 90px); filter: drop-shadow(0 0 10px #ff5a3a); }
 .cf-rushword { left: 0; right: 0; top: 78%; text-align: center; font: 900 italic clamp(30px, 9vmin, 84px)/1 "Chakra Petch", system-ui, sans-serif; color: #ffcf5a; -webkit-text-stroke: 2px #0c0f1f; paint-order: stroke fill; white-space: nowrap; }
-.cf-tswave { left: 50%; top: 50%; width: 260vmax; height: 260vmax; border-radius: 50%; background: #fff; mix-blend-mode: difference; }
-.cf-clock { left: 50%; top: 40%; font-size: clamp(80px, 24vmin, 200px); }
-.cf-tsword { left: 0; right: 0; top: 62%; text-align: center; font: 900 clamp(34px, 10vmin, 96px)/1 "Chakra Petch", system-ui, sans-serif; color: #fff; text-shadow: 0 0 30px #8d99ff, 4px 4px 0 #000; }
 .cf-tbc { left: 3vw; bottom: 14vh; display: flex; align-items: center; height: clamp(44px, 9vmin, 76px); padding: 0 34px 0 18px; background: #3b2a12; border: 3px solid #e8c46a; clip-path: polygon(0 0, 88% 0, 100% 50%, 88% 100%, 0 100%); }
 .cf-tbc-t { font: 900 italic clamp(16px, 4.2vmin, 36px)/1 "Chakra Petch", system-ui, sans-serif; color: #f6e2a8; letter-spacing: .06em; white-space: nowrap; }
 .cf-line { left: 50%; bottom: 8vh; transform: translateX(-50%); font: 800 clamp(13px, 2.6vmin, 20px)/1.2 "Chakra Petch", system-ui, sans-serif; letter-spacing: .14em; text-transform: uppercase; color: #ffe9a8; text-shadow: 0 0 12px #000, 0 2px 0 #000; white-space: nowrap; }
@@ -543,7 +540,6 @@ body.at-table .duelist { background: #121734; }
 .cf-flash, .mv-slice, .mv-impact, .cf-panel::after { mix-blend-mode: normal !important; }
 .mv-impact { opacity: .85; }
 .cf-wave, .ef-wave { width: min(220vmax, 2400px) !important; height: min(220vmax, 2400px) !important; }
-.cf-tswave { width: min(260vmax, 2600px) !important; height: min(260vmax, 2600px) !important; }
 .cf-starburst, .ef-rays { width: min(150vmax, 1900px) !important; height: min(150vmax, 1900px) !important; }
 .cf-slash, .fin-slash { width: min(140vmax, 2200px) !important; }
 @keyframes finRing { to { width: min(160vmax, 2200px); height: min(160vmax, 2200px); opacity: 0; border-width: 1px; } }
@@ -561,3 +557,29 @@ body.at-table .duelist { background: #121734; }
   -webkit-mask: radial-gradient(circle, #000 35%, transparent 70%); mask: radial-gradient(circle, #000 35%, transparent 70%); }
 .fin-crater { position: absolute; width: min(60vmin, 460px); aspect-ratio: 2.2; border-radius: 50%; background: radial-gradient(ellipse, #1a0803 0 22%, #ff7a1a88 34%, #ffb34744 46%, transparent 64%); }
 .fin-meteor { display: none; }
+
+/* ---------- v62: Time Stop showdown (a clock that locks, a frozen world, the card in colour) ---------- */
+.cf-veil-all.timestop { background: radial-gradient(ellipse at 50% 46%, #0a2a4a66 0%, #050812ee 74%); }
+.cf-ts-dial { left: 50%; top: 46%; width: min(92vmin, 640px); aspect-ratio: 1; contain: layout paint; }
+.cf-ts-dial svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.cf-ts-dial .rim { fill: #06101fcc; stroke: #9fe2ff; stroke-width: 1.6; }
+.cf-ts-dial .rim2 { fill: none; stroke: #9fe2ff55; stroke-width: .6; stroke-dasharray: 1.4 3; }
+.cf-ts-dial .rim3 { fill: none; stroke: #f0b42955; stroke-width: .6; }
+.cf-ts-dial .tk { stroke: #9fe2ffaa; stroke-width: .7; }
+.cf-ts-dial .tk.big { stroke: #fff; stroke-width: 1.6; }
+.cf-ts-dial .num { fill: #e9fbff; font: 700 13px "Chakra Petch", system-ui, sans-serif; letter-spacing: .06em; }
+.cf-ts-dial .gear path { fill: none; stroke: #f0b42988; stroke-width: 1.2; stroke-linejoin: round; }
+.cf-ts-dial .hand path { fill: #fff; }
+.cf-ts-dial .hand.h path { fill: #f0b429; }
+.cf-ts-dial .hand.sec path { fill: #ff4d6a; }
+.cf-ts-dial .hub { fill: #0c0f1f; stroke: #fff; stroke-width: 1.4; }
+.cf-ts-ring { left: 50%; top: 46%; width: min(240vmax, 2400px); aspect-ratio: 1; border-radius: 50%; border: clamp(10px, 3vmin, 34px) solid #e9fbff; box-shadow: 0 0 60px #9fe2ff, inset 0 0 60px #9fe2ff; contain: layout paint; }
+.cf-ts-shard { width: clamp(4px, 1vmin, 9px); aspect-ratio: 1; background: #e9fbff; box-shadow: 0 0 8px #9fe2ff; transform-origin: center; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+.cf-ts-shard.big { width: clamp(9px, 2.4vmin, 22px); background: linear-gradient(135deg, #fff, #9fe2ff 60%, #3ac8ff22); clip-path: polygon(50% 0, 100% 38%, 72% 100%, 18% 82%, 0 30%); }
+.cf-ts-timer { left: 0; right: 0; top: 14%; text-align: center; font: 700 clamp(18px, 5vmin, 44px)/1 "Chakra Petch", ui-monospace, monospace; letter-spacing: .14em; color: #9fe2ff; font-variant-numeric: tabular-nums; text-shadow: 0 0 14px #3ac8ff; }
+.cf-ts-timer.zero { color: #ff4d6a; text-shadow: 0 0 18px #ff4d6a; }
+.cf-hero.timestop img { box-shadow: 0 0 0 4px #0c0f1f, 0 0 50px #9fe2ff, 0 0 130px #3ac8ff, 0 30px 60px #000c; border-color: #e9fbff; }
+.cf-hero.timestop.ghost img { border-color: #9fe2ff; box-shadow: none; filter: brightness(1.4) saturate(.2); }
+.cf-hero.timestop.ghost .cf-hero-t { display: none; }
+.cf-word2.timestop { --wc: #3ac8ff; color: #e9fbff; font-style: normal; letter-spacing: .3em; }
+@media (orientation: landscape) { .cf-ts-timer { left: 3vw; right: auto; top: 44%; text-align: left; } }

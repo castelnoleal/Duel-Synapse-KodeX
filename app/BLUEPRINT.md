@@ -54,8 +54,9 @@ the main script (`core-…`) is cut at its section comments. Later modules may r
 | `0500`–`0520` | 9.2: player profile, help bubble, legality tags, deck banner, Arena integration |
 | `0540`–`0560` | 9.3: Premium pitch and 5-day trial, blueprint constant |
 | `0580`–`0600` | 9.4: square deck image (three designs, editable preset, date, MEIOCG profile), saving Arena video clips |
+| `0620`–`0640` | 9.5: Test hub (Combo + Synapse Arena), combo generator (`cb*` functions, stored under `combos`), combo image, More from MEIOCG apps (`KX_APPS`), Arena vibration |
 
-To add a feature: add a new numbered pair (for example `0620-kx-v62.css`, `0640-kx-v62-late.js`) to `manifest.json`, or edit
+To add a feature: add a new numbered pair (for example `0660-kx-v63.css`, `0680-kx-v63-late.js`) to `manifest.json`, or edit
 the module that owns it. The constant `KODEX_BLUEPRINT` in the last module names the creator in the running app.
 
 ## 4. Build and release
@@ -88,11 +89,14 @@ Merge to `main` when tests pass; the Worker deploys from `main`.
 | `stats` | A duel ended: result, turns, cards used (feeds deck stats and profile activity) |
 | `card`, `rulings`, `chat`, `duel`, `save` | Open a card, look up rulings, chat, duel state, save a replay |
 | `saveVideo` (`name`, `mime`, `buf`) | Save a replay video clip (Premium; mp4 or webm, up to 400 MB) |
+| `vibrate` (`p`) | Vibrate the phone (showdowns, Ace cards, big hits) |
+
+KodeX → Arena also sends `combo` (`combo`, `keep`): play a combo as a replay and keep it in the Replays list, and `practice` (`hand`): set the playtest's opening hand.
 
 ## 6. Arena (`duel/`)
 
 `app.js` (table, prompts, effects), `cardfx.js` (staple animations, showdowns), `finisher.js` (finishing moves),
-`ending.js` (profile break, comeback), `video.js` (replay video clips drawn on a canvas: 1080p–4K, landscape, portrait or square), `moves.js` (entrances, attacks), `profile.js` + `profile.css` (profiles, shared
+`ending.js` (profile break, comeback), `video.js` (replay video clips drawn on a canvas: 1080p–4K, landscape, portrait or square; a combo's title card), `combo.js` (a KodeX combo turned into table states, played like a replay), `moves.js` (entrances, attacks), `profile.js` + `profile.css` (profiles, shared
 with KodeX and the Players page), `audio.js`, `net.js` (rooms), `host-worker.js` + `engine/` (duel engine; replays play, seek by move or turn, and are kept in IndexedDB `arena-replays`).
 The engine uses ygopro-core and Project Ignis card scripts under the GNU AGPL-3.0 (`duel/source.html`).
 
