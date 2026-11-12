@@ -1022,3 +1022,122 @@ body.replaying #status, body.replaying #emoteBtn, body.replaying #panelBtn { vis
 .rec-prev { display: block; border-radius: 8px; width: 180px; height: auto; } .rec-prev.portrait { width: 96px; } .rec-prev.square { width: 130px; }
 body.recording .replay-bar .rb-rec { background: #ff4d5e; color: #fff; }
 body.replaying #sideFab { bottom: calc(118px + env(safe-area-inset-bottom, 0px)); }
+
+/* ---------- v62 ----------
+   Quick restart / surrender flag, shuffles, and fixes for plates, panels and pop-ups that overlapped or could not scroll. */
+/* the flag: small, by the turn counter, never over the field */
+.quick-btn { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; padding: 0; border: 1px solid var(--line-2, #2a3270); background: #141a3a; color: #aab3d6; cursor: pointer; }
+.quick-btn:hover, .quick-btn[aria-expanded="true"] { background: #1d2450; color: #fff; }
+.quick-btn[hidden] { display: none; }
+.quick-menu { position: fixed; z-index: 72; display: grid; gap: 4px; padding: 6px; min-width: 168px; border-radius: 14px; background: #121734; border: 1px solid #2f3a86; box-shadow: 0 18px 44px #000c; animation: popIn .16s ease; }
+.quick-menu[hidden] { display: none; }
+.quick-menu button { display: flex; align-items: center; gap: 9px; min-height: 40px; padding: 0 12px; border: 0; border-radius: 10px; background: none; color: #eef1ff; font: inherit; font-weight: 700; font-size: 13.5px; cursor: pointer; text-align: left; }
+.quick-menu button:hover, .quick-menu button:focus-visible { background: #1d2450; outline: none; }
+.quick-menu button.danger { color: #ff8fa0; }
+.quick-menu button[hidden] { display: none; }
+@media (orientation: landscape) and (min-width: 640px) {
+  .arena .turnbar { position: relative; }
+  .arena .turnbar .quick-btn { order: -2; width: 26px; height: 26px; position: absolute; right: calc(clamp(58px, 6.6vw, 78px) + 14px); top: 0; }
+  .arena .turnbar .quick-btn svg { width: 14px; height: 14px; }
+  .arena .turn-no { padding-right: 0; }
+}
+@media (orientation: portrait), (max-width: 639px) { .turnbar { flex-wrap: nowrap; gap: 8px; } .turnbar .phases { min-width: 0; } }
+body.replaying .quick-btn { display: none; }
+
+/* shuffling: the pile riffles in place */
+.zone .shuf { position: absolute; inset: 0; z-index: 4; pointer-events: none; display: grid; place-items: center; }
+.zone .shuf .card { position: absolute; margin: 0; animation: shufA .8s cubic-bezier(.3,.7,.3,1) both; animation-delay: calc(var(--i) * 60ms); box-shadow: 0 4px 10px #000a; }
+.zone .shuf .card:nth-child(even) { animation-name: shufB; }
+.zone.shuffling > .card { animation: shufLift .8s ease both; }
+@keyframes shufA { 0%, 100% { transform: translate(0, 0) rotate(0); opacity: 0; } 10% { opacity: 1; } 30% { transform: translate(-46%, -8%) rotate(-9deg); } 50% { transform: translate(0, -14%) rotate(0); } 72% { transform: translate(-30%, -5%) rotate(-5deg); } 90% { opacity: 1; } }
+@keyframes shufB { 0%, 100% { transform: translate(0, 0) rotate(0); opacity: 0; } 10% { opacity: 1; } 30% { transform: translate(46%, -8%) rotate(9deg); } 50% { transform: translate(0, -14%) rotate(0); } 72% { transform: translate(30%, -5%) rotate(5deg); } 90% { opacity: 1; } }
+@keyframes shufLift { 40% { transform: translateY(-6%) scale(1.03); } }
+.hand.shuffling .card { animation: handShuf .56s ease both; }
+.hand.shuffling .card:nth-child(even) { animation-name: handShuf2; }
+@keyframes handShuf { 35% { transform: translate(14%, -10%) rotate(5deg); } 70% { transform: translate(-8%, 4%) rotate(-3deg); } }
+@keyframes handShuf2 { 35% { transform: translate(-14%, -10%) rotate(-5deg); } 70% { transform: translate(8%, 4%) rotate(3deg); } }
+@media (prefers-reduced-motion: reduce) { .zone .shuf, .hand.shuffling .card, .zone.shuffling > .card { animation: none !important; display: none; } .hand.shuffling .card, .zone.shuffling > .card { display: block; } }
+
+/* Life Point plates: the number and its bar always stay inside the plate; the name gives way first */
+.duelist { box-sizing: border-box; max-width: 100%; }
+.duelist .who, .arena .duelist .who, .arena .duelist.me .who { flex: 1 1 0; min-width: 0 !important; }
+.duelist .who b, .duelist .who span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.duelist .lp { flex: none; min-width: 0; }
+.duelist .lp-bar { max-width: 100%; }
+@media (orientation: landscape) and (min-width: 640px) {
+  .arena .duelist, .arena .duelist.me, body.op-compact .arena .duelist.op { overflow: visible; }
+  .arena .duelist .lp, .arena .duelist.me .lp, body.op-compact .arena .duelist.op .lp { flex-direction: column; align-items: flex-end; gap: 3px; }
+  .arena .duelist .lp-num, .arena .duelist.me .lp-num, body.op-compact .arena .duelist.op .lp-num { font-size: clamp(16px, calc(var(--R) * .112), 28px); line-height: 1; }
+  .arena .duelist .lp-bar, .arena .duelist.me .lp-bar, body.op-compact .arena .duelist.op .lp-bar { width: clamp(44px, calc(var(--R) * .34), 110px); height: 4px; }
+  /* Premium shows as a gold name here: the tag made the name cut to "PR…" */
+  .arena .duelist.is-premium .who b::after { content: none; }
+  .arena .duelist.is-premium .who b { color: #ffe08a; }
+  .embed .arena .duelist.op { margin-right: 0; width: 100%; }
+}
+
+/* the Chat · Log · Settings panel: its content scrolls inside it and it never runs under the screen edge */
+.side { max-height: calc(100vh - 96px); max-height: calc(100dvh - 96px); }
+.side > .side-actions { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; align-content: flex-start; padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
+.side > .log { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.side-actions .field.pref-row { flex: 1 1 100%; }
+@media (orientation: portrait), (max-width: 639px) {
+  .side { height: min(70vh, 600px); height: min(70dvh, 600px); bottom: calc(76px + env(safe-area-inset-bottom, 0px)); z-index: 60; box-shadow: 0 24px 70px #000d; }
+  /* nothing from the table shows through or over the open panel */
+  body:has(#side.open) #status, body:has(#side.open) .turnbar { visibility: hidden; }
+}
+/* landscape card panel: three tabs the same size, the close button beside them (not on top of them) */
+@media (orientation: landscape) and (min-width: 640px) {
+  #info .dock-tabs { gap: 2px; padding: 6px 48px 0 6px; }
+  #info .dock-tabs button, #info .dock-tabs button[data-tab="opts"] { flex: 1 1 0; min-width: 0; font-size: 12.5px; padding: 0 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #info .close-info { right: 6px; top: 7px; width: 34px; height: 34px; min-height: 34px; border-radius: 10px; }
+  #info > .info-body, #info > .log, #info > .side-actions { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+  #info > .side-actions { padding-bottom: 16px; }
+  /* a pop-up (Extra Deck, Graveyard…) keeps clear of the open card panel instead of sitting under it */
+  body.info-over dialog.dlg[open]:not(.info-top) { margin-left: calc(var(--L) + 20px); margin-right: 12px; width: auto; max-width: none; }
+  dialog.info-top::backdrop { background: transparent; }
+}
+@media (orientation: landscape) and (min-width: 1500px) and (min-height: 800px) { #info .dock-tabs { padding-right: 6px; } body.info-over dialog.dlg[open]:not(.info-top) { margin-left: auto; margin-right: auto; width: min(780px, calc(100vw - 24px)); } }
+/* pop-ups: the list scrolls, the title bar stays */
+.dlg[open] { display: flex; flex-direction: column; overflow: hidden; }
+.dlg > .pile-head { flex: none; }
+.dlg > .pile-body, .dlg > .rp-list, .dlg > .order-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.dlg > form { display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
+
+/* ---------- v62: combos from KodeX (title card, then the moves on the table) ---------- */
+.rp-tag { display: inline-block; margin-right: 6px; padding: 1px 7px; border-radius: 999px; background: #f0b42922; color: #f0b429; font: 800 10px/16px system-ui, sans-serif; font-style: normal; letter-spacing: .06em; text-transform: uppercase; vertical-align: 1px; }
+body.combo-play .duelist.op, body.combo-play #opHand { visibility: hidden; }
+body.combo-play #status { color: #ffe08a; font-weight: 700; }
+.combo-intro { position: fixed; inset: 0; z-index: 96; overflow: hidden; background: #070914; color: #fff; cursor: pointer; contain: layout paint; animation: ciAll var(--ms) linear both; }
+.combo-intro.out { opacity: 0; transition: opacity .4s; pointer-events: none; }
+.combo-intro .ci-bg { position: absolute; inset: -6%; background: center 30% / cover no-repeat; animation: ciFocus calc(var(--ms) * .6) cubic-bezier(.2,.7,.2,1) both; }
+.combo-intro.plain .ci-bg { background: radial-gradient(120% 90% at 20% 10%, #3347f0aa, transparent 60%), radial-gradient(90% 80% at 90% 90%, #7a4fd6aa, transparent 60%), #0c0f1f; animation: none; }
+.combo-intro .ci-shade { position: absolute; inset: 0; background: linear-gradient(0deg, #05060fe8 4%, #05060f66 46%, #05060f22 70%, #05060f88), linear-gradient(90deg, #05060fb0, transparent 62%); }
+.combo-intro .ci-brand { position: absolute; left: clamp(14px, 4vw, 44px); top: clamp(12px, 4vh, 34px); display: flex; align-items: center; gap: 9px; font: 700 clamp(10px, 1.7vmin, 15px)/1 "Chakra Petch", system-ui, sans-serif; letter-spacing: .2em; text-transform: uppercase; color: #f0b429; animation: ciFade .5s .15s both; }
+.combo-intro .ci-brand img { width: clamp(24px, 5vmin, 40px); height: clamp(24px, 5vmin, 40px); }
+.combo-intro .ci-txt { position: absolute; left: clamp(14px, 5vw, 64px); right: 44%; bottom: clamp(18px, 11vh, 110px); display: grid; gap: 6px; }
+.combo-intro .ci-txt small { font: 800 clamp(11px, 2.2vmin, 18px)/1 "Chakra Petch", system-ui, sans-serif; letter-spacing: .34em; text-transform: uppercase; color: #9fe2ff; animation: ciFade .4s calc(var(--ms) * .3) both; }
+.combo-intro h1 { position: relative; margin: 0; font: 900 italic clamp(26px, 8.6vmin, 92px)/1 "Chakra Petch", system-ui, sans-serif; letter-spacing: .01em; text-wrap: balance; color: #ffe08a; text-shadow: 0 3px 0 #0c0f1f, 0 0 34px #f0b42988; -webkit-text-stroke: 1.5px #0c0f1f; paint-order: stroke fill; animation: ciTitle .7s calc(var(--ms) * .34) cubic-bezier(.2,.9,.3,1) both; }
+.combo-intro h1::before, .combo-intro h1::after { content: attr(data-t); position: absolute; left: 0; top: 0; width: 100%; color: #3ac8ff; -webkit-text-stroke: 0; text-shadow: none; opacity: 0; clip-path: inset(18% 0 52% 0); animation: ciGlitch .62s calc(var(--ms) * .34) steps(2, end) both; }
+.combo-intro h1::after { color: #ff4d6a; clip-path: inset(58% 0 14% 0); animation-direction: reverse; }
+.combo-intro .ci-txt p { margin: 0; font: 700 clamp(12px, 2.5vmin, 22px)/1.3 "Plus Jakarta Sans", system-ui, sans-serif; color: #e9ecff; text-shadow: 0 2px 8px #000; animation: ciFade .5s calc(var(--ms) * .5) both; }
+.combo-intro .ci-card { position: absolute; right: clamp(16px, 9vw, 130px); top: 50%; width: clamp(110px, 36vmin, 330px); aspect-ratio: 59/86; border-radius: 3.6%; overflow: hidden; box-shadow: 0 0 0 3px #fff, 0 30px 70px #000d, 0 0 70px #f0b42966; transform: translateY(-50%) perspective(900px) rotateY(-16deg) rotate(5deg); animation: ciCard .8s calc(var(--ms) * .4) cubic-bezier(.2,.9,.3,1) both; }
+.combo-intro .ci-card img, .combo-intro .ci-card .nm { width: 100%; height: 100%; object-fit: cover; display: block; }
+.combo-intro .ci-card::after { content: ""; position: absolute; inset: 0; background: linear-gradient(115deg, transparent 30%, #ffffff66 48%, transparent 62%); transform: translateX(-120%); animation: ciShine 1s calc(var(--ms) * .4 + .5s) ease-out both; }
+@keyframes ciAll { 0% { opacity: 0; } 5%, 100% { opacity: 1; } }
+@keyframes ciFocus { from { filter: blur(26px) saturate(1.3); transform: scale(1.5); } to { filter: blur(0); transform: scale(1.04); } }
+@keyframes ciFade { from { opacity: 0; transform: translateY(8px); } }
+@keyframes ciTitle { from { opacity: 0; transform: translateX(-40px) skewX(-14deg); letter-spacing: .2em; } }
+@keyframes ciGlitch { 0% { opacity: 0; transform: translate(0); } 20% { opacity: .9; transform: translate(-10px, 2px); } 40% { transform: translate(8px, -2px); } 60% { transform: translate(-5px, 1px); opacity: .8; } 80% { transform: translate(3px, 0); } 100% { opacity: 0; transform: translate(0); } }
+@keyframes ciCard { from { opacity: 0; transform: translateY(-50%) perspective(900px) rotateY(-60deg) rotate(14deg) scale(1.3); } }
+@keyframes ciShine { to { transform: translateX(120%); } }
+@media (orientation: portrait) {
+  .combo-intro .ci-card { right: auto; left: 50%; top: 40%; width: clamp(140px, 52vw, 300px); transform: translate(-50%, -50%) perspective(900px) rotateY(-12deg) rotate(4deg); animation-name: ciCardP; }
+  .combo-intro .ci-txt { right: clamp(14px, 5vw, 64px); bottom: clamp(60px, 13vh, 150px); text-align: center; justify-items: center; }
+  .combo-intro .ci-shade { background: linear-gradient(0deg, #05060ff0 8%, #05060f77 44%, #05060f33 70%, #05060f99); }
+  @keyframes ciCardP { from { opacity: 0; transform: translate(-50%, -50%) perspective(900px) rotateY(-60deg) rotate(14deg) scale(1.3); } }
+}
+@media (prefers-reduced-motion: reduce) { .combo-intro *, .combo-intro *::before, .combo-intro *::after { animation: none !important; } }
+/* a combo's step caption is its status line, so it stays visible; the chat bubble keeps to its corner in landscape */
+body.replaying.combo-play #status { visibility: visible; }
+@media (orientation: landscape) and (min-width: 640px) { body.replaying #table > .side-fab { bottom: auto; } body.replaying.combo-play #table > .side-fab { visibility: hidden; } }
+@media (orientation: portrait), (max-width: 639px) { body.replaying.combo-play #sideFab { display: none; } body.replaying.combo-play #status { padding-left: 12px; } }

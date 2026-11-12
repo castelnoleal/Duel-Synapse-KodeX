@@ -16,6 +16,7 @@ import { staple, finale, ace, SHOWS, pickShow, SHOW_MIN, SHOW_MAX } from "./card
 import { cleanProfile, avatarHTML, cardHTML } from "./profile.js";
 import { breakProfile, comeback } from "./ending.js";
 import { Clip, canRecord } from "./video.js";
+import { cleanCombo, comboPackets, lineText } from "./combo.js";
 
 const M = C.MSG;
 const $ = (s) => document.querySelector(s);
@@ -92,12 +93,12 @@ function cardImg(code, alt = "") {
   if (known && known.fail && Date.now() - known.fail < 20000) { const ph = cardStandIn(code); setTimeout(() => artFor(code, (u) => { if (u && ph.isConnected) { const i = new Image(); i.alt = alt; i.decoding = "async"; i.referrerPolicy = "no-referrer"; i.src = u; if (ph.className) i.className = ph.className.replace(/\b(nm|stand|spell|trap|effect|normal|fusion|synchro|xyz|link|ritual|x)\b/g, "").trim(); ph.replaceWith(i); } }), 20500); return ph; }
   const i = new Image();
   i.alt = alt; i.decoding = "async"; i.referrerPolicy = "no-referrer";
-  if (known && known.url) { i.src = known.url; return i; }
+  if (known && known.url) { i.decoding = "sync"; i.src = known.url; return i; }
   i.classList.add("art-wait");
   i.src = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";   // blank while the art loads (no broken-picture icon)
   artFor(code, (url) => {
     i.classList.remove("art-wait");
-    if (url) { i.src = url; return; }
+    if (url) { i.decoding = "sync"; i.src = url; return; }
     const ph = cardStandIn(code);
     if (i.className) ph.classList.add(...i.classList);
     if (i.isConnected) i.replaceWith(ph); else i.dataset.stand = "1";
@@ -151,6 +152,7 @@ async function boot() {
     if (hash.get("deck")) fromLink = decodeKodex(hash.get("deck"));
     else if (location.hash.length > 30 && !hash.get("join") && !hash.get("watch")) fromLink = decodeKodex(location.hash.slice(1));
   } catch (e) { toast("That deck link could not be read."); }
+  if (S.pendingCombo) { const pc = S.pendingCombo; S.pendingCombo = null; setTimeout(() => watchCombo(pc.raw, { keep: pc.keep }), 50); }
   if (fromLink) useDeck(fromLink, true);
   else if (S.decks.length) selectDeck(load("duel:current", 0));
   renderSaved();
@@ -501,10 +503,11 @@ async function rpOpenLib() {
   for (const r of all) {
     const li = el("li"), d = new Date(r.saved);
     const t = el("div", "rp-t"); t.append(el("b", null, r.title), el("small", null, `${d.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })} · ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}${r.how ? " · " + r.how : ""}`));
-    const play = el("button", "btn primary", "Watch"); play.type = "button"; play.onclick = () => { $("#rpLib").close(); watchReplay(r.bytes.slice().buffer); };
+    if (r.combo) t.querySelector("b").prepend(el("i", "rp-tag", "Combo"));
+    const play = el("button", "btn primary", "Watch"); play.type = "button"; play.onclick = () => { $("#rpLib").close(); if (r.combo) watchCombo(r.combo); else watchReplay(r.bytes.slice().buffer); };
     const file = el("button", "btn ghost", "File"); file.type = "button"; file.setAttribute("aria-label", "Save as a .yrp file"); file.onclick = () => saveFile(`${r.title.replace(/[^\w-]+/g, "_").slice(0, 40)}.yrp`, "data:application/octet-stream;base64," + b64(r.bytes));
     const del = el("button", "icon", "🗑"); del.type = "button"; del.setAttribute("aria-label", "Delete " + r.title); del.onclick = async () => { await RPDB.del(r.id); rpOpenLib(); rpBadge(); };
-    const ac = el("div", "rp-ac"); ac.append(play, file, del);
+    const ac = el("div", "rp-ac"); if (r.combo) ac.append(play, del); else ac.append(play, file, del);
     li.append(t, ac); list.append(li);
   }
   if (!$("#rpLib").open) $("#rpLib").showModal();
@@ -524,8 +527,84 @@ async function watchReplay(src) {
   $("#replayBar").hidden = false; $("#rbPos").textContent = ""; document.body.classList.add("replaying");
   S.replay = { paused: false, speed: 1, i: 0, n: 0, turns: [] };
   replayBarState(); rbWake();
-  $("#rbRec").hidden = !S.premium;
+  $("#rbRec").hidden = !S.premium; $("#rbView").hidden = false; document.body.classList.remove("combo-play");
   S.worker.postMessage({ cmd: "playReplay", bytes, speed: 1 }, [bytes]);
+}
+// ----- combos made in KodeX: played on the table like a replay (watch, step, go back, record) -----
+async function comboKeep(c) {
+  const id = "combo-" + (c.id || c.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")), all = await RPDB.all();
+  await RPDB.put({ id, sig: "combo:" + id, title: c.title, names: [c.deck || "Combo"], saved: Date.now(), how: "combo", size: 0, combo: c });
+  for (const old of all.filter((r) => r.id !== id).slice(59)) await RPDB.del(old.id);
+  rpBadge();
+}
+async function watchCombo(raw, { keep = false } = {}) {
+  const c = cleanCombo(raw);
+  if (!c) { toast("That combo could not be read."); return; }
+  if (!S.db) { S.pendingCombo = { raw, keep }; return; }
+  if (keep) comboKeep(c);
+  if (!$("#table").hidden) leaveTable();
+  for (const d of document.querySelectorAll("dialog[open]")) d.close();
+  S.mode = "replay"; S.replayTeam = 0; S.team = 0; S.control = "one";
+  enterTable();
+  const packets = comboPackets(c, S.db, [(S.myProfile && S.myProfile.name) || c.by || myName(), "Combo"]);
+  $("#replayBar").hidden = false; document.body.classList.add("replaying", "combo-play");
+  S.replay = { combo: c, packets, paused: true, speed: 1, i: 0, n: packets.length - 1, turns: [0] };
+  $("#rbRec").hidden = !S.premium; $("#rbView").hidden = true;
+  comboShow(0, true);
+  rbWake();
+  await comboIntro(c);
+  if (S.replay && S.replay.combo === c && !S.rec) comboCtl({ paused: false });
+}
+function comboShow(i, quiet) {
+  const r = S.replay; if (!r || !r.combo) return;
+  r.i = Math.max(0, Math.min(r.n, i));
+  const p = structuredClone(r.packets[r.i]);
+  if (quiet) applyQuiet(p); else { onPacket(p); replayBarState(); }
+}
+function comboTick() {
+  const r = S.replay; if (!r || !r.combo) return;
+  clearTimeout(r.timer);
+  if (r.paused) return;
+  if (r.i >= r.n) { r.paused = true; replayBarState(); rbWake(); return; }
+  r.timer = setTimeout(() => { if (S.replay !== r || r.paused) return; comboShow(r.i + 1); comboTick(); }, ((r.packets[r.i].combo.wait || 1700) + (S.holdUntil > Date.now() ? S.holdUntil - Date.now() : 0)) / r.speed);
+}
+function comboCtl(m) {
+  const r = S.replay; if (!r || !r.combo) return;
+  if (m.speed) r.speed = m.speed;
+  if (m.step) { clearTimeout(r.timer); r.paused = true; if (r.i < r.n) comboShow(r.i + 1); replayBarState(); return; }
+  if (m.paused === true) { r.paused = true; clearTimeout(r.timer); }
+  if (m.paused === false) { r.paused = false; if (r.i >= r.n) comboShow(0, true); comboTick(); }
+  replayBarState();
+}
+function comboSeek(m) {
+  const r = S.replay; if (!r || !r.combo) return;
+  clearTimeout(r.timer);
+  comboShow(m.to != null ? m.to : m.turn <= 1 ? 0 : r.n, true);
+  if (m.paused === false) { r.paused = false; comboTick(); }
+}
+/** The title card before a combo: its picture comes into focus, the title lands, the key card slides in. A tap skips it. */
+function comboIntro(c) {
+  const old = $("#comboIntro"); if (old) old.remove();
+  const ms = c.intro.ms;
+  if (!ms) return Promise.resolve();
+  return new Promise((done) => {
+    const w = el("div", "combo-intro"); w.id = "comboIntro"; w.style.setProperty("--ms", ms + "ms");
+    const bg = el("div", "ci-bg"), src = c.intro.bg || (c.intro.art ? artUrl(c.intro.art) : c.intro.key ? artUrl(c.intro.key) : "");
+    if (src) bg.style.backgroundImage = `url("${src}")`; else w.classList.add("plain");
+    const brand = el("div", "ci-brand"); const lg = new Image(); lg.src = LOGO; lg.alt = ""; brand.append(lg, el("span", null, "MEIOCG · Duel Synapse: KodeX"));
+    const txt = el("div", "ci-txt"), h = el("h1", null, c.title); h.dataset.t = c.title;
+    txt.append(el("small", null, "Combo"), h);
+    const sub = [c.sub || c.deck, S.myProfile && S.myProfile.name ? "by " + S.myProfile.name : c.by ? "by " + c.by : ""].filter(Boolean).join(" · ");
+    if (sub) txt.append(el("p", null, sub));
+    w.append(bg, el("div", "ci-shade"), brand, txt);
+    if (c.intro.key) { const k = el("div", "ci-card"); k.append(cardImg(c.intro.key, name(c.intro.key))); w.append(k); }
+    document.body.append(w);
+    Sound.play("cutin");
+    let over = false;
+    const end = () => { if (over) return; over = true; w.classList.add("out"); setTimeout(() => w.remove(), 420); done(); };
+    w.addEventListener("click", end);
+    setTimeout(end, ms);
+  });
 }
 function replayBarState() {
   const r = S.replay || {};
@@ -533,22 +612,28 @@ function replayBarState() {
   $("#rbSpeed").textContent = (r.speed === 0.5 ? "½" : r.speed) + "×";
   const sk = $("#rbSeek"); sk.max = String(Math.max(1, r.n || 1)); if (!S.rbDragging) sk.value = String(r.i || 0);
   const t = S.packet ? S.packet.turn : 0;
-  $("#rbPos").textContent = r.n ? `Turn ${t} · ${r.i}/${r.n}` : "";
+  $("#rbPos").textContent = r.combo ? `Step ${S.packet && S.packet.combo ? S.packet.combo.step : 0}/${S.packet && S.packet.combo ? S.packet.combo.steps : 0}` : r.n ? `Turn ${t} · ${r.i}/${r.n}` : "";
   document.body.classList.toggle("rb-paused", !!r.paused);
+}
+function rpCtl(m) {
+  const r = S.replay; if (!r) return;
+  if (r.combo) { comboCtl(m); return; }
+  S.worker.postMessage({ cmd: "replayCtl", ...m });
 }
 function rbSeek(msg) {
   if (!S.replay || !S.worker) return;
   S.pq = []; S.holdUntil = 0; clearTimeout(pqTimer);
   S.replay.paused = msg.paused !== false; replayBarState();
+  if (S.replay.combo) { comboSeek(msg); return; }
   S.worker.postMessage({ cmd: "replaySeek", paused: S.replay.paused, ...msg });
 }
 function rbTurnStart(turn) { return (S.replay.turns || [])[turn - 1]; }
-$("#rbPlay").addEventListener("click", () => { S.replay.paused = !S.replay.paused; replayBarState(); S.worker.postMessage({ cmd: "replayCtl", paused: S.replay.paused }); });
-$("#rbStep").addEventListener("click", () => { S.replay.paused = true; replayBarState(); S.worker.postMessage({ cmd: "replayCtl", step: true }); });
+$("#rbPlay").addEventListener("click", () => { S.replay.paused = !S.replay.paused; replayBarState(); rpCtl({ paused: S.replay.paused }); });
+$("#rbStep").addEventListener("click", () => { S.replay.paused = true; replayBarState(); rpCtl({ step: true }); });
 $("#rbBack").addEventListener("click", () => { if (S.replay.i > 0) rbSeek({ to: S.replay.i - 1 }); });
 $("#rbPrevTurn").addEventListener("click", () => { const t = S.packet ? S.packet.turn : 1, st = rbTurnStart(t); rbSeek({ turn: st != null && S.replay.i > st ? t : Math.max(1, t - 1) }); });
 $("#rbNextTurn").addEventListener("click", () => { const t = S.packet ? S.packet.turn : 0; rbSeek({ turn: t + 1 }); });
-$("#rbSpeed").addEventListener("click", () => { const sp = [0.5, 1, 2, 4], r = S.replay; r.speed = sp[(sp.indexOf(r.speed) + 1) % sp.length]; replayBarState(); S.worker.postMessage({ cmd: "replayCtl", speed: r.speed }); });
+$("#rbSpeed").addEventListener("click", () => { const sp = [0.5, 1, 2, 4], r = S.replay; r.speed = sp[(sp.indexOf(r.speed) + 1) % sp.length]; replayBarState(); rpCtl({ speed: r.speed }); });
 $("#rbSeek").addEventListener("input", () => { S.rbDragging = true; $("#rbPos").textContent = `${$("#rbSeek").value}/${S.replay.n}`; });
 $("#rbSeek").addEventListener("change", () => { S.rbDragging = false; rbSeek({ to: Number($("#rbSeek").value) }); });
 $("#rbView").addEventListener("click", () => {
@@ -564,7 +649,7 @@ $("#rbRec").addEventListener("click", () => {
   if (!S.premium) { toast("Video clips come with KodeX Premium"); return; }
   if (S.rec) { recStop(true); return; }
   if (!canRecord()) { toast("This device can't record video here. Try the newest Chrome or Android System WebView."); return; }
-  S.replay.paused = true; replayBarState(); S.worker.postMessage({ cmd: "replayCtl", paused: true });
+  S.replay.paused = true; replayBarState(); rpCtl({ paused: true });
   const v = load("duel:rec", {});
   if (v.fmt) { const r = document.querySelector(`input[name=recFmt][value="${v.fmt}"]`); if (r) r.checked = true; }
   for (const [id, k] of [["#recSize", "size"], ["#recFps", "fps"], ["#recUntil", "until"], ["#recSpeed", "speed"]]) if (v[k]) $(id).value = v[k];
@@ -578,7 +663,9 @@ $("#recGo").addEventListener("click", () => {
   const cfg = { fmt, size: $("#recSize").value, fps: $("#recFps").value, until: $("#recUntil").value, speed: $("#recSpeed").value, mark: $("#recMark").checked };
   save("duel:rec", cfg);
   $("#recDlg").close();
-  const clip = new Clip({ format: fmt, size: Number(cfg.size), fps: Number(cfg.fps), watermark: cfg.mark,
+  const cb = S.replay.combo || null;
+  const intro = cb && cb.intro.ms ? { ms: cb.intro.ms, title: cb.title, sub: cb.sub || cb.deck, by: (S.packet && S.packet.names[0]) || cb.by, bg: cb.intro.bg || (cb.intro.art ? artUrl(cb.intro.art) : ""), card: cb.intro.key ? artUrl(cb.intro.key) : "" } : null;
+  const clip = new Clip({ format: fmt, size: Number(cfg.size), fps: Number(cfg.fps), watermark: cfg.mark, intro,
     packet: () => S.packet, team: () => S.team, art: (code) => artUrl(code), name: (code) => name(Number(code)), kind: cardKind,
     profile: (team) => profileOf(team === S.team ? "me" : "op"), logo: LOGO, aces: (team) => fxOf(sideOfTeam(team)).aces });
   let done;
@@ -588,8 +675,13 @@ $("#recGo").addEventListener("click", () => {
   clip.cv.className = "rec-prev " + fmt; box.append(clip.cv);
   document.body.classList.add("recording");
   S.recTimer = setInterval(() => { const s = Math.floor(clip.elapsed()); $("#recTime").textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; }, 500);
-  S.replay.speed = Number(cfg.speed); S.replay.paused = false; replayBarState();
-  S.worker.postMessage({ cmd: "replayCtl", speed: S.replay.speed, paused: false });
+  S.replay.speed = Number(cfg.speed);
+  if (cb) {
+    // a combo is always recorded from its start: the title card first, then the moves
+    comboSeek({ to: 0 }); S.replay.paused = true; replayBarState();
+    if (intro) comboIntro(cb);
+    setTimeout(() => { if (S.rec && S.rec.clip === clip) rpCtl({ speed: S.replay.speed, paused: false }); }, intro ? intro.ms : 300);
+  } else { S.replay.paused = false; replayBarState(); rpCtl({ speed: S.replay.speed, paused: false }); }
   done.then((r) => recSave(r));
 });
 $("#recStop").addEventListener("click", () => recStop(true));
@@ -598,7 +690,8 @@ function recFeed(p) {
   S.rec.clip.feed(p);
   const until = S.rec.cfg.until;
   if (p.ended && until !== "stop" && !S.rec.ending) { S.rec.ending = true; setTimeout(() => recStop(true), 4500); }
-  if (until === "turn" && p.turn > S.rec.turn && !S.rec.ending) { S.rec.ending = true; setTimeout(() => recStop(true), 600); }
+  if (p.combo && p.combo.last && until !== "stop" && !S.rec.ending) { S.rec.ending = true; setTimeout(() => recStop(true), 3200); }
+  if (until === "turn" && !p.combo && p.turn > S.rec.turn && !S.rec.ending) { S.rec.ending = true; setTimeout(() => recStop(true), 600); }
 }
 function recStop(keep) {
   if (!S.rec) return;
@@ -612,8 +705,8 @@ function recStop(keep) {
 async function recSave(r) {
   if (!S.recKeep || !r || !r.blob || !r.blob.size) return;
   const n = S.packet ? S.packet.names : ["Duelist", "Opponent"], safe = (x) => String(x || "").replace(/[^\w-]+/g, "_").slice(0, 20);
-  const d = new Date(), z = (x) => String(x).padStart(2, "0");
-  const fileName = `KodeX_${safe(n[0])}_vs_${safe(n[1])}_${d.getFullYear()}${z(d.getMonth() + 1)}${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}.${r.ext}`;
+  const d = new Date(), z = (x) => String(x).padStart(2, "0"), cbo = S.replay && S.replay.combo;
+  const fileName = `KodeX_${cbo ? "Combo_" + String(cbo.title).replace(/[^\w-]+/g, "_").slice(0, 40) : safe(n[0]) + "_vs_" + safe(n[1])}_${d.getFullYear()}${z(d.getMonth() + 1)}${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}.${r.ext}`;
   const buf = await r.blob.arrayBuffer();
   if (window.parent !== window) { window.parent.postMessage({ kx: "saveVideo", name: fileName, mime: r.mime.split(";")[0], buf }, "*", [buf]); toast(`Video ready (${(r.blob.size / 1048576).toFixed(1)} MB)`); return; }
   const url = URL.createObjectURL(r.blob), a = el("a"); a.href = url; a.download = fileName; document.body.append(a); a.click(); a.remove();
@@ -803,7 +896,7 @@ function duelState(active) {
   if (window.parent !== window) window.parent.postMessage({ kx: "duel", active }, "*");
 }
 function enterTable() {
-  CARD_CACHE.clear(); S.fitted = false; S.pfDrawn = false;
+  CARD_CACHE.clear(); CNT_CACHE.clear(); BACK_CACHE.clear(); const ch0 = $("#chain"); if (ch0) delete ch0.dataset.sig; S.fitted = false; S.pfDrawn = false;
   $("#lobby").hidden = true; $("#table").hidden = false; $("#result").hidden = true;
   duelState(true); S.unread = 0; badge(); toggleSide(false);
   trackReset();
@@ -816,8 +909,9 @@ function enterTable() {
 }
 function leaveTable() {
   duelState(false);
-  $("#replayBar").hidden = true; document.body.classList.remove("replaying");
-  if (S.mode === "solo" || S.mode === "replay") S.worker.postMessage({ cmd: "stop" });
+  $("#replayBar").hidden = true; document.body.classList.remove("replaying", "combo-play");
+  if (S.replay && S.replay.combo) { clearTimeout(S.replay.timer); S.replay = null; const ci = $("#comboIntro"); if (ci) ci.remove(); }
+  if ((S.mode === "solo" || S.mode === "replay") && S.worker) S.worker.postMessage({ cmd: "stop" });
   if (S.mode === "guest" || S.mode === "spec") { if (S.room) S.room.close(); S.room = null; netStatus(null); }
   if (S.mode === "host") { S.worker.postMessage({ cmd: "stop" }); S.packet = null; }
   $("#table").hidden = true; $("#lobby").hidden = false; $("#result").hidden = true;
@@ -836,12 +930,7 @@ function bindTable() {
     addChat(myName(), text, false, "me");
     if (S.room) S.room.send({ to: "all", m: { t: "chat", text } });
   });
-  $("#surrenderBtn").addEventListener("click", async () => {
-    if (!S.packet || S.packet.ended || S.mode === "spec") return;
-    if (!(await ask("Surrender this duel?", "You lose this duel.", "Surrender"))) return;
-    if (S.mode === "guest") S.room.send({ to: "host", m: { t: "surrender" } });
-    else S.worker.postMessage({ cmd: "surrender", team: S.team });
-  });
+  $("#surrenderBtn").addEventListener("click", surrender);
   $("#exportBtn").addEventListener("click", () => {
     const blob = new Blob([S.fullLog.join("\n") + "\n"], { type: "text/plain" });
     const a = el("a"); a.href = URL.createObjectURL(blob); a.download = "duel-log.txt"; a.click();
@@ -870,11 +959,74 @@ function bindTable() {
     }
   }).observe($("#sheetBody"), { childList: true, subtree: true });
   $("#closeInfo").addEventListener("click", closeInfo);
-  document.addEventListener("click", (e) => { const i = $("#info"); if (i.classList.contains("open") && !i.contains(e.target) && !e.target.closest(".c, .card, .chain-stack li, .menu, .chain-card, dialog")) closeInfo(); });
+  document.addEventListener("click", (e) => { const i = $("#info"); if (PREF.tapOut !== false && i.classList.contains("open") && !i.contains(e.target) && !e.target.closest(".c, .card, .chain-stack li, .menu, .chain-card, dialog, #panelBtn")) closeInfo(); });
+  bindQuick(); bindTapOut();
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeInfo(); });
   $("#sheetMin").addEventListener("click", () => { const s = $("#sheet"); s.classList.toggle("min"); $("#sheetMin").textContent = s.classList.contains("min") ? "▴" : "▾"; });
   document.addEventListener("click", (e) => { if (!e.target.closest(".menu") && !e.target.closest(".card")) hideMenu(); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") hideMenu(); });
+}
+
+async function surrender() {
+  if (!S.packet || S.packet.ended || S.mode === "spec" || S.mode === "replay") return;
+  if (!(await ask("Surrender this duel?", "You lose this duel.", "Surrender"))) return;
+  if (S.mode === "guest") S.room.send({ to: "host", m: { t: "surrender" } });
+  else S.worker.postMessage({ cmd: "surrender", team: S.team });
+}
+/** Solo: start the same playtest again at once (same decks and settings). It doesn't count in a match score. */
+async function restartDuel() {
+  if (S.mode !== "solo" || !S.lastSolo) return;
+  if (S.packet && !S.packet.ended && S.packet.turn > 1 && !(await ask("Restart this duel?", "The duel starts again from the opening hand.", "Restart"))) return;
+  S.worker.postMessage({ cmd: "stop" });
+  S.pq = []; S.holdUntil = 0;
+  for (const id of ["#chainFx", "#bigFx", "#revealFx", "#finFx", "#endFx", "#cardFx"]) { const x = document.querySelector(id); if (x) x.replaceChildren(); }
+  document.body.classList.remove("ace-on", "ef-comeback", "cf-hold", "cf-frozen", "cf-inv", "cf-sepia", "cf-quake", "cf-redshift");
+  CARD_CACHE.clear(); closeSheet(); hideMenu(); trackReset();
+  $("#loading").hidden = false; $("#loadingText").textContent = "Restarting…";
+  if (S.match) S.match.loserFirst = null;
+  rematch();
+  toast("Duel restarted");
+}
+/** The small flag by the turn counter: restart (solo) or surrender, two taps, out of the way of the field. */
+function bindQuick() {
+  const b = $("#quickBtn"), m = $("#quickMenu");
+  const close = () => { m.hidden = true; b.setAttribute("aria-expanded", "false"); };
+  b.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (!m.hidden) { close(); return; }
+    $("#qmRestart").hidden = S.mode !== "solo";
+    m.hidden = false; b.setAttribute("aria-expanded", "true");
+    const r = b.getBoundingClientRect(), w = m.offsetWidth, h = m.offsetHeight;
+    m.style.left = Math.round(Math.max(8, Math.min(r.right - w, innerWidth - w - 8))) + "px";
+    m.style.top = Math.round(r.top - h - 8 > 8 ? r.top - h - 8 : r.bottom + 8) + "px";
+  });
+  $("#qmRestart").addEventListener("click", () => { close(); restartDuel(); });
+  $("#qmSurrender").addEventListener("click", () => { close(); surrender(); });
+  document.addEventListener("click", (e) => { if (!m.hidden && !e.target.closest("#quickMenu, #quickBtn")) close(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
+}
+/** Tapping outside a panel or pop-up closes it, and the tap still lands on the card or zone under it (Settings can
+ *  switch this off). Prompts that need an answer are never closed this way. */
+function bindTapOut() {
+  document.addEventListener("pointerdown", (e) => {
+    if (PREF.tapOut === false) return;
+    const s = $("#side");
+    if (s.classList.contains("open") && !s.contains(e.target) && !e.target.closest("#sideFab, #sheetChat, dialog")) toggleSide(false);
+    const v = $("#pfView"); if (v && !v.hidden && !e.target.closest(".pf-box")) v.hidden = true;
+  }, true);
+  document.addEventListener("click", (e) => {
+    if (PREF.tapOut === false) return;
+    const d = e.target;
+    if (!(d instanceof HTMLDialogElement) || !d.open || d.id === "infoTop") return;
+    const r = d.getBoundingClientRect();
+    if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) return;   // inside the box (its padding)
+    if (d.id === "ask") { $("#askNo").click(); return; }
+    if (d.id === "recDlg" && S.rec) return;
+    d.close("cancel");
+    // quick navigation: the tap goes on to the pile, card or zone that was under the pop-up
+    const u = document.elementFromPoint(e.clientX, e.clientY), go = u && u.closest("#field .zone, #myHand .card, .chain-stack li, .duelist .avatar");
+    if (go) setTimeout(() => (u.closest(".card") || go).click(), 30);
+  });
 }
 
 function rematch() {
@@ -965,13 +1117,30 @@ function zoneId(team, location, seq) {
 const CARD_CACHE = new Map();
 // body.at-table while the duel table shows (cheaper for the browser than a :has() rule re-checked on every change)
 new MutationObserver(() => document.body.classList.toggle("at-table", !$("#table").hidden)).observe($("#table"), { attributes: true, attributeFilter: ["hidden"] });
+const CNT_CACHE = new Map(), BACK_CACHE = new Map();
+/** Makes `parent` hold exactly `nodes` in order (besides its label and effects marked to stay), moving as little as
+ *  possible: nodes already in the right place are not touched. */
+function setKids(parent, nodes) {
+  const keep = (c) => c.classList.contains("lbl") || c.classList.contains("mat-skin") || c.classList.contains("keep-fx");
+  const have = [...parent.children].filter((c) => !keep(c));
+  if (have.length === nodes.length && have.every((c, i) => c === nodes[i])) return;
+  const set = new Set(nodes);
+  for (const c of have) if (!set.has(c)) c.remove();
+  let i = 0;
+  for (const n of nodes) {
+    let cur = parent.firstElementChild, k = 0;
+    while (cur && (keep(cur) || k < i)) { if (!keep(cur)) k++; cur = cur.nextElementSibling; }
+    if (cur !== n) parent.insertBefore(n, cur);
+    i++;
+  }
+}
 function cardSig(c, team, location, seq, opts) {
   return JSON.stringify([c ? [c.code, c.hidden, c.position, c.attack, c.defense, c.link, c.overlays && c.overlays.length, c.counters, c.status & C.STATUS_DISABLED, c.type] : 0, team, location, seq, !!opts.static, S.team]);
 }
 function cardEl(c, team, location, seq, opts = {}) {
   const ck = key(team, location, seq) + (opts.static ? "s" : ""), sig = cardSig(c, team, location, seq, opts);
   const hit = opts.reuse && CARD_CACHE.get(ck);
-  if (hit && hit.sig === sig && !hit.el.isConnected && !hit.el.querySelector("img[data-stand]")) { hit.el.classList.remove("act", "selectable", "selected", "picked", "atk-src", "atk-tgt"); return hit.el; }
+  if (hit && hit.sig === sig && !hit.el.querySelector("img[data-stand]")) { hit.el.classList.remove("act", "selectable", "selected", "picked", "atk-src", "atk-tgt"); return hit.el; }
   const d = el("div", "card");
   if (opts.reuse) CARD_CACHE.set(ck, { sig, el: d });
   d.dataset.key = key(team, location, seq);
@@ -1134,16 +1303,15 @@ function render(p) {
     matDamage(id, lvl);
     $(`#${id}Meta`).textContent = `Hand ${z.hand.length} · Deck ${z.deck}`;
   }
-  // clear zones
-  for (const z of document.querySelectorAll("#field .zone")) {
-    for (const c of [...z.children]) if (!c.classList.contains("lbl")) c.remove();
-    z.classList.remove("free", "picked");
-  }
-  queueMicrotask(() => { for (const z of document.querySelectorAll("#field .zone")) z.classList.toggle("filled", !!z.querySelector(".card")); });
+  // The field is updated in place: a card that hasn't changed keeps its element where it is (taking every card off
+  // the page and putting it back on each update made pictures blink on phones). Only what changed is touched.
+  const want = new Map();
+  const put = (zone, node) => { if (!zone) return; let l = want.get(zone); if (!l) want.set(zone, l = []); l.push(node); };
+  const cnt = (zone, n) => { let c = CNT_CACHE.get(zone.id); if (!c) { c = el("span", "cnt"); CNT_CACHE.set(zone.id, c); } if (c.textContent !== String(n)) c.textContent = String(n); return c; };
   for (const t of [0, 1]) {
     const z = st.teams[t];
-    z.mzone.forEach((c, i) => { if (c) document.getElementById(zoneId(t, C.LOCATION_MZONE, i)).append(cardEl(c, t, C.LOCATION_MZONE, i, { reuse: true })); });
-    z.szone.forEach((c, i) => { const id = zoneId(t, C.LOCATION_SZONE, i); if (c && id) document.getElementById(id).append(cardEl(c, t, C.LOCATION_SZONE, i, { reuse: true })); });
+    z.mzone.forEach((c, i) => { if (c) put(document.getElementById(zoneId(t, C.LOCATION_MZONE, i)), cardEl(c, t, C.LOCATION_MZONE, i, { reuse: true })); });
+    z.szone.forEach((c, i) => { const id = zoneId(t, C.LOCATION_SZONE, i); if (c && id) put(document.getElementById(id), cardEl(c, t, C.LOCATION_SZONE, i, { reuse: true })); });
     const rel = t === me ? "me" : "op";
     for (const [k, loc] of [["grave", C.LOCATION_GRAVE], ["banished", C.LOCATION_REMOVED], ["extra", C.LOCATION_EXTRA]]) {
       const list = z[k];
@@ -1151,43 +1319,54 @@ function render(p) {
       if (list.length) {
         const top = k === "extra" ? (list.slice().reverse().find((c) => c && !c.hidden && c.position & C.POS_FACEUP) || list[list.length - 1]) : list[list.length - 1];
         const idx = list.indexOf(top);
-        const d = cardEl(top, t, loc, idx, { static: true, reuse: k !== "extra" });
-        if (k === "extra" && t === me && !(top.position & C.POS_FACEUP)) { d.replaceChildren(); d.className = "card back"; }
-        zone.append(d);
-        zone.append(el("span", "cnt", String(list.length)));
+        const back = k === "extra" && t === me && !(top.position & C.POS_FACEUP);
+        let d;
+        if (back || (k === "extra" && (!top || top.hidden))) { d = BACK_CACHE.get(zone.id); if (!d) { d = el("div", "card back"); d.dataset.side = rel; if (rel === "op") d.classList.add("op-back"); BACK_CACHE.set(zone.id, d); } }
+        else d = cardEl(top, t, loc, idx, { static: true, reuse: true });
+        put(zone, d); put(zone, cnt(zone, list.length));
       }
     }
     const deckZone = document.getElementById(`${rel}-deck`);
     if (z.deck) {
-      const d = el("div", "card back");
-      if (z.deckTop) { d.className = "card"; d.append(cardImg(z.deckTop, name(z.deckTop))); }
-      deckZone.append(d, el("span", "cnt", String(z.deck)));
+      const dk = "deck:" + rel + ":" + (z.deckTop || 0);
+      let d = BACK_CACHE.get(dk);
+      if (!d) { d = el("div", "card back"); d.dataset.side = rel; if (rel === "op") d.classList.add("op-back"); if (z.deckTop) { d.className = "card"; d.append(cardImg(z.deckTop, name(z.deckTop))); } BACK_CACHE.set(dk, d); }
+      put(deckZone, d); put(deckZone, cnt(deckZone, z.deck));
     }
+  }
+  for (const z of document.querySelectorAll("#field .zone")) {
+    setKids(z, want.get(z) || []);
+    z.classList.remove("free", "picked");
+    z.classList.toggle("filled", !!(want.get(z) || []).some((n) => n.classList.contains("card")));
   }
   // hands
   const mh = $("#myHand"), oh = $("#opHand");
-  mh.replaceChildren(); oh.replaceChildren();
-  st.teams[me].hand.forEach((c, i) => mh.append(cardEl(c, me, C.LOCATION_HAND, i, { reuse: true })));
-  st.teams[op].hand.forEach((c, i) => oh.append(cardEl(c, op, C.LOCATION_HAND, i, { reuse: true })));
+  setKids(mh, st.teams[me].hand.map((c, i) => cardEl(c, me, C.LOCATION_HAND, i, { reuse: true })));
+  setKids(oh, st.teams[op].hand.map((c, i) => cardEl(c, op, C.LOCATION_HAND, i, { reuse: true })));
   if (!S.fitted) { S.fitted = true; fitTable(); }
   fitHands();
-  // chain
-  const ch = $("#chain");
-  ch.replaceChildren();
-  st.chain.forEach((link, i) => {
-    const li = el("li"); li.append(el("b", null, String(i + 1)));
-    const im = cardImg(link.code, name(link.code)); im.title = `Chain ${i + 1}: ${name(link.code)}`; li.append(im);
-    li.addEventListener("click", () => showInfo({ code: link.code }, link.controller, link.location));
-    ch.append(li);
-  });
+  // chain (redrawn only when it changes)
+  const ch = $("#chain"), chSig = st.chain.map((l) => l.code + ":" + l.controller).join(",");
+  if (ch.dataset.sig !== chSig) {
+    ch.dataset.sig = chSig;
+    ch.replaceChildren();
+    st.chain.forEach((link, i) => {
+      const li = el("li"); li.append(el("b", null, String(i + 1)));
+      const im = cardImg(link.code, name(link.code)); im.title = `Chain ${i + 1}: ${name(link.code)}`; li.append(im);
+      li.addEventListener("click", () => showInfo({ code: link.code }, link.controller, link.location));
+      ch.append(li);
+    });
+  }
   // phases
   const phaseBits = p.phase;
   document.querySelectorAll("#phases button").forEach((b) => { b.classList.toggle("now", !!(phaseBits & Number(b.dataset.bits))); b.classList.remove("go"); });
   $("#phases").title = `Turn ${p.turn}`;
   const mine = p.waitingFor === me && S.mode !== "spec" && S.mode !== "replay";
+  $("#quickBtn").hidden = S.mode === "replay" || S.mode === "spec" || !!p.ended;
   const st2 = $("#status");
   st2.classList.toggle("mine", mine);
-  if (S.mode === "replay" && !p.ended) setStatus(`Replay · ${p.names.join(" vs ")}${p.waitingFor >= 0 ? ` · ${p.names[p.waitingFor]} is deciding` : ""}`);
+  if (S.mode === "replay" && p.combo) setStatus(`${p.combo.step ? `Step ${p.combo.step}/${p.combo.steps} · ` : ""}${p.combo.caption}${p.combo.note ? " · " + p.combo.note : ""}`);
+  else if (S.mode === "replay" && !p.ended) setStatus(`Replay · ${p.names.join(" vs ")}${p.waitingFor >= 0 ? ` · ${p.names[p.waitingFor]} is deciding` : ""}`);
   else if (p.ended) setStatus("Duel over.");
   else if (mine) setStatus("Your move");
   else if (p.waitingFor >= 0) setStatus(`Waiting for ${p.names[p.waitingFor]}…`);
@@ -1207,14 +1386,21 @@ function infoTop() {
   if (d) return d;
   d = document.createElement("dialog"); d.id = "infoTop"; d.className = "info-top"; d.setAttribute("aria-label", "Card details");
   const i = $("#info"), home = i.parentNode, next = i.nextSibling;
-  d.addEventListener("close", () => { i.classList.remove("open"); home.insertBefore(i, next); });
-  d.addEventListener("click", (e) => { if (e.target === d) d.close(); });
+  d.addEventListener("close", () => { i.classList.remove("open"); home.insertBefore(i, next); document.body.classList.remove("info-over"); });
+  // a tap beside the details closes them and goes on to the card or button under it (quick navigation)
+  d.addEventListener("click", (e) => {
+    if (e.target !== d) return;
+    d.close();
+    if (PREF.tapOut === false) return;
+    const u = document.elementFromPoint(e.clientX, e.clientY), go = u && u.closest(".card, .opt, .zone, button, li");
+    if (go && !go.closest("#info")) go.click();
+  });
   document.body.append(d);
   return d;
 }
 function openInfo() {
   const i = $("#info");
-  if (otherModalOpen()) { const d = infoTop(); if (i.parentNode !== d) d.append(i); if (!d.open) d.showModal(); }
+  if (otherModalOpen()) { const d = infoTop(); if (i.parentNode !== d) d.append(i); if (!d.open) d.showModal(); document.body.classList.add("info-over"); }
   i.classList.add("open");
 }
 function closeInfo() {
@@ -1431,7 +1617,7 @@ function openPile(team, kind) {
   const body = $("#pileBody");
   body.replaceChildren();
   if (kind === "deck") body.append(el("p", "empty", `${z.deck} cards. The Deck is hidden.`));
-  const list = (z[kind] || []).map((c, i) => [c, i]).reverse();
+  const list = (Array.isArray(z[kind]) ? z[kind] : []).map((c, i) => [c, i]).reverse();
   if (kind !== "deck" && !list.length) body.append(el("p", "empty", "Empty."));
   for (const [c, i] of list) {
     const o = el("div", "opt");
@@ -2090,9 +2276,9 @@ function fxEvents(p) {
       if (cards.length) shown.push({ player: e.player, cards });
     } else if (e.type === M.CHAINING) fxQueue.push({ kind: "chain", e, name: p.names[e.controller] });
     else if (e.type === M.CHAIN_SOLVING) fxQueue.push({ kind: "solve", n: e.chain_size });
-    else if (e.type === M.CHAIN_NEGATED || e.type === M.CHAIN_DISABLED) fxQueue.push({ kind: "negate", n: e.chain_size });
+    else if (e.type === M.CHAIN_NEGATED || e.type === M.CHAIN_DISABLED) { fxQueue.push({ kind: "negate", n: e.chain_size }); soundOnce("negate"); }
   }
-  if (shown.length) showReveal(shown, p);
+  if (shown.length) { showReveal(shown, p); soundOnce("reveal"); }
   runFx();
 }
 function showReveal(groups, p) {
@@ -2167,6 +2353,28 @@ function splash(code, title, sub, kind = "boss") {
   requestAnimationFrame(() => w.classList.add("in"));
   setTimeout(() => { w.classList.add("out"); setTimeout(() => w.remove(), 400); }, reduceMotion() ? 900 : kind === "otk" ? 2600 : 1700);
 }
+// the same sound isn't stacked when one effect moves many cards at once
+const sndAt = {};
+function soundOnce(n, gap = 140) { const t = Date.now(); if (t - (sndAt[n] || 0) < gap) return; sndAt[n] = t; Sound.play(n); }
+/** The Deck (or Extra Deck) is shuffled: the pile riffles where it sits. */
+function shuffleFx(player, pile) {
+  soundOnce("shuffle", 500);
+  if (reduceMotion() || (player !== 0 && player !== 1)) return;
+  const me = S.team === 2 ? 0 : S.team, rel = player === me ? "me" : "op", z = document.getElementById(`${rel}-${pile}`);
+  if (!z) return;
+  const old = z.querySelector(".shuf"); if (old) old.remove();
+  const w = el("div", "shuf keep-fx"); w.setAttribute("aria-hidden", "true");
+  for (let i = 0; i < 4; i++) { const c = el("i", "card back" + (rel === "op" ? " op-back" : "")); c.style.setProperty("--i", i); w.append(c); }
+  z.append(w); z.classList.add("shuffling");
+  setTimeout(() => { w.remove(); z.classList.remove("shuffling"); }, 900);
+}
+function handShuffleFx(player) {
+  soundOnce("shuffle", 500);
+  if (reduceMotion()) return;
+  const me = S.team === 2 ? 0 : S.team, h = player === me ? $("#myHand") : $("#opHand");
+  h.classList.remove("shuffling"); void h.offsetWidth; h.classList.add("shuffling");
+  setTimeout(() => h.classList.remove("shuffling"), 620);
+}
 function bigFx(p) {
   const me = S.team === 2 ? 0 : S.team;
   const sideOf = (t) => (t === me ? "me" : "op");
@@ -2178,6 +2386,12 @@ function bigFx(p) {
       case M.NEW_PHASE: Sound.play("phase"); break;
       case M.DRAW: Sound.play("draw"); break;
       case M.SET: Sound.play("set"); break;
+      case M.SHUFFLE_DECK: case M.SWAP_GRAVE_DECK: case M.REVERSE_DECK: shuffleFx(e.player, "deck"); break;
+      case M.SHUFFLE_EXTRA: shuffleFx(e.player, "extra"); break;
+      case M.SHUFFLE_HAND: handShuffleFx(e.player); break;
+      case M.RECOVER: Sound.play("heal"); break;
+      case M.POS_CHANGE: Sound.play("flip"); break;
+      case M.ADD_COUNTER: Sound.play("counter"); break;
       case M.SUMMONING: case M.SPSUMMONING: case M.FLIPSUMMONING: {
         const fx = fxOf(sideOf(e.controller)), boss = isBoss(e.code, fx), sig = fx.signature.has(cc(e.code));
         if (e.location === C.LOCATION_MZONE) {
@@ -2225,11 +2439,15 @@ function bigFx(p) {
       case M.DAMAGE: {
         const big = e.amount >= 2000;
         Sound.play("damage", big);
+        if (big) Sound.vibrate(e.amount >= 4000 ? [120, 40, 160] : 90);
         if (big && !reduceMotion()) { document.body.classList.remove("shake"); void document.body.offsetWidth; document.body.classList.add("shake"); }
         break;
       }
       case M.MOVE: {
         if (e.to && e.to.location === C.LOCATION_GRAVE && e.reason & C.REASON.DESTROY) Sound.play("destroy");
+        else if (e.to && e.to.location === C.LOCATION_GRAVE && !(e.from && e.from.location === C.LOCATION_GRAVE)) soundOnce("tograve");
+        else if (e.to && e.to.location === C.LOCATION_REMOVED) soundOnce("banish");
+        else if (e.to && e.to.location === C.LOCATION_HAND && e.from && (C.LOCATION_DECK | C.LOCATION_GRAVE | C.LOCATION_REMOVED) & e.from.location) soundOnce("search");
         // an Ace card searched or added to the hand (from the Deck, GY, banishment or Extra Deck) gets its showdown too
         if (e.to && e.to.location === C.LOCATION_HAND && e.from && e.code && (C.LOCATION_DECK | C.LOCATION_GRAVE | C.LOCATION_REMOVED | C.LOCATION_EXTRA) & e.from.location) {
           const fx = fxOf(sideOf(e.to.controller));
@@ -2257,7 +2475,6 @@ function bigFx(p) {
       const style = (wfx.premium && (wfx.sigFx[cc(blow)] || wfx.finisher)) || "shatter";
       const side = loser === me ? "me" : "op";
       if (wfx.premium && viewerFree) setTimeout(() => toast(`${p.names[w]} finished with a KodeX Premium move: ${style[0].toUpperCase() + style.slice(1)}`), 2400);
-      Sound.play("finish");
       setTimeout(() => Sound.play(otk ? "otk" : w === me && S.mode !== "spec" ? "win" : "lose"), 1600);
       S.comeback = !!(S.behind && S.behind[w]);
       // the field breaks, then the loser's profile icon cracks and shatters, then (a comeback) the comeback moment;
@@ -2309,7 +2526,7 @@ function saveFile(fileName, dataUrl) {
 if (window.parent === window) addEventListener("beforeunload", (e) => { if (S.active && S.packet && !S.packet.ended) { e.preventDefault(); e.returnValue = ""; } });
 
 window.__duel = S; // for automated tests and debugging
-window.__arena = { fxEvents, showReveal, toggleSide };
+window.__arena = { fxEvents, showReveal, toggleSide, watchCombo, restartDuel };
 window.__arenaFx = (p) => bigFx(p);
 window.__arenaFin = (side, style) => runFinisher({ side, style, mat: $("#field"), art: style === "meteor" ? artUrl(27204311) : "" });
 window.__arenaDmg = (side, lvl) => matDamage(side, lvl);
@@ -2472,6 +2689,15 @@ window.addEventListener("message", (e) => {
   if (window.parent === window || e.source !== window.parent) return;
   const d = e.data;
   if (d && d.kx === "audio" && d.premium === true) Sound.setCustom(d);
+  // a combo made in KodeX: play it (and keep it with the replays)
+  if (d && d.kx === "combo" && d.combo) watchCombo(d.combo, { keep: d.keep !== false });
+  // practise a combo for real: its starting hand becomes the opening hand of the playtest
+  if (d && d.kx === "practice" && Array.isArray(d.hand) && S.deck) {
+    const left = S.deck.main.slice(); S.testHand.clear();
+    for (const c of d.hand.map(Number)) { const i = left.indexOf(c); if (i >= 0 && S.testHand.size < 10) { S.testHand.add(c); left.splice(i, 1); } }
+    renderDeck(); const po = document.querySelector(".pt-opts"); if (po) po.open = true; ptSummary();
+    if (S.testHand.size) toast("Opening hand set from your combo");
+  }
   // the player's KodeX profile (free and Premium): name, icon, frame, banner; the opponent sees it too
   if (d && d.kx === "profile") {
     S.myProfile = cleanProfile(d.p, imgOk);
@@ -2636,11 +2862,14 @@ const sentMedia = new Set();
 // mute: per device
 const MUTE = Object.assign({ opp: false, chat: false, emotes: false, voices: false }, load("duel:mute", {}));
 // v60: how long a revealed card or an activated effect stays on screen, and the staple card animations
-const PREF = Object.assign({ fxMs: 1000, staples: true }, load("duel:pref", {}));
+const PREF = Object.assign({ fxMs: 1000, staples: true, tapOut: true }, load("duel:pref", {}));
 function bindPrefs() {
   const t = $("#prefFxMs"), st = $("#prefStaples");
   if (t) { t.value = String(PREF.fxMs); t.addEventListener("change", () => { PREF.fxMs = Math.max(300, Math.min(5000, Number(t.value) || 1000)); save("duel:pref", PREF); }); }
   if (st) { st.checked = PREF.staples; st.addEventListener("change", () => { PREF.staples = st.checked; save("duel:pref", PREF); }); }
+  const to = $("#prefTapOut"), vb = $("#vibeOn");
+  if (to) { to.checked = PREF.tapOut !== false; to.addEventListener("change", () => { PREF.tapOut = to.checked; save("duel:pref", PREF); }); }
+  if (vb) { vb.checked = Sound.getPrefs().vibe !== false; vb.addEventListener("change", () => { Sound.setPref("vibe", vb.checked); if (vb.checked) Sound.vibrate(60); }); }
 }
 bindPrefs();
 function sideOfRole(role) {

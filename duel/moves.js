@@ -1,6 +1,7 @@
 // Grand entrances (summons) and attacks. Everyone gets the default of each; KodeX Premium players pick other styles,
 // as their default or for chosen cards, and their choice shows on every screen in the duel.
 // Only transforms and opacity are animated, so it stays smooth on phones.
+import { play } from "./audio.js";
 export const ENTRANCES = ["rise", "portal", "storm", "inferno", "nova", "glitch"];
 export const ATTACKS = ["lunge", "beam", "comet", "claw", "phantom"];
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -27,6 +28,7 @@ function bolt(x, y0, y1, w = 22) {
 export function entrance(style, zone, { big = false } = {}) {
   if (!zone || reduced()) return;
   style = ENTRANCES.includes(style) ? style : "rise";
+  if (style !== "rise") play("ent_" + style);
   const card = zone.querySelector(".card"), r = zone.getBoundingClientRect();
   if (!r.width) return;
   const L = layer(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, k = big ? 1.35 : 1;
@@ -94,6 +96,7 @@ export function entrance(style, zone, { big = false } = {}) {
 export function attack(style, from, to, { direct = false } = {}) {
   if (!from || !to || reduced()) return;
   style = ATTACKS.includes(style) ? style : "lunge";
+  if (style !== "lunge") play("atk_" + style);
   const L = layer(), a = from.getBoundingClientRect(), b = to.getBoundingClientRect();
   if (!a.width || !b.width) return;
   const ax = a.left + a.width / 2, ay = a.top + a.height / 2, bx = b.left + b.width / 2, by = b.top + b.height / 2;

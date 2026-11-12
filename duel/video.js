@@ -38,6 +38,7 @@ export class Clip {
     this.g = this.cv.getContext("2d", { alpha: false });
     this.imgs = new Map(); this.fx = []; this.lp = [null, null]; this.lpShow = [0, 0];
     this.logo = this.load(o.logo);
+    if (o.intro) { this.introBg = this.load(o.intro.bg); this.introCard = this.load(o.intro.card); }
     this.layout();
   }
   /* pictures: same-origin or CORS-enabled, so the canvas stays recordable */
@@ -299,14 +300,83 @@ export class Clip {
       }
     }
   }
+  /* ---------- a combo: its title card (the first seconds of the video) and the step caption ---------- */
+  cover(r, x, y, w, h, zoom = 1, fy = 0.3) {
+    const g = this.g, iw = r.img.naturalWidth, ih = r.img.naturalHeight, sc = Math.max(w / iw, h / ih) * zoom, dw = iw * sc, dh = ih * sc;
+    g.drawImage(r.img, x + (w - dw) / 2, y + (h - dh) * fy, dw, dh);
+  }
+  drawIntro(k) {
+    const g = this.g, { W, H, u } = this, it = this.o.intro, wide = W > H * 1.2, E = (a, b) => ease((k - a) / (b - a));
+    g.fillStyle = "#070914"; g.fillRect(0, 0, W, H);
+    const bg = this.introBg && this.introBg.ok ? this.introBg : this.introCard && this.introCard.ok ? this.introCard : null;
+    if (bg) {
+      const f = E(0, .55), blur = (1 - f) * 30 * u;
+      g.save(); if (blur > 0.5) g.filter = `blur(${blur.toFixed(1)}px) saturate(1.25)`;
+      this.cover(bg, -W * .04, -H * .04, W * 1.08, H * 1.08, 1.5 - .46 * f, .3); g.restore(); g.filter = "none";
+    } else { this.bg(); }
+    let sh = g.createLinearGradient(0, H, 0, 0); sh.addColorStop(0.04, "#05060fee"); sh.addColorStop(0.5, "#05060f66"); sh.addColorStop(0.75, "#05060f22"); sh.addColorStop(1, "#05060f99"); g.fillStyle = sh; g.fillRect(0, 0, W, H);
+    if (wide) { sh = g.createLinearGradient(0, 0, W * .62, 0); sh.addColorStop(0, "#05060fb8"); sh.addColorStop(1, "#05060f00"); g.fillStyle = sh; g.fillRect(0, 0, W, H); }
+    // brand
+    const ba = E(.05, .2); g.globalAlpha *= ba;
+    if (this.logo && this.logo.ok) g.drawImage(this.logo.img, 44 * u, 36 * u, 52 * u, 52 * u);
+    this.text("MEIOCG · DUEL SYNAPSE: KODEX", 110 * u, 72 * u, 22 * u, "#f0b429", { weight: 700 });
+    g.globalAlpha /= ba || 1;
+    // the key card
+    const kc = this.introCard && this.introCard.ok ? this.introCard : null;
+    const cw = wide ? Math.min(W * .22, H * .56 * 59 / 86) : Math.min(W * .5, H * .36 * 59 / 86), ch = cw * 86 / 59;
+    const cx = wide ? W * .76 : W * .5, cy = wide ? H * .5 : H * .36;
+    if (kc) {
+      const f = E(.4, .62);
+      if (f > 0) {
+        g.save(); g.globalAlpha *= f; g.translate(cx, cy); g.rotate((5 + (1 - f) * 12) * Math.PI / 180); g.scale((1.3 - .3 * f) * (.9 + .1 * f), 1.3 - .3 * f);
+        g.shadowColor = "#f0b42988"; g.shadowBlur = 60 * u; this.rr(-cw / 2 - 4 * u, -ch / 2 - 4 * u, cw + 8 * u, ch + 8 * u, cw * .045); g.fillStyle = "#fff"; g.fill(); g.shadowBlur = 0;
+        g.save(); this.rr(-cw / 2, -ch / 2, cw, ch, cw * .04); g.clip(); g.drawImage(kc.img, -cw / 2, -ch / 2, cw, ch);
+        const s = E(.6, .85); if (s > 0 && s < 1) { const gx = -cw + s * cw * 2.4, gl = g.createLinearGradient(gx, 0, gx + cw * .6, 0); gl.addColorStop(0, "#ffffff00"); gl.addColorStop(.5, "#ffffff88"); gl.addColorStop(1, "#ffffff00"); g.fillStyle = gl; g.fillRect(-cw / 2, -ch / 2, cw, ch); }
+        g.restore(); g.restore();
+      }
+    }
+    // the title: lands from the left, with a short colour-split glitch
+    const tx = wide ? 64 * u : W / 2, tw = wide ? W * (kc ? .56 : .86) : W * .9, align = wide ? "left" : "center";
+    const by = wide ? H - 130 * u : (kc ? cy + ch / 2 + 190 * u : H * .56);
+    let fs = (wide ? 104 : 92) * u; g.font = `900 italic ${Math.round(fs)}px "Chakra Petch", system-ui, sans-serif`;
+    const words = String(it.title || "Combo").split(/\s+/); let lines = [it.title];
+    if (g.measureText(it.title).width > tw && words.length > 1) { let best = 1, bd = 1e9; for (let i = 1; i < words.length; i++) { const d = Math.abs(g.measureText(words.slice(0, i).join(" ")).width - g.measureText(words.slice(i).join(" ")).width); if (d < bd) { bd = d; best = i; } } lines = [words.slice(0, best).join(" "), words.slice(best).join(" ")]; }
+    const widest = Math.max(...lines.map((l) => g.measureText(l).width)); if (widest > tw) fs *= tw / widest;
+    const by2 = wide ? by : (kc ? cy + ch / 2 + 96 * u : H * .5) + lines.length * fs * 1.04;
+    const tf = E(.34, .5);
+    if (tf > 0) {
+      const dx = (1 - tf) * -60 * u, gl = k > .34 && k < .34 + 620 / it.ms ? Math.sin(k * 400) * 9 * u : 0;
+      lines.forEach((l, i) => {
+        const y = by2 - (lines.length - 1 - i) * fs * 1.04;
+        g.globalAlpha *= tf;
+        if (gl) { this.text(l, tx + dx - gl, y + 2 * u, fs, "#3ac8ffcc", { italic: true, weight: 900, align }); this.text(l, tx + dx + gl, y - 2 * u, fs, "#ff4d6acc", { italic: true, weight: 900, align }); }
+        this.text(l, tx + dx, y, fs, "#ffe08a", { italic: true, weight: 900, align, stroke: 8 * u, strokeColor: "#0c0f1f", glow: "#f0b42988" });
+        g.globalAlpha /= tf;
+      });
+      const ya = by2 - lines.length * fs * 1.04 - 6 * u;
+      g.globalAlpha *= tf; this.text("C O M B O", tx, ya, 26 * u, "#9fe2ff", { weight: 800, align }); g.globalAlpha /= tf;
+    }
+    const sf = E(.5, .64), sub = [it.sub, it.by ? "by " + it.by : ""].filter(Boolean).join("  ·  ");
+    if (sf > 0 && sub) { g.globalAlpha *= sf; this.text(sub, tx, by2 + 54 * u, 32 * u, "#e9ecff", { weight: 700, align, max: tw, font: '"Plus Jakarta Sans", "Chakra Petch", system-ui, sans-serif', stroke: 5 * u, strokeColor: "#05060f" }); g.globalAlpha /= sf; }
+  }
+  caption(c) {
+    const g = this.g, { W, u } = this, w = Math.min(W - 60 * u, 1500 * u), x = (W - w) / 2, y = 18 * u, h = 66 * u;
+    this.rr(x, y, w, h, 20 * u); g.fillStyle = "#0c0f1fe6"; g.fill(); g.lineWidth = 2 * u; g.strokeStyle = "#f0b42988"; g.stroke();
+    const tag = c.step ? `STEP ${c.step}/${c.steps}` : "START";
+    g.font = `800 ${Math.round(24 * u)}px "Chakra Petch", system-ui, sans-serif`; const tw = g.measureText(tag).width + 36 * u;
+    this.rr(x + 10 * u, y + 11 * u, tw, h - 22 * u, 14 * u); g.fillStyle = "#f0b429"; g.fill();
+    this.text(tag, x + 10 * u + tw / 2, y + h / 2 + 9 * u, 24 * u, "#1a1405", { align: "center" });
+    this.text(c.caption + (c.note ? "  ·  " + c.note : ""), x + tw + 28 * u, y + h / 2 + 10 * u, 28 * u, "#fff", { weight: 700, max: w - tw - 48 * u, font: '"Plus Jakarta Sans", "Chakra Petch", system-ui, sans-serif' });
+  }
   frame() {
     const p = this.o.packet(); const now = performance.now();
     this.bg();
     if (p && p.state) {
       const me = this.o.team(), op = 1 - me;
       this.field(p, now);
-      this.hand(me, this.L.hand[0], p); this.hand(op, this.L.hand[1], p);
-      this.plate(me, this.L.plate[0], p, now); this.plate(op, this.L.plate[1], p, now);
+      this.hand(me, this.L.hand[0], p); if (!p.combo) this.hand(op, this.L.hand[1], p);
+      this.plate(me, this.L.plate[0], p, now); if (!p.combo) this.plate(op, this.L.plate[1], p, now);
+      if (p.combo) this.caption(p.combo);
       if (this.L.info) {
         const I = this.L.info, u = this.u;
         this.text(`TURN ${p.turn}`, I.x, I.y + 40 * u, 44 * u, "#fff", { italic: true });
@@ -315,6 +385,9 @@ export class Clip {
       }
       this.drawFx(now, p);
     }
+    // a combo's title card covers the first seconds, then fades into the table
+    const it = this.o.intro, el = this.t0 ? now - this.t0 : 0;
+    if (it && it.ms && el < it.ms) { this.g.globalAlpha = el > it.ms - 380 ? Math.max(0, (it.ms - el) / 380) : 1; this.drawIntro(el / it.ms); this.g.globalAlpha = 1; }
     if (this.o.watermark) {
       const u = this.u, g = this.g; g.globalAlpha = 0.85;
       this.text("KodeX · meiocg.org", this.W - 30 * u, this.H - 34 * u, 22 * u, "#fff", { weight: 700, align: "right" });
