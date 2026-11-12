@@ -1141,3 +1141,5 @@ body.combo-play #status { color: #ffe08a; font-weight: 700; }
 body.replaying.combo-play #status { visibility: visible; }
 @media (orientation: landscape) and (min-width: 640px) { body.replaying #table > .side-fab { bottom: auto; } body.replaying.combo-play #table > .side-fab { visibility: hidden; } }
 @media (orientation: portrait), (max-width: 639px) { body.replaying.combo-play #sideFab { display: none; } body.replaying.combo-play #status { padding-left: 12px; } }
+/* inside KodeX (portrait): the card panel starts below the app's three buttons, so its close button is never under them */
+@media (orientation: portrait), (max-width: 639px) { .embed #info, .embed dialog.info-top #info { top: 54px; } }
