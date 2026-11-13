@@ -152,7 +152,7 @@ async function boot() {
     if (hash.get("deck")) fromLink = decodeKodex(hash.get("deck"));
     else if (location.hash.length > 30 && !hash.get("join") && !hash.get("watch")) fromLink = decodeKodex(location.hash.slice(1));
   } catch (e) { toast("That deck link could not be read."); }
-  if (S.pendingCombo) { const pc = S.pendingCombo; S.pendingCombo = null; setTimeout(() => watchCombo(pc.raw, { keep: pc.keep }), 50); }
+  if (S.pendingCombo) { const pc = S.pendingCombo; S.pendingCombo = null; watchCombo(pc.raw, { keep: pc.keep }); }
   if (fromLink) useDeck(fromLink, true);
   else if (S.decks.length) selectDeck(load("duel:current", 0));
   renderSaved();
@@ -537,11 +537,23 @@ async function comboKeep(c) {
   for (const old of all.filter((r) => r.id !== id).slice(59)) await RPDB.del(old.id);
   rpBadge();
 }
+/** A plain cover over the Arena while a combo is being set up, so the lobby or a half-built table never flashes by. */
+function comboCover(on) {
+  let c = $("#comboCover");
+  if (!on) { if (c) c.remove(); return; }
+  if (!c) { c = el("div", "combo-cover"); c.id = "comboCover"; c.append(el("i"), el("span", null, "Loading the combo…")); document.body.append(c); }
+}
 async function watchCombo(raw, { keep = false } = {}) {
   const c = cleanCombo(raw);
   if (!c) { toast("That combo could not be read."); return; }
+  comboCover(true);
   if (!S.db) { S.pendingCombo = { raw, keep }; return; }
   if (keep) comboKeep(c);
+  // the title card is made ready first (its picture loaded), then everything else is set up underneath it
+  const intro = await comboIntroPrep(c);
+  const done = intro.start();
+  comboCover(false);
+  try { if (window.parent !== window) window.parent.postMessage({ kx: "comboShown" }, "*"); } catch { /* not embedded */ }
   if (!$("#table").hidden) leaveTable();
   for (const d of document.querySelectorAll("dialog[open]")) d.close();
   S.mode = "replay"; S.replayTeam = 0; S.team = 0; S.control = "one";
@@ -552,7 +564,7 @@ async function watchCombo(raw, { keep = false } = {}) {
   $("#rbRec").hidden = !S.premium; $("#rbView").hidden = true;
   comboShow(0, true);
   rbWake();
-  await comboIntro(c);
+  await done;
   if (S.replay && S.replay.combo === c && !S.rec) comboCtl({ paused: false });
 }
 function comboShow(i, quiet) {
@@ -582,30 +594,53 @@ function comboSeek(m) {
   comboShow(m.to != null ? m.to : m.turn <= 1 ? 0 : r.n, true);
   if (m.paused === false) { r.paused = false; comboTick(); }
 }
-/** The title card before a combo: its picture comes into focus, the title lands, the key card slides in. A tap skips it. */
-function comboIntro(c) {
+/** The part of a picture that fills the screen. A card picture is cropped to its artwork (no frame, no card text). */
+const CARD_ART = { x: .14, y: .2, w: .72, h: .42 };
+function coverBox(nw, nh, W, H, isCard) {
+  const a = isCard ? CARD_ART : { x: 0, y: 0, w: 1, h: 1 }, k = Math.max(W / (nw * a.w), H / (nh * a.h));
+  return { k, w: nw * k, h: nh * k, left: (W - nw * a.w * k) / 2 - nw * a.x * k, top: (H - nh * a.h * k) / 2 - nh * a.y * k };
+}
+/** The title card before a combo: its picture clears from a soft blur, the title lands, the key card slides in.
+ *  The picture is loaded before anything shows. Only opacity and position are animated (an animated blur filter
+ *  made phones draw the picture in pieces). A tap skips it. */
+async function comboIntroPrep(c) {
   const old = $("#comboIntro"); if (old) old.remove();
   const ms = c.intro.ms;
-  if (!ms) return Promise.resolve();
-  return new Promise((done) => {
-    const w = el("div", "combo-intro"); w.id = "comboIntro"; w.style.setProperty("--ms", ms + "ms");
-    const bg = el("div", "ci-bg"), src = c.intro.bg || (c.intro.art ? artUrl(c.intro.art) : c.intro.key ? artUrl(c.intro.key) : "");
-    if (src) bg.style.backgroundImage = `url("${src}")`; else w.classList.add("plain");
-    const brand = el("div", "ci-brand"); const lg = new Image(); lg.src = LOGO; lg.alt = ""; brand.append(lg, el("span", null, "MEIOCG · Duel Synapse: KodeX"));
-    const txt = el("div", "ci-txt"), h = el("h1", null, c.title); h.dataset.t = c.title;
-    txt.append(el("small", null, "Combo"), h);
-    const sub = [c.sub || c.deck, S.myProfile && S.myProfile.name ? "by " + S.myProfile.name : c.by ? "by " + c.by : ""].filter(Boolean).join(" · ");
-    if (sub) txt.append(el("p", null, sub));
-    w.append(bg, el("div", "ci-shade"), brand, txt);
-    if (c.intro.key) { const k = el("div", "ci-card"); k.append(cardImg(c.intro.key, name(c.intro.key))); w.append(k); }
+  if (!ms) return { start: () => Promise.resolve() };
+  const custom = !!c.intro.bg, artCode = c.intro.art || c.intro.key;
+  let src = c.intro.bg || "";
+  if (!src && artCode) src = (await new Promise((ok) => { let fin = false; const t = setTimeout(() => { if (!fin) { fin = true; ok(""); } }, 900); artFor(artCode, (u) => { if (!fin) { fin = true; clearTimeout(t); ok(u || ""); } }); })) || artUrl(artCode);
+  const im = new Image(); im.decoding = "async"; im.alt = "";
+  const loaded = src ? await new Promise((ok) => { const t = setTimeout(() => ok(false), 1600); im.onload = () => { clearTimeout(t); ok(true); }; im.onerror = () => { clearTimeout(t); ok(false); }; im.src = src; }) : false;
+  if (loaded && im.decode) await im.decode().catch(() => {});
+  const w = el("div", "combo-intro"); w.id = "comboIntro"; w.style.setProperty("--ms", ms + "ms");
+  if (loaded && im.naturalWidth) {
+    const W = innerWidth, H = innerHeight, b = coverBox(im.naturalWidth, im.naturalHeight, W, H, !custom);
+    const bw = el("div", "ci-bgw"); im.className = "ci-img"; Object.assign(im.style, { left: b.left + "px", top: b.top + "px", width: b.w + "px", height: b.h + "px" }); bw.append(im);
+    // the soft version: the same view on a tiny canvas, stretched over the screen
+    const cv = el("canvas", "ci-blur"); cv.width = 40; cv.height = Math.max(8, Math.round(40 * H / W));
+    try { const g = cv.getContext("2d"); g.imageSmoothingQuality = "high"; g.drawImage(im, -b.left / b.k, -b.top / b.k, W / b.k, H / b.k, 0, 0, cv.width, cv.height); } catch { /* picture not drawable */ }
+    w.append(bw, cv);
+  } else w.classList.add("plain");
+  const brand = el("div", "ci-brand"); const lg = new Image(); lg.src = LOGO; lg.alt = ""; brand.append(lg, el("span", null, "MEIOCG · Duel Synapse: KodeX"));
+  const txt = el("div", "ci-txt"), h = el("h1", null, c.title); h.dataset.t = c.title;
+  txt.append(el("small", null, "Combo"), h);
+  const sub = [c.sub || c.deck, S.myProfile && S.myProfile.name ? "by " + S.myProfile.name : c.by ? "by " + c.by : ""].filter(Boolean).join(" · ");
+  if (sub) txt.append(el("p", null, sub));
+  w.append(el("div", "ci-shade"), brand, txt);
+  if (c.intro.key) { const k = el("div", "ci-card"); k.append(cardImg(c.intro.key, name(c.intro.key))); w.append(k); }
+  return { start: () => new Promise((done) => {
     document.body.append(w);
     Sound.play("cutin");
     let over = false;
     const end = () => { if (over) return; over = true; w.classList.add("out"); setTimeout(() => w.remove(), 420); done(); };
     w.addEventListener("click", end);
     setTimeout(end, ms);
-  });
+  }) };
 }
+/** Shows the title card now (used when a recording starts). */
+function comboIntro(c) { return comboIntroPrep(c).then((i) => i.start()); }
+
 function replayBarState() {
   const r = S.replay || {};
   $("#rbPlay").textContent = r.paused ? "▶" : "❚❚"; $("#rbPlay").setAttribute("aria-label", r.paused ? "Play" : "Pause");
@@ -645,6 +680,17 @@ $("#rbView").addEventListener("click", () => {
 $("#rbExit").addEventListener("click", () => { recStop(false); leaveTable(); });
 // ----- KodeX Premium: video clips of replays -----
 function cardKind(code) { const c = S.db && S.db.get(Number(code)), t = c ? c.type : 0; return !c ? "x" : t & C.TYPE.SPELL ? "spell" : t & C.TYPE.TRAP ? "trap" : t & C.TYPE.LINK ? "link" : t & C.TYPE.XYZ ? "xyz" : t & C.TYPE.SYNCHRO ? "synchro" : t & C.TYPE.FUSION ? "fusion" : t & C.TYPE.RITUAL ? "ritual" : t & C.TYPE.EFFECT ? "effect" : "normal"; }
+/** What the video says about a card: its name, what kind it is, its numbers and its text. */
+function recCardInfo(code) {
+  const d = S.db && S.db.get(Number(code)); if (!d) return null;
+  let line, stats = "";
+  if (d.type & C.TYPE.MONSTER) {
+    const kinds = S.db.typeLine(d).replace(/^\[|\]$/g, "").split(" / ").slice(1), link = d.type & C.TYPE.LINK, n = (v) => (v < 0 ? "?" : String(v));
+    line = [attributeName(d.attribute), raceName(d.race), ...kinds].join(" · ");
+    stats = `${link ? "LINK " + countBits(d.link_marker) : (d.type & C.TYPE.XYZ ? "RANK " : "LV ") + (d.level & 0xff)}   ATK ${n(d.atk)}${link ? "" : "   DEF " + n(d.def)}`;
+  } else line = S.db.typeLine(d).replace(/^\[|\]$/g, "");
+  return { name: d.name, line, stats, text: String(d.desc || "").replace(/\r/g, "") };
+}
 $("#rbRec").addEventListener("click", () => {
   if (!S.premium) { toast("Video clips come with KodeX Premium"); return; }
   if (S.rec) { recStop(true); return; }
@@ -653,24 +699,29 @@ $("#rbRec").addEventListener("click", () => {
   const v = load("duel:rec", {});
   if (v.fmt) { const r = document.querySelector(`input[name=recFmt][value="${v.fmt}"]`); if (r) r.checked = true; }
   for (const [id, k] of [["#recSize", "size"], ["#recFps", "fps"], ["#recUntil", "until"], ["#recSpeed", "speed"]]) if (v[k]) $(id).value = v[k];
-  $("#recMark").checked = v.mark !== false;
+  $("#recMark").checked = v.mark !== false; $("#recFeed").checked = v.feed !== false; $("#recInfo").checked = v.info !== false; $("#recSound").checked = v.sound !== false;
+  $("#recTitle").value = v.title || "";
   $("#recNote").textContent = `Recording starts at turn ${S.packet ? S.packet.turn : 1}. Go back first to start earlier.`;
   $("#recDlg").showModal();
 });
 for (const id of ["#recClose", "#recCancel"]) $(id).addEventListener("click", () => $("#recDlg").close());
 $("#recGo").addEventListener("click", () => {
   const fmt = (document.querySelector("input[name=recFmt]:checked") || {}).value || "landscape";
-  const cfg = { fmt, size: $("#recSize").value, fps: $("#recFps").value, until: $("#recUntil").value, speed: $("#recSpeed").value, mark: $("#recMark").checked };
+  const cfg = { fmt, size: $("#recSize").value, fps: $("#recFps").value, until: $("#recUntil").value, speed: $("#recSpeed").value, mark: $("#recMark").checked,
+    feed: $("#recFeed").checked, info: $("#recInfo").checked, sound: $("#recSound").checked, title: $("#recTitle").value.trim().slice(0, 60) };
   save("duel:rec", cfg);
   $("#recDlg").close();
   const cb = S.replay.combo || null;
-  const intro = cb && cb.intro.ms ? { ms: cb.intro.ms, title: cb.title, sub: cb.sub || cb.deck, by: (S.packet && S.packet.names[0]) || cb.by, bg: cb.intro.bg || (cb.intro.art ? artUrl(cb.intro.art) : ""), card: cb.intro.key ? artUrl(cb.intro.key) : "" } : null;
+  const intro = cb && cb.intro.ms ? { ms: cb.intro.ms, title: cb.title, sub: cb.sub || cb.deck, by: (S.packet && S.packet.names[0]) || cb.by, bg: cb.intro.bg || (cb.intro.art || cb.intro.key ? artUrl(cb.intro.art || cb.intro.key) : ""), bgCard: !cb.intro.bg, card: cb.intro.key ? artUrl(cb.intro.key) : "" } : null;
+  const tap = cfg.sound ? Sound.tap() : null, ft = fieldTheme();
   const clip = new Clip({ format: fmt, size: Number(cfg.size), fps: Number(cfg.fps), watermark: cfg.mark, intro,
+    feed: cfg.feed, details: cfg.info, title: cfg.title, info: recCardInfo, audio: tap && tap.track, theme: { me: ft.me, op: ft.op, acc: ft.acc, a: ft.a, b: ft.b, e: ft.e },
     packet: () => S.packet, team: () => S.team, art: (code) => artUrl(code), name: (code) => name(Number(code)), kind: cardKind,
     profile: (team) => profileOf(team === S.team ? "me" : "op"), logo: LOGO, aces: (team) => fxOf(sideOfTeam(team)).aces });
   let done;
-  try { done = clip.start(); } catch (e) { toast(e.message || "Could not start recording"); return; }
-  S.rec = { clip, cfg, turn: S.packet ? S.packet.turn : 0, t0: Date.now() };
+  try { done = clip.start(); } catch (e) { if (tap) tap.close(); toast(e.message || "Could not start recording"); return; }
+  S.rec = { clip, cfg, tap, turn: S.packet ? S.packet.turn : 0, t0: Date.now() };
+  if (cfg.sound && !clip.sound) toast("This device can't put sound in the clip, so it is recorded without it.");
   const box = $("#recBox"); box.hidden = false;
   clip.cv.className = "rec-prev " + fmt; box.append(clip.cv);
   document.body.classList.add("recording");
@@ -696,6 +747,7 @@ function recFeed(p) {
 function recStop(keep) {
   if (!S.rec) return;
   const r = S.rec; S.rec = null; r.keep = keep;
+  if (r.tap) setTimeout(() => r.tap.close(), 400);
   clearInterval(S.recTimer); document.body.classList.remove("recording");
   S.recKeep = keep;
   r.clip.stop();
@@ -961,6 +1013,10 @@ function bindTable() {
   $("#closeInfo").addEventListener("click", closeInfo);
   document.addEventListener("click", (e) => { const i = $("#info"); if (PREF.tapOut !== false && i.classList.contains("open") && !i.contains(e.target) && !e.target.closest(".c, .card, .chain-stack li, .menu, .chain-card, dialog, #panelBtn")) closeInfo(); });
   bindQuick(); bindTapOut();
+  // asleep while off screen: KodeX keeps the Arena loaded behind its own pages
+  let onScreen = true; const sleepSync = () => document.body.classList.toggle("asleep", document.hidden || !onScreen);
+  if ("IntersectionObserver" in window) new IntersectionObserver((es) => { onScreen = es[es.length - 1].isIntersecting; sleepSync(); }).observe(document.documentElement);
+  document.addEventListener("visibilitychange", sleepSync);
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeInfo(); });
   $("#sheetMin").addEventListener("click", () => { const s = $("#sheet"); s.classList.toggle("min"); $("#sheetMin").textContent = s.classList.contains("min") ? "▴" : "▾"; });
   document.addEventListener("click", (e) => { if (!e.target.closest(".menu") && !e.target.closest(".card")) hideMenu(); });
@@ -1140,7 +1196,8 @@ function cardSig(c, team, location, seq, opts) {
 function cardEl(c, team, location, seq, opts = {}) {
   const ck = key(team, location, seq) + (opts.static ? "s" : ""), sig = cardSig(c, team, location, seq, opts);
   const hit = opts.reuse && CARD_CACHE.get(ck);
-  if (hit && hit.sig === sig && !hit.el.querySelector("img[data-stand]")) { hit.el.classList.remove("act", "selectable", "selected", "picked", "atk-src", "atk-tgt"); return hit.el; }
+  if (hit && hit.sig === sig && !hit.el.querySelector("img[data-stand]")) {
+    if (hit.el.style.visibility && !document.querySelector("#flyFx .fly-card")) hit.el.style.visibility = ""; hit.el.classList.remove("act", "selectable", "selected", "picked", "atk-src", "atk-tgt"); return hit.el; }
   const d = el("div", "card");
   if (opts.reuse) CARD_CACHE.set(ck, { sig, el: d });
   d.dataset.key = key(team, location, seq);
@@ -1267,7 +1324,9 @@ function applyPacket(p) {
   if (p.log && p.log.length) for (const l of p.log) addLog("Script: " + l, "sys");
   trackEvents(p);
   for (const e of p.events) logEvent(e, p);
+  const fly = flyCapture(p);
   render(p, prev);
+  if (fly) flyRun(fly);
   fxEvents(p);
   bigFx(p);
   handlePrompt(p);
@@ -2087,6 +2146,7 @@ function addLog(text, cls = "", codes = []) {
   const code = Number((/\[\[(\d+)\]\]/.exec(text) || [])[1] || 0) || (codes && codes[0]) || 0;
   if (code) { const t = el("span", "lth"); t.append(cardImg(code, "")); li.prepend(t); }
   feed(plain, code, cls);
+  if (S.rec) S.rec.clip.note(plain, code, cls);
   // newest first: the latest actions are always at the top
   const log = $("#log");
   log.prepend(li);
@@ -2352,6 +2412,66 @@ function splash(code, title, sub, kind = "boss") {
   if (!reduceMotion() && kind !== "small") { document.body.classList.remove("shake"); void document.body.offsetWidth; document.body.classList.add("shake"); }
   requestAnimationFrame(() => w.classList.add("in"));
   setTimeout(() => { w.classList.add("out"); setTimeout(() => w.remove(), 400); }, reduceMotion() ? 900 : kind === "otk" ? 2600 : 1700);
+}
+// ----- cards travel: a card that changes place flies from where it was (hand, Deck, Extra Deck, Graveyard, a zone)
+// to where it lands, so you can see where it came from. Positions are read before the table is updated and the
+// flight is drawn above the table, straight on the screen (the tilt of the field does not matter). -----
+function placeEl(w) {
+  if (!w || (w.controller !== 0 && w.controller !== 1)) return null;
+  const me = S.team === 2 ? 0 : S.team, loc = w.location & ~C.LOCATION_OVERLAY;
+  if (loc === C.LOCATION_HAND) { const h = w.controller === me ? $("#myHand") : $("#opHand"); return h.children[Math.min(w.sequence, h.children.length - 1)] || h; }
+  const id = zoneId(w.controller, loc, w.sequence);
+  return id ? document.getElementById(id) : null;
+}
+const visRect = (el) => { if (!el) return null; const r = el.getBoundingClientRect(); return r.width > 2 && r.height > 2 ? r : null; };
+function flyCapture(p) {
+  if (reduceMotion() || document.hidden || !p.events || !p.events.length || $("#table").hidden) return null;
+  const me = S.team === 2 ? 0 : S.team, out = [];
+  for (const e of p.events) {
+    if (out.length >= 10) break;
+    if (e.type === M.MOVE && e.from && e.to && e.from.location && e.to.location) {
+      const fl = e.from.location & ~C.LOCATION_OVERLAY, tl = e.to.location & ~C.LOCATION_OVERLAY;
+      const pile = C.LOCATION_DECK | C.LOCATION_GRAVE | C.LOCATION_REMOVED | C.LOCATION_EXTRA;
+      if (fl === tl && e.from.controller === e.to.controller && (fl & pile || e.from.sequence === e.to.sequence)) continue;
+      const r = visRect(placeEl(e.from)); if (!r) continue;
+      // face-down on the field, into the Deck, or a card you may not see: it travels face-down
+      const hiddenTo = tl === C.LOCATION_DECK || ((tl === C.LOCATION_MZONE || tl === C.LOCATION_SZONE || tl === C.LOCATION_REMOVED) && e.to.position & C.POS_FACEDOWN) || (tl === C.LOCATION_HAND && e.to.controller !== me && !(fl & (C.LOCATION_MZONE | C.LOCATION_SZONE | C.LOCATION_GRAVE)) && S.mode !== "replay");
+      out.push({ r, to: e.to, code: e.code && !hiddenTo ? e.code : 0, op: e.to.controller !== me });
+    } else if (e.type === M.DRAW && e.drawn && e.drawn.length) {
+      const r = visRect(placeEl({ controller: e.player, location: C.LOCATION_DECK, sequence: 0 })); if (!r) continue;
+      e.drawn.slice(0, 6).forEach((d, i) => out.push({ r, draw: e.player, back: e.drawn.length - 1 - i, code: e.player === me || S.mode === "replay" ? d.code : 0, op: e.player !== me }));
+    }
+  }
+  return out.length ? out : null;
+}
+function flyRun(list) {
+  let L = $("#flyFx"); if (!L) { L = el("div", "fly-fx"); L.id = "flyFx"; L.setAttribute("aria-hidden", "true"); document.body.append(L); }
+  const me = S.team === 2 ? 0 : S.team;
+  list.forEach((it, i) => {
+    let dest;
+    if (it.draw != null) { const h = it.draw === me ? $("#myHand") : $("#opHand"); dest = h.children[h.children.length - 1 - it.back]; }
+    else { const z = placeEl(it.to); dest = z && (z.classList.contains("zone") ? z.querySelector(":scope > .card") || z : z); }
+    const d = visRect(dest); if (!d) return;
+    const dx = d.left - it.r.left, dy = d.top - it.r.top, sx = d.width / it.r.width, sy = d.height / it.r.height;
+    if (Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+    const g = el("div", "fly-card card" + (it.code ? "" : " back" + (it.op ? " op-back" : "")));
+    if (it.op) g.dataset.side = "op";
+    if (it.code) g.append(cardImg(it.code, ""));
+    Object.assign(g.style, { left: it.r.left + "px", top: it.r.top + "px", width: it.r.width + "px", height: it.r.height + "px" });
+    L.append(g);
+    // the real card waits out of sight until its picture lands on it
+    const real = dest.classList.contains("card") && dest.isConnected ? dest : null;
+    if (real) real.style.visibility = "hidden";
+    const delay = Math.min(i, 6) * 70, T = Math.max(300, Math.min(520, 260 + Math.hypot(dx, dy) * .35));
+    const lift = 1.16, a = g.animate([
+      { transform: "translate(0,0) scale(1)", opacity: .95, offset: 0 },
+      { transform: `translate(${dx * .5}px, ${dy * .5 - 14}px) scale(${(1 + sx) / 2 * lift}, ${(1 + sy) / 2 * lift})`, opacity: 1, offset: .5 },
+      { transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`, opacity: 1, offset: 1 },
+    ], { duration: T, delay, easing: "cubic-bezier(.3,.7,.2,1)", fill: "both" });
+    let done = false;
+    const end = () => { if (done) return; done = true; g.remove(); if (real) real.style.visibility = ""; };
+    a.onfinish = end; a.oncancel = end; setTimeout(end, T + delay + 120);
+  });
 }
 // the same sound isn't stacked when one effect moves many cards at once
 const sndAt = {};
@@ -2668,7 +2788,7 @@ window.addEventListener("message", (e) => {
   for (const [k, v] of [["sleeve", d.sleeve], ["xsleeve", d.xsleeve], ["field", d.field]]) { const c = cleanPart(k, v); if (c) next[k] = c; }
   if (S.myProfile) next.profile = S.myProfile;
   S.mySkin = next;
-  S.premium = d.premium === true;
+  S.premium = d.premium === true; applyFieldTheme();
   $("#replayBtn").hidden = !S.premium;
   S.signature = new Set(S.premium && Array.isArray(d.signature) ? d.signature.map(Number).filter((n) => n > 0).slice(0, 60) : []);
   S.finisher = S.premium && STYLES.includes(d.finisher) ? d.finisher : "";
@@ -2834,9 +2954,43 @@ LANDSCAPE.addEventListener("change", dockLayout);
 dockLayout();
 
 // ----- field view options (kept on this device) -----
+// ----- field themes: each one is a set of colours for the mat, its zones and the table (meiocg.css paints them).
+// Four are free; the starred ones come with KodeX Premium. The same colours paint recorded videos. -----
+const FIELD_THEMES = [
+  { k: "synapse", n: "Synapse", me: "108,150,255", op: "255,112,134", acc: "240,180,41", a: "#1b2358", b: "#0b0e1f", e: "#4654c4" },
+  { k: "felt", n: "Card Table", me: "150,220,170", op: "240,200,150", acc: "233,200,120", a: "#1f6b4a", b: "#0d3324", e: "#b98b4a" },
+  { k: "void", n: "Starfield", me: "170,180,255", op: "255,150,210", acc: "200,170,255", a: "#150f33", b: "#05040d", e: "#5a48b8" },
+  { k: "frost", n: "Frost", me: "140,225,255", op: "190,200,255", acc: "200,244,255", a: "#1c4a6e", b: "#081826", e: "#8fd8f5" },
+  { k: "neon", n: "Neon Grid", me: "0,240,255", op: "255,60,200", acc: "255,238,80", a: "#1a0b36", b: "#07030f", e: "#ff3cc8", premium: true },
+  { k: "royal", n: "Royal Gold", me: "255,214,110", op: "200,130,255", acc: "255,214,110", a: "#3a1352", b: "#12061c", e: "#e6b94a", premium: true },
+  { k: "dojo", n: "Crimson Dojo", me: "255,170,90", op: "255,96,84", acc: "255,196,120", a: "#4a2414", b: "#170a05", e: "#c0492b", premium: true },
+  { k: "emerald", n: "Emerald", me: "110,240,170", op: "255,170,110", acc: "190,255,190", a: "#0f4a3c", b: "#04150f", e: "#3ecf8e", premium: true },
+];
+const fieldTheme = () => { const k = load("duel:ftheme", "synapse"), t = FIELD_THEMES.find((x) => x.k === k); return t && (!t.premium || S.premium) ? t : FIELD_THEMES[0]; };
+function applyFieldTheme() {
+  const t = fieldTheme(), g = $("#ftGrid");
+  if (t.k === "synapse") delete document.body.dataset.ft; else document.body.dataset.ft = t.k;
+  if (!g) return;
+  if (!g.children.length) for (const x of FIELD_THEMES) {
+    const b = el("button", "ft-sw"); b.type = "button"; b.dataset.ft = x.k;
+    for (const [v, val] of [["--m", x.me], ["--o", x.op], ["--a", x.a], ["--b", x.b], ["--e", x.e]]) b.style.setProperty(v, val);
+    b.append(el("i"), el("span", null, x.n));
+    b.addEventListener("click", () => {
+      if (x.premium && !S.premium) {
+        // a short look at it, then back: Premium themes can be tried before buying
+        document.body.dataset.ft = x.k; toast(`${x.n} is a KodeX Premium theme. Here is a 4-second look.`);
+        clearTimeout(applyFieldTheme.t); applyFieldTheme.t = setTimeout(applyFieldTheme, 4000); return;
+      }
+      clearTimeout(applyFieldTheme.t); save("duel:ftheme", x.k); applyFieldTheme();
+    });
+    g.append(b);
+  }
+  for (const b of g.children) { const x = FIELD_THEMES.find((v) => v.k === b.dataset.ft); b.setAttribute("aria-pressed", String(x.k === t.k)); b.classList.toggle("lock", !!x.premium && !S.premium); b.title = x.premium && !S.premium ? x.n + " (KodeX Premium)" : x.n; }
+}
 const VIEW = Object.assign({ mode: "tilt", compactOp: true, floatChat: true }, load("duel:view", {}));
 function applyView() {
   const b = document.body;
+  applyFieldTheme();
   b.classList.toggle("view-flat", VIEW.mode === "flat");
   b.classList.toggle("view-wide", VIEW.mode === "wide");
   b.classList.toggle("op-compact", !!VIEW.compactOp);

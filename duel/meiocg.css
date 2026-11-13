@@ -583,3 +583,61 @@ body.at-table .duelist { background: #121734; }
 .cf-hero.timestop.ghost .cf-hero-t { display: none; }
 .cf-word2.timestop { --wc: #3ac8ff; color: #e9fbff; font-style: normal; letter-spacing: .3em; }
 @media (orientation: landscape) { .cf-ts-timer { left: 3vw; right: auto; top: 44%; text-align: left; } }
+
+/* ---------- v63: the field, redrawn, with themes ----------
+   One set of variables paints the mat, its zones and the table behind it; a theme only changes the variables.
+   Everything here is static (gradients and borders), so it costs nothing while you play. */
+body { --ft-me: 108,150,255; --ft-op: 255,112,134; --ft-acc: 240,180,41; --ft-mat1: #1b2358; --ft-mat2: #0b0e1f; --ft-edge: #4654c4; --ft-glow: #3347f066; --ft-lbl: #ffffff66;
+  --ft-pat: repeating-linear-gradient(0deg, #ffffff07 0 1px, transparent 1px 34px), repeating-linear-gradient(90deg, #ffffff07 0 1px, transparent 1px 34px);
+  --ft-table: radial-gradient(120% 80% at 50% 0%, #1a2260 0%, #0c0f1f 60%, #070914 100%); }
+body[data-ft="felt"] { --ft-me: 150,220,170; --ft-op: 240,200,150; --ft-acc: 233,200,120; --ft-mat1: #1f6b4a; --ft-mat2: #0d3324; --ft-edge: #b98b4a; --ft-glow: #0f3b2a99; --ft-lbl: #ffffff7a;
+  --ft-pat: repeating-linear-gradient(45deg, #ffffff06 0 2px, transparent 2px 5px), repeating-linear-gradient(-45deg, #00000012 0 2px, transparent 2px 5px);
+  --ft-table: radial-gradient(120% 80% at 50% 10%, #3a2a18 0%, #1c130a 65%, #0c0805 100%); }
+body[data-ft="void"] { --ft-me: 170,180,255; --ft-op: 255,150,210; --ft-acc: 200,170,255; --ft-mat1: #150f33; --ft-mat2: #05040d; --ft-edge: #5a48b8; --ft-glow: #7a4fd666; --ft-lbl: #ffffff5c;
+  --ft-pat: radial-gradient(1.2px 1.2px at 12% 18%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 68% 9%, #fff 50%, transparent 51%), radial-gradient(1.4px 1.4px at 86% 34%, #cfd6ff 50%, transparent 51%), radial-gradient(1px 1px at 33% 44%, #fff 50%, transparent 51%), radial-gradient(1.3px 1.3px at 8% 71%, #ffd9f2 50%, transparent 51%), radial-gradient(1px 1px at 57% 63%, #fff 50%, transparent 51%), radial-gradient(1.2px 1.2px at 91% 82%, #fff 50%, transparent 51%), radial-gradient(1px 1px at 41% 91%, #cfd6ff 50%, transparent 51%), radial-gradient(60% 40% at 70% 30%, #7a4fd633, transparent 70%);
+  --ft-table: radial-gradient(100% 70% at 30% 0%, #241a55 0%, #0a0818 60%, #030208 100%); }
+body[data-ft="frost"] { --ft-me: 140,225,255; --ft-op: 190,200,255; --ft-acc: 200,244,255; --ft-mat1: #1c4a6e; --ft-mat2: #081826; --ft-edge: #8fd8f5; --ft-glow: #3ac8ff55; --ft-lbl: #ffffff80;
+  --ft-pat: linear-gradient(115deg, transparent 0 30%, #ffffff0d 30% 33%, transparent 33% 52%, #ffffff09 52% 58%, transparent 58% 76%, #ffffff0d 76% 78%, transparent 78%), linear-gradient(65deg, transparent 0 44%, #ffffff08 44% 47%, transparent 47%);
+  --ft-table: radial-gradient(120% 80% at 50% 0%, #12405e 0%, #081a2a 60%, #040b12 100%); }
+body[data-ft="neon"] { --ft-me: 0,240,255; --ft-op: 255,60,200; --ft-acc: 255,238,80; --ft-mat1: #1a0b36; --ft-mat2: #07030f; --ft-edge: #ff3cc8; --ft-glow: #ff3cc866; --ft-lbl: #ffffff70;
+  --ft-pat: repeating-linear-gradient(0deg, #00f0ff0f 0 1px, transparent 1px 22px), repeating-linear-gradient(90deg, #ff3cc80f 0 1px, transparent 1px 22px), linear-gradient(180deg, #ff3cc81f, transparent 30%, transparent 70%, #00f0ff1f);
+  --ft-table: linear-gradient(180deg, #1c0633 0%, #0a0418 55%, #020108 100%); }
+body[data-ft="royal"] { --ft-me: 255,214,110; --ft-op: 200,130,255; --ft-acc: 255,214,110; --ft-mat1: #3a1352; --ft-mat2: #12061c; --ft-edge: #e6b94a; --ft-glow: #e6b94a55; --ft-lbl: #ffe9b080;
+  --ft-pat: repeating-linear-gradient(45deg, #e6b94a0d 0 1px, transparent 1px 26px), repeating-linear-gradient(-45deg, #e6b94a0d 0 1px, transparent 1px 26px), radial-gradient(50% 40% at 50% 50%, #e6b94a14, transparent 70%);
+  --ft-table: radial-gradient(120% 80% at 50% 0%, #3a1650 0%, #150a20 60%, #08040d 100%); }
+body[data-ft="dojo"] { --ft-me: 255,170,90; --ft-op: 255,96,84; --ft-acc: 255,196,120; --ft-mat1: #4a2414; --ft-mat2: #170a05; --ft-edge: #c0492b; --ft-glow: #e0102a44; --ft-lbl: #ffe6cf75;
+  --ft-pat: repeating-linear-gradient(90deg, #0000002e 0 2px, transparent 2px 86px), repeating-linear-gradient(90deg, #ffffff05 0 9px, transparent 9px 21px, #00000010 21px 27px, transparent 27px 43px), linear-gradient(180deg, #e0102a14, transparent 40%, transparent 60%, #ffaa5a14);
+  --ft-table: radial-gradient(120% 80% at 50% 0%, #3b1a0f 0%, #170a06 60%, #080403 100%); }
+body[data-ft="emerald"] { --ft-me: 110,240,170; --ft-op: 255,170,110; --ft-acc: 190,255,190; --ft-mat1: #0f4a3c; --ft-mat2: #04150f; --ft-edge: #3ecf8e; --ft-glow: #11a37f55; --ft-lbl: #e3fff075;
+  --ft-pat: repeating-radial-gradient(circle at 50% 50%, #3ecf8e0f 0 1px, transparent 1px 38px), radial-gradient(40% 30% at 20% 20%, #3ecf8e1a, transparent 70%), radial-gradient(40% 30% at 80% 80%, #3ecf8e14, transparent 70%);
+  --ft-table: radial-gradient(120% 80% at 50% 0%, #0d3b30 0%, #061a14 60%, #020a07 100%); }
+body.at-table { background: var(--ft-table) fixed; }
+.mat { border-radius: 22px; border: 1.5px solid var(--ft-edge);
+  background: var(--ft-pat), linear-gradient(180deg, rgba(var(--ft-op), .17) 0%, transparent 38%, transparent 62%, rgba(var(--ft-me), .19) 100%), radial-gradient(ellipse at 50% 50%, var(--ft-mat1) 0%, var(--ft-mat2) 78%);
+  box-shadow: inset 0 0 0 1px #ffffff14, inset 0 0 0 5px #00000059, inset 0 0 0 6px rgba(var(--ft-acc), .22), inset 0 0 90px #000c, 0 0 0 1px #000, 0 0 44px var(--ft-glow), 0 26px 60px #000b; }
+/* the emblem in a ring at the centre, and the line between the two sides */
+.mat::before { inset: 31% 37%; opacity: .2; background: url("./assets/meiocg-512.webp") center / 46% no-repeat, radial-gradient(closest-side, transparent 86%, rgba(var(--ft-acc), .9) 87% 90%, transparent 91%), radial-gradient(closest-side, rgba(var(--ft-acc), .16), transparent 84%); }
+.mat::after { left: 3%; right: 3%; height: 2px; margin-top: -1px; border-radius: 2px; background: linear-gradient(90deg, transparent, rgba(var(--ft-acc), .7) 18%, rgba(var(--ft-acc), .15) 36%, transparent 44%, transparent 56%, rgba(var(--ft-acc), .15) 64%, rgba(var(--ft-acc), .7) 82%, transparent); }
+/* zones: a lit top edge, a deep floor, the side's colour on the rim */
+.zone { border-radius: 11px; border: 1.5px solid #ffffff3d; background: linear-gradient(180deg, #ffffff0f, #0000003d); box-shadow: inset 0 1px 0 #ffffff26, inset 0 -12px 18px #00000061, 0 2px 0 #00000080; }
+.zone.op.mz { border-color: rgba(var(--ft-op), .78); background: linear-gradient(180deg, rgba(var(--ft-op), .2), rgba(var(--ft-op), .06) 55%, #00000052); }
+.zone.me.mz { border-color: rgba(var(--ft-me), .82); background: linear-gradient(180deg, rgba(var(--ft-me), .2), rgba(var(--ft-me), .06) 55%, #00000052); }
+.zone.op.sz { border-color: rgba(var(--ft-op), .5); background: linear-gradient(180deg, rgba(var(--ft-op), .1), rgba(var(--ft-op), .03) 55%, #0000005c); }
+.zone.me.sz { border-color: rgba(var(--ft-me), .54); background: linear-gradient(180deg, rgba(var(--ft-me), .1), rgba(var(--ft-me), .03) 55%, #0000005c); }
+.zone.emz { border: 1.5px dashed rgba(var(--ft-acc), .9); background: radial-gradient(closest-side, rgba(var(--ft-acc), .2), transparent), #00000047; }
+.zone.pile { border-color: #ffffff57; background: linear-gradient(180deg, #00000080, #000000b8); box-shadow: inset 0 1px 0 #ffffff1a, inset 0 0 14px #000a, 0 2px 0 #00000080; }
+.zone.pz::before { color: rgba(var(--ft-acc), .95); font-size: clamp(8px, calc(var(--z) * .15), 11px); text-shadow: 0 0 6px rgba(var(--ft-acc), .7); }
+.zone .lbl { color: var(--ft-lbl); text-shadow: 0 1px 2px #000; }
+.zone.emz .lbl { color: rgba(var(--ft-acc), .85); }
+.zone.filled { box-shadow: inset 0 1px 0 #ffffff1a, 0 2px 0 #00000080; }
+.zone.free { border-color: #c9f4ff; background: #8be1ff26; }
+/* the theme picker (Settings) */
+.ft-opts { display: grid; gap: 8px; flex: 1 1 100%; }
+.ft-opts .vo-l { font-size: 12px; color: var(--muted); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.ft-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.ft-sw { position: relative; display: grid; gap: 5px; justify-items: center; padding: 6px 4px 7px; border-radius: 12px; border: 1.5px solid #ffffff1f; background: #ffffff0a; color: #dfe4ff; font: 700 10.5px/1.1 system-ui, sans-serif; cursor: pointer; min-width: 0; }
+.ft-sw i { display: block; width: 100%; aspect-ratio: 16/10; border-radius: 7px; border: 1.5px solid var(--e); background: linear-gradient(180deg, rgba(var(--o), .5), transparent 42%, transparent 58%, rgba(var(--m), .55)), radial-gradient(ellipse at 50% 50%, var(--a) 0%, var(--b) 80%); box-shadow: inset 0 0 0 2px #0006; }
+.ft-sw span { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ft-sw[aria-pressed="true"] { border-color: #f0b429; box-shadow: 0 0 0 2px #f0b42944; color: #fff; }
+.ft-sw.lock::after { content: "★"; position: absolute; right: 5px; top: 4px; font-size: 11px; color: #f0b429; text-shadow: 0 1px 3px #000; }
+@media (orientation: landscape) and (min-width: 640px) { #info .ft-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

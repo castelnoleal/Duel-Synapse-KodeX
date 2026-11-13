@@ -251,6 +251,10 @@
         <label class="toggle"><input type="checkbox" id="mute-voices"><span>Card voices &amp; emote sounds</span></label>
         <button type="button" class="btn ghost" id="muteAll">Mute all</button>
       </div>
+      <div class="ft-opts" role="group" aria-label="Field theme">
+        <span class="vo-l">Field theme</span>
+        <div class="ft-grid" id="ftGrid"></div>
+      </div>
       <div class="view-opts" role="group" aria-label="Field view">
         <span class="vo-l">Field view</span>
         <div class="seg" id="viewSeg"><button type="button" data-view="tilt">Tilted</button><button type="button" data-view="flat">Flat</button><button type="button" data-view="wide">Large field</button></div>
@@ -289,7 +293,7 @@
 <div id="hoverPeek" class="hover-peek" hidden></div>
 <dialog id="peek" class="dlg peek" aria-label="Card details"><button class="icon peek-close" id="peekClose" type="button" aria-label="Close">×</button><div id="peekBody" class="peek-body"></div></dialog>
 <dialog id="recDlg" class="dlg rec-dlg"><div class="pile-head"><h3>Record a video clip</h3><button class="icon" id="recClose" type="button" aria-label="Close">×</button></div>
-  <p class="hint">The replay is drawn as a video (not a screen recording), from where it is now. KodeX Premium.</p>
+  <p class="hint">The replay is drawn as a video (not a screen recording), from where it is now, on your field theme. KodeX Premium.</p>
   <div class="rec-fmt" role="radiogroup" aria-label="Shape">
     <label><input type="radio" name="recFmt" value="landscape" checked><span><i class="r169"></i>Landscape<small>16:9 · YouTube</small></span></label>
     <label><input type="radio" name="recFmt" value="portrait"><span><i class="r916"></i>Portrait<small>9:16 · Reels, TikTok, Shorts</small></span></label>
@@ -303,6 +307,10 @@
     <label class="field"><span>Until</span><select id="recUntil"><option value="end">The end of the duel</option><option value="turn">The end of this turn</option><option value="stop">I press stop</option></select></label>
     <label class="field"><span>Speed</span><select id="recSpeed"><option value="1">1×</option><option value="2">2×</option><option value="0.5">½×</option></select></label>
   </div>
+  <label class="field"><span>Headline (optional)</span><input id="recTitle" type="text" maxlength="60" placeholder="Shown in the video, e.g. Locals Round 3" autocomplete="off"></label>
+  <label class="toggle"><input type="checkbox" id="recFeed" checked><span>Play-by-play: every move written out as it happens</span></label>
+  <label class="toggle"><input type="checkbox" id="recInfo" checked><span>Card details: the card in play with its type, stats and text</span></label>
+  <label class="toggle"><input type="checkbox" id="recSound" checked><span>Game sound in the video</span></label>
   <label class="toggle"><input type="checkbox" id="recMark" checked><span>KodeX · meiocg.org mark in the corner</span></label>
   <p class="hint" id="recNote"></p>
   <div class="dlg-actions"><button class="btn" id="recCancel" type="button">Cancel</button><button class="btn primary" id="recGo" type="button">Start recording</button></div></dialog>
