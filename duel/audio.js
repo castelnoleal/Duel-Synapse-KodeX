@@ -46,6 +46,10 @@ function bell(freq, t, peak = 0.22, d = 0.9) { // two-operator FM bell
 
 // ---- effects
 const SFX = {
+  coin(t) { for (let i = 0; i < 7; i++) tone(2400 + i * 180, t + i * 0.16, { type: "triangle", d: 0.07, peak: 0.1 }); noise(t, { d: 1.1, peak: 0.05, f: 5000, f2: 9000, q: 2 }); },
+  coinland(t) { bell(1568, t, 0.26, 1.1); bell(2349, t + 0.03, 0.14, 0.9); noise(t, { d: 0.08, peak: 0.3, type: "highpass", f: 3000 }); tone(140, t, { d: 0.18, peak: 0.3 }); },
+  dice(t) { for (let i = 0; i < 6; i++) { noise(t + i * 0.13 * (1 + i * 0.12), { d: 0.05, peak: 0.26 - i * 0.03, type: "bandpass", f: 1400 + (i % 2) * 500, q: 3 }); tone(220 - i * 10, t + i * 0.13 * (1 + i * 0.12), { d: 0.04, peak: 0.12 }); } },
+  versus(t) { tone(98, t, { type: "sawtooth", a: 0.01, d: 0.5, peak: 0.28, glide: 0.5 }); noise(t, { d: 0.5, peak: 0.22, type: "lowpass", f: 3000, f2: 200 }); bell(784, t + 0.05, 0.16, 0.8); },
   tap(t) { tone(1800, t, { type: "triangle", d: 0.04, peak: 0.08 }); },
   draw(t) { noise(t, { d: 0.16, peak: 0.18, f: 900, f2: 4200, q: 0.8 }); },
   set(t) { noise(t, { d: 0.09, peak: 0.2, type: "lowpass", f: 900 }); tone(180, t, { d: 0.08, peak: 0.12 }); },

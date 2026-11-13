@@ -126,9 +126,12 @@ async function boot() {
   if (opts) { $("#optRule").value = opts.rule; $("#optLP").value = opts.lp; $("#optHand").value = opts.start; $("#optDraw").value = opts.draw; }
   for (const id of ["#optRule", "#optLP", "#optHand", "#optDraw"]) $(id).addEventListener("change", () => { save("duel:opts", options()); rulesSummary(); });
   rulesSummary();
-  S.chainSkip = load("duel:chainskip", false);
-  $("#skipChains").checked = S.chainSkip;
-  $("#skipChains").addEventListener("change", (e) => { S.chainSkip = e.target.checked; save("duel:chainskip", S.chainSkip); });
+  // chain prompts: always ask, only when it matters (a card or effect that needs a decision, not every open window), or never
+  S.chainMode = load("duel:chainmode", load("duel:chainskip", false) ? "off" : "all");
+  if (!CHAIN_MODES[S.chainMode]) S.chainMode = "all";
+  setChainMode(S.chainMode, true);
+  $("#chainMode").addEventListener("change", (e) => setChainMode(e.target.value));
+  $("#chainBtn").addEventListener("click", (e) => { e.stopPropagation(); const k = Object.keys(CHAIN_MODES); setChainMode(k[(k.indexOf(S.chainMode) + 1) % k.length]); toast(CHAIN_MODES[S.chainMode][2]); });
   const sp = Sound.getPrefs();
   $("#musicOn").checked = sp.music; $("#sfxOn").checked = sp.sfx;
   $("#musicOn").addEventListener("change", (e) => Sound.setPref("music", e.target.checked));
@@ -948,6 +951,7 @@ function duelState(active) {
   if (window.parent !== window) window.parent.postMessage({ kx: "duel", active }, "*");
 }
 function enterTable() {
+  S.opened = false; const op0 = $("#opening"); if (op0) op0.remove();
   CARD_CACHE.clear(); CNT_CACHE.clear(); BACK_CACHE.clear(); const ch0 = $("#chain"); if (ch0) delete ch0.dataset.sig; S.fitted = false; S.pfDrawn = false;
   $("#lobby").hidden = true; $("#table").hidden = false; $("#result").hidden = true;
   duelState(true); S.unread = 0; badge(); toggleSide(false);
@@ -1247,6 +1251,7 @@ function matDamage(side, lvl) {
 S.pq = []; S.holdUntil = 0; let pqTimer = 0;
 function hold(ms) { S.holdUntil = Math.max(S.holdUntil, Date.now() + ms); }
 function onPacket(p) {
+  if (openingDue(p)) { S.pq.push(p); S.holdUntil = Date.now() + openingShow(p); pumpPackets(); return; }
   if (S.pq.length || Date.now() < S.holdUntil) { S.pq.push(p); pumpPackets(); return; }
   if (aceFirst(p) || effectFinale(p)) { S.pq.push(p); pumpPackets(); return; }
   applyPacket(p);
@@ -1519,8 +1524,47 @@ function fillInfo(b, c, team, location) {
   const extra = [];
   if (c.overlays && c.overlays.length) extra.push("Materials: " + c.overlays.map((x) => S.db.name(x)).join(", "));
   if (c.counters && c.counters.length) extra.push("Counters: " + c.counters.map(([k, n]) => `${S.db.counter(k)} ×${n}`).join(", "));
-  if (c.status & C.STATUS_DISABLED) extra.push("Effects negated");
+  const fx = statusList(c, team, location);
+  if (c.status & C.STATUS_DISABLED && !fx.some((x) => x.k === "neg")) extra.push("Effects negated");
   for (const x of extra) b.append(el("div", "info-extra", x));
+  if (fx.length) b.append(statusBlock(fx));
+}
+// ----- status effects: what is affecting a card right now and which card it comes from (asked of the engine after every step) -----
+const STATUS_TEXT = {
+  d: ["Cannot be destroyed", "good"], db: ["Cannot be destroyed by battle", "good"], de: ["Cannot be destroyed by card effects", "good"], dc: ["Protected from destruction a limited number of times", "good"],
+  nr: ["Cannot be banished", "good"], ng: ["Cannot be sent to the Graveyard", "good"], nh: ["Cannot be returned to the hand", "good"], nd: ["Cannot be returned to the Deck", "good"],
+  nt: ["Cannot be targeted by card effects", "good"], nb: ["Cannot be chosen as an attack target", "good"], im: ["Unaffected by certain card effects", "good"],
+  nrl: ["Cannot be Tributed", "note"], nts: ["Cannot be Tributed for a Tribute Summon", "note"],
+  mf: ["Cannot be used as Fusion Material", "note"], ms: ["Cannot be used as Synchro Material", "note"], mx: ["Cannot be used as Xyz Material", "note"], ml: ["Cannot be used as Link Material", "note"],
+  na: ["Cannot attack", "bad"], nda: ["Cannot attack directly", "bad"], ma: ["Must attack if able", "bad"],
+  dir: ["Can attack directly", "good"], xa: ["Can make extra attacks", "good"], all: ["Can attack every monster once each", "good"], pi: ["Inflicts piercing battle damage", "good"],
+  neg: ["Effects are negated", "bad"], ntr: ["Cannot activate its effects", "bad"], np: ["Battle position cannot be changed", "note"], nc: ["Control cannot change", "note"],
+  atk: ["ATK is changed", "note"], def: ["DEF is changed", "note"], lv: ["Goes somewhere else when it leaves the field", "note"], nbd: ["No battle damage from its battles", "note"],
+};
+function statusList(c, team, location) {
+  const out = [], add = (x) => { const o = out.find((v) => v.k === x.k); if (o) { if (!o.by.some((b) => b.by === x.by)) o.by.push(x); } else if (STATUS_TEXT[x.k]) out.push({ k: x.k, by: [x] }); };
+  for (const x of c.fx || []) add(x);
+  // rules on the whole side (e.g. "neither player can banish cards") apply to its cards on the field too
+  const onField = location === C.LOCATION_MZONE || location === C.LOCATION_SZONE, z = onField && S.packet && S.packet.state && S.packet.state.teams[team];
+  if (z && z.rules && !c.hidden && (c.position == null || c.position & C.POS_FACEUP)) for (const x of z.rules) add({ ...x, side: true });
+  return out;
+}
+function statusBlock(list) {
+  const box = el("div", "info-status"); box.append(el("div", "is-h", "Status effects"));
+  for (const x of list) {
+    const [text, tone] = STATUS_TEXT[x.k], row = el("div", "is-row " + tone), why = el("span", "is-why");
+    row.append(el("i"), el("b", null, text));
+    why.append(x.by.length > 1 ? "from " : x.by[0].self ? "" : x.by[0].side ? "applies to this side, from " : "from ");
+    x.by.forEach((v, i) => {
+      if (i) why.append(i === x.by.length - 1 ? " and " : ", ");
+      if (v.self && x.by.length === 1) { why.append("its own effect"); return; }
+      const a = el("button", "is-src", v.self ? "its own effect" : v.by ? name(v.by) : "a card effect"); a.type = "button";
+      if (v.by && !v.self) a.addEventListener("click", (e) => { e.stopPropagation(); showInfo({ code: v.by }, 0, 0, true); }); else a.disabled = true;
+      why.append(a);
+    });
+    row.append(why); box.append(row);
+  }
+  return box;
 }
 /** Official rulings for a card, read in place (online), plus a way to open the card in KodeX. */
 function rulingsBlock(b, code, auto) {
@@ -1812,9 +1856,83 @@ function battlePrompt(msg) {
   setStatus(`Battle · select an attacker${msg.to_m2 ? ", M2" : ""} or EP`);
 }
 
+// ----- coin toss, dice and the opening of a duel -----
+const COIN_SVG = (k) => k ? `<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46" fill="none" stroke="#7a5200" stroke-width="2" stroke-dasharray="2 5"/><path d="M50.0 16.0L58.2 38.7L82.3 39.5L63.3 54.3L70.0 77.5L50.0 64.0L30.0 77.5L36.7 54.3L17.7 39.5L41.8 38.7z" fill="#7a5200"/></svg>` : `<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46" fill="none" stroke="#39415f" stroke-width="2" stroke-dasharray="2 5"/><circle cx="50" cy="50" r="24" fill="none" stroke="#39415f" stroke-width="7"/><circle cx="50" cy="50" r="7" fill="#39415f"/></svg>`;
+/** A coin that is thrown, spins and lands on `heads` (true) or tails. `faces` may replace the two sides (nodes). */
+function coinEl(heads, i = 0, faces) {
+  const c = el("div", "coin"), a = el("div", "coin-a"), f = el("div", "coin-f h"), b = el("div", "coin-f t");
+  if (faces) { f.append(faces[0]); b.append(faces[1]); } else { f.innerHTML = COIN_SVG(1); b.innerHTML = COIN_SVG(0); }
+  a.append(f, b); c.append(a);
+  a.style.setProperty("--end", `${(heads ? 5 : 5.5) * 360}deg`); c.style.setProperty("--d", `${i * 90}ms`);
+  return c;
+}
+const PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
+function dieEl(n, i = 0) {
+  const d = el("div", "die"); d.style.setProperty("--d", `${i * 90}ms`);
+  const f = el("div", "die-f");
+  if (PIPS[n]) for (let k = 0; k < 9; k++) f.append(el("i", PIPS[n].includes(k) ? "on" : "")); else { f.classList.add("num"); f.textContent = String(n); }
+  d.append(f); return d;
+}
+/** A card effect tossed coins or rolled dice: show the throw and the result (does not block play). */
+function tossShow(kind, results, who) {
+  if (!results || !results.length || document.hidden) return;
+  if (S.mode === "replay" && S.replay && S.replay.speed > 2) return;
+  const box = $("#tossFx"), w = el("div", "toss " + kind), row = el("div", "toss-row"), cap = el("div", "toss-cap");
+  results.slice(0, 6).forEach((r, i) => row.append(kind === "coin" ? coinEl(!!r, i) : dieEl(r, i)));
+  const text = kind === "coin" ? results.map((x) => (x ? "Heads" : "Tails")).join(" · ") : results.join(" · ");
+  cap.append(el("span", null, `${who} ${kind === "coin" ? (results.length > 1 ? "tossed coins" : "tossed a coin") : (results.length > 1 ? "rolled dice" : "rolled a die")}`), el("b", null, text));
+  w.append(row, cap); box.replaceChildren(w);
+  const quick = reduceMotion();
+  if (quick) w.classList.add("still");
+  Sound.play(kind === "coin" ? "coin" : "dice");
+  clearTimeout(tossShow.t1); clearTimeout(tossShow.t2);
+  tossShow.t1 = setTimeout(() => { w.classList.add("landed"); if (kind === "coin") Sound.play("coinland"); Sound.vibrate(18); }, quick ? 0 : 1250);
+  tossShow.t2 = setTimeout(() => { w.classList.add("out"); setTimeout(() => w.remove(), 300); }, quick ? 1600 : 2700);
+}
+/** Is this the first thing of a new duel (not a replay, a combo, or a duel joined part-way)? */
+function openingDue(p) {
+  if (S.packet || S.opened || !p || !p.state || p.ended || p.combo || S.mode === "replay" || (p.turn || 0) > 1) return false;
+  if (PREF.opening === false || document.hidden) return false;
+  if (navigator.webdriver && !load("duel:opening:test", false)) return false;      // automated runs go straight to the duel
+  return true;
+}
+/** Coin toss, then both players face to face and who goes first. Returns how long it runs (ms). Tap to skip. */
+function openingShow(p) {
+  S.opened = true;
+  const quick = reduceMotion(), first = 0, meFirst = S.mode !== "spec" && S.team === first;
+  const o = el("div", "opening" + (quick ? " still" : "")); o.id = "opening"; o.setAttribute("role", "status");
+  const who = (team) => {
+    const side = team === S.team ? "me" : "op", pf = profileOf(side), d = el("div", `op-pl ${side}` + (team === first ? " first" : ""));
+    const av = el("div", "op-av"); av.innerHTML = pf ? avatarHTML(pf, LOGO, 96) : `<span class="pf-av fr-none" style="--pf:96px"><img src="${LOGO}" alt=""></span>`;
+    d.append(av, el("b", "op-nm", p.names[team] || "Duelist"), el("span", "op-tt", (pf && pf.title) || (team === S.team && S.mode !== "spec" ? "You" : "Opponent")), el("em", "op-first", "Goes first"));
+    return d;
+  };
+  const face = (team) => { const f = el("div", "coin-pl " + (team === S.team ? "me" : "op")); f.append(el("b", null, (p.names[team] || "?").trim().slice(0, 1).toUpperCase())); return f; };
+  const toss = el("div", "op-toss"); toss.append(coinEl(true, 0, [face(first), face(1 - first)]), el("div", "op-call", "Coin toss"));
+  const vs = el("div", "op-vs"); vs.append(who(S.team === 1 ? 1 : 0), el("i", "op-x", "VS"), who(S.team === 1 ? 0 : 1));
+  const line = el("div", "op-line"); line.append(el("b", null, meFirst ? "You go first" : `${p.names[first] || "Duelist"} goes first`), el("span", null, meFirst ? "No draw and no Battle Phase on your first turn" : "You draw on your first turn"));
+  o.append(toss, vs, line, el("div", "op-skip", "Tap to skip"));
+  document.body.append(o);
+  const T = quick ? { land: 0, vs: 150, line: 300, end: 2200 } : { land: 1500, vs: 2000, line: 2750, end: 4700 };
+  const ts = [];
+  const end = () => { if (!o.isConnected || o.classList.contains("out")) return; ts.forEach(clearTimeout); o.classList.add("out"); setTimeout(() => o.remove(), 320); if (S.holdUntil > Date.now() + 200) { S.holdUntil = Date.now() + 200; pumpPackets(); } };
+  Sound.play("coin");
+  ts.push(setTimeout(() => { o.classList.add("landed"); Sound.play("coinland"); Sound.vibrate(20); }, T.land));
+  ts.push(setTimeout(() => { o.classList.add("show-vs"); Sound.play("versus"); }, T.vs));
+  ts.push(setTimeout(() => { o.classList.add("show-line"); Sound.play("levelup"); Sound.vibrate([14, 40, 24]); }, T.line));
+  ts.push(setTimeout(end, T.end));
+  o.addEventListener("click", end);
+  return T.end + 150;
+}
+const CHAIN_MODES = { all: ["ALL", "always ask", "Chain prompts: you are asked every time you could respond"], smart: ["LESS", "only when it matters", "Chain prompts: only when a card or effect needs your decision"], off: ["OFF", "never ask", "Chain prompts off: you pass automatically (mandatory effects still ask)"] };
+function setChainMode(m, quiet) {
+  S.chainMode = m; S.chainSkip = m === "off"; if (!quiet) save("duel:chainmode", m);
+  const b = $("#chainBtn"); b.dataset.mode = m; $("#chainBtnT").textContent = CHAIN_MODES[m][0]; b.setAttribute("aria-label", `Chain prompts: ${CHAIN_MODES[m][1]}. Tap to change.`); b.title = CHAIN_MODES[m][2];
+  $("#chainMode").value = m;
+}
 function chainPrompt(msg) {
   if (!msg.selects.length && !msg.forced) { send({ t: msg.type, index: null }); return; }
-  if (S.chainSkip && !msg.forced) { send({ t: msg.type, index: null }); return; }
+  if (!msg.forced && (S.chainMode === "off" || (S.chainMode === "smart" && !msg.spe_count))) { send({ t: msg.type, index: null }); return; }
   const chain = S.packet.state.chain;
   const last = chain.length ? chain[chain.length - 1] : null;
   openSheet(msg.forced ? "Activate an effect" : "Chain a card or effect?", last ? `Chain ${chain.length}: ${name(last.code)}${effectText(last.code, last.description, last.location) ? " · " + effectText(last.code, last.description, last.location) : ""}` : "");
@@ -2213,8 +2331,8 @@ function logEvent(e, p) {
     case M.RECOVER: addLog(`${pn(e.player)} gained ${e.amount} LP`); break;
     case M.PAY_LPCOST: addLog(`${pn(e.player)} paid ${e.amount} LP`); break;
     case M.ATTACK: addLog(`${at(e.card)} attacks ${e.target ? at(e.target) : "directly"}`); break;
-    case M.TOSS_COIN: addLog(`${pn(e.player)} tossed a coin: ${e.results.map((x) => (x ? "Heads" : "Tails")).join(", ")}`); break;
-    case M.TOSS_DICE: addLog(`${pn(e.player)} rolled: ${e.results.join(", ")}`); break;
+    case M.TOSS_COIN: tossShow("coin", e.results, pn(e.player)); addLog(`${pn(e.player)} tossed a coin: ${e.results.map((x) => (x ? "Heads" : "Tails")).join(", ")}`); break;
+    case M.TOSS_DICE: tossShow("dice", e.results, pn(e.player)); addLog(`${pn(e.player)} rolled: ${e.results.join(", ")}`); break;
     case M.CONFIRM_CARDS: if (e.cards.length) addLog(`Revealed: ${e.cards.map((c) => cn(c.code)).join(", ")}`); break;
     case M.SHUFFLE_HAND: if (e.player === S.team) { /* quiet */ } break;
     case M.HINT:
@@ -2646,7 +2764,7 @@ function saveFile(fileName, dataUrl) {
 if (window.parent === window) addEventListener("beforeunload", (e) => { if (S.active && S.packet && !S.packet.ended) { e.preventDefault(); e.returnValue = ""; } });
 
 window.__duel = S; // for automated tests and debugging
-window.__arena = { fxEvents, showReveal, toggleSide, watchCombo, restartDuel };
+window.__arena = { fxEvents, showReveal, toggleSide, watchCombo, restartDuel, tossShow };
 window.__arenaFx = (p) => bigFx(p);
 window.__arenaFin = (side, style) => runFinisher({ side, style, mat: $("#field"), art: style === "meteor" ? artUrl(27204311) : "" });
 window.__arenaDmg = (side, lvl) => matDamage(side, lvl);
@@ -3021,6 +3139,7 @@ function bindPrefs() {
   const t = $("#prefFxMs"), st = $("#prefStaples");
   if (t) { t.value = String(PREF.fxMs); t.addEventListener("change", () => { PREF.fxMs = Math.max(300, Math.min(5000, Number(t.value) || 1000)); save("duel:pref", PREF); }); }
   if (st) { st.checked = PREF.staples; st.addEventListener("change", () => { PREF.staples = st.checked; save("duel:pref", PREF); }); }
+  const po = $("#prefOpening"); po.checked = PREF.opening !== false; po.addEventListener("change", () => { PREF.opening = po.checked; save("duel:pref", PREF); });
   const to = $("#prefTapOut"), vb = $("#vibeOn");
   if (to) { to.checked = PREF.tapOut !== false; to.addEventListener("change", () => { PREF.tapOut = to.checked; save("duel:pref", PREF); }); }
   if (vb) { vb.checked = Sound.getPrefs().vibe !== false; vb.addEventListener("change", () => { Sound.setPref("vibe", vb.checked); if (vb.checked) Sound.vibrate(60); }); }

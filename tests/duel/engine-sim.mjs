@@ -41,7 +41,7 @@ for (let d = 0; d < N; d++) {
   const decks = randomDecks ? [randomDeck(), randomDeck()] : [classic, classic];
   await store.preload([...decks[0].main, ...decks[0].extra, ...decks[1].main, ...decks[1].extra]);
   let last = null;
-  const host = new DuelHost({ core, db, scripts: store, decks, names: ["A", "B"], emit: (v, p) => { if (v === 0) last = p; }, seed: [BigInt(d + 1), 2n, 3n, 4n] });
+  const host = new DuelHost({ core, db, scripts: store, decks, names: ["A", "B"], options: process.env.NOFX ? { noStatus: true } : undefined, emit: (v, p) => { if (v === 0) last = p; }, seed: [BigInt(d + 1), 2n, 3n, 4n] });
   host.start();
   let steps = 0, retries = 0;
   const t0 = Date.now();
@@ -53,6 +53,7 @@ for (let d = 0; d < N; d++) {
     const before = host.seq;
     const err = host.respond(player, ans);
     if (err) throw new Error(err);
+    if (last && process.env.FX) for (const z of last.state.teams) { for (const c of [...z.mzone, ...z.szone]) if (c && c.fx) { globalThis.__fx = globalThis.__fx || new Map(); for (const x of c.fx) globalThis.__fx.set(x.k, (globalThis.__fx.get(x.k) || 0) + 1); } if (z.rules) globalThis.__rules = (globalThis.__rules || 0) + 1; }
     if (last && last.events.some((e) => e.type === 1)) { retries++; if (retries > 200) { console.log(JSON.stringify(msg, null, 0).slice(0, 2000), ans); throw new Error("Retry loop on " + MSG_NAME[msg.type]); } }
     else retries = 0;
     prompts++;
@@ -64,3 +65,5 @@ for (let d = 0; d < N; d++) {
   host.destroy();
 }
 console.log("OK", { duels: N, totalTurns, prompts, missing: [...core.missing].slice(0, 10) });
+
+if (process.env.FX) console.log("statuses seen", JSON.stringify([...(globalThis.__fx || new Map())]), "player rules", globalThis.__rules || 0);

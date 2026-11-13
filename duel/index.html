@@ -193,6 +193,7 @@
     <div class="turnbar">
       <span class="turn-no" id="turnNo">Turn 1</span><span class="turn-timer" id="turnTimer" hidden role="timer" aria-label="Turn timer">0:00</span>
       <nav class="phases" id="phases" aria-label="Phases"></nav>
+      <button type="button" class="chain-btn" id="chainBtn" data-mode="all" aria-label="Chain prompts: always ask. Tap to change."><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg><b id="chainBtnT">ALL</b></button>
       <button type="button" class="quick-btn" id="quickBtn" aria-label="Restart or surrender" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg></button>
     </div>
     <div id="status" class="status" role="status"></div>
@@ -236,12 +237,13 @@
       <form id="chatForm" class="chat-form"><input id="chatInput" maxlength="200" placeholder="Message" aria-label="Chat message"><button class="btn" type="submit">Send</button></form>
     </div>
     <div class="side-actions">
-      <label class="toggle"><input type="checkbox" id="skipChains"><span>Auto-skip chain prompts</span></label>
+      <label class="field pref-row"><span>Chain prompts</span><select id="chainMode"><option value="all">Always ask</option><option value="smart">Only when it matters</option><option value="off">Never ask</option></select></label>
       <label class="field pref-row"><span>Reveal &amp; activation time</span><select id="prefFxMs"><option value="500">0.5 s</option><option value="1000">1 s</option><option value="1500">1.5 s</option><option value="2000">2 s</option><option value="3000">3 s</option><option value="5000">5 s</option></select></label>
       <label class="toggle"><input type="checkbox" id="prefStaples"><span>Card animations for staples (Ash Blossom, Maxx "C"…)</span></label>
       <label class="toggle"><input type="checkbox" id="musicOn"><span>Music</span></label>
       <label class="toggle"><input type="checkbox" id="sfxOn"><span>Sounds</span></label>
       <label class="toggle"><input type="checkbox" id="vibeOn"><span>Vibration on showdowns and Ace cards</span></label>
+      <label class="toggle"><input type="checkbox" id="prefOpening" checked><span>Coin toss and player showcase before a duel</span></label>
       <label class="toggle"><input type="checkbox" id="prefTapOut"><span>Tap outside a panel to close it</span></label>
       <div class="view-opts mute-opts" role="group" aria-label="Mute">
         <span class="vo-l">Mute</span>
@@ -289,6 +291,7 @@
 </main>
 
 <div id="chainFx" class="chain-fx" aria-live="polite"></div>
+<div id="tossFx" class="toss-fx" aria-live="polite"></div>
 <div id="bigFx" class="big-fx" aria-live="polite"></div>
 <div id="hoverPeek" class="hover-peek" hidden></div>
 <dialog id="peek" class="dlg peek" aria-label="Card details"><button class="icon peek-close" id="peekClose" type="button" aria-label="Close">×</button><div id="peekBody" class="peek-body"></div></dialog>

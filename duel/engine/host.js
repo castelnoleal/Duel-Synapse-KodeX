@@ -12,6 +12,40 @@ const Q_FLAGS = C.QUERY_CODE | C.QUERY_POSITION | C.QUERY_ALIAS | C.QUERY_TYPE |
 const LOCS = [["hand", C.LOCATION_HAND], ["mzone", C.LOCATION_MZONE], ["szone", C.LOCATION_SZONE],
   ["grave", C.LOCATION_GRAVE], ["banished", C.LOCATION_REMOVED], ["extra", C.LOCATION_EXTRA]];
 
+// What is currently affecting each face-up card on the field, asked of the engine itself after every step: the kind of
+// effect and the card it comes from. Read-only (no state or random numbers are touched), so replays stay exact.
+const STATUS_PROBE = `
+local T={
+{EFFECT_INDESTRUCTABLE,"d"},{EFFECT_INDESTRUCTABLE_BATTLE,"db"},{EFFECT_INDESTRUCTABLE_EFFECT,"de"},{EFFECT_INDESTRUCTABLE_COUNT,"dc"},
+{EFFECT_CANNOT_REMOVE,"nr"},{EFFECT_CANNOT_TO_GRAVE,"ng"},{EFFECT_CANNOT_TO_HAND,"nh"},{EFFECT_CANNOT_TO_DECK,"nd"},
+{EFFECT_CANNOT_BE_EFFECT_TARGET,"nt"},{EFFECT_CANNOT_BE_BATTLE_TARGET,"nb"},{EFFECT_IMMUNE_EFFECT,"im"},
+{EFFECT_CANNOT_RELEASE,"nrl"},{EFFECT_UNRELEASABLE_SUM,"nts"},{EFFECT_UNRELEASABLE_NONSUM,"nrl"},
+{EFFECT_CANNOT_BE_FUSION_MATERIAL,"mf"},{EFFECT_CANNOT_BE_SYNCHRO_MATERIAL,"ms"},{EFFECT_CANNOT_BE_XYZ_MATERIAL,"mx"},{EFFECT_CANNOT_BE_LINK_MATERIAL,"ml"},
+{EFFECT_CANNOT_ATTACK,"na"},{EFFECT_CANNOT_ATTACK_ANNOUNCE,"na"},{EFFECT_CANNOT_DIRECT_ATTACK,"nda"},{EFFECT_MUST_ATTACK,"ma"},
+{EFFECT_DIRECT_ATTACK,"dir"},{EFFECT_EXTRA_ATTACK,"xa"},{EFFECT_EXTRA_ATTACK_MONSTER,"xa"},{EFFECT_ATTACK_ALL,"all"},{EFFECT_PIERCE,"pi"},
+{EFFECT_DISABLE,"neg"},{EFFECT_DISABLE_EFFECT,"neg"},{EFFECT_CANNOT_TRIGGER,"ntr"},
+{EFFECT_CANNOT_CHANGE_POSITION,"np"},{EFFECT_CANNOT_CHANGE_CONTROL,"nc"},
+{EFFECT_UPDATE_ATTACK,"atk"},{EFFECT_SET_ATTACK,"atk"},{EFFECT_SET_ATTACK_FINAL,"atk"},{EFFECT_UPDATE_DEFENSE,"def"},{EFFECT_SET_DEFENSE,"def"},{EFFECT_SET_DEFENSE_FINAL,"def"},
+{EFFECT_LEAVE_FIELD_REDIRECT,"lv"},{EFFECT_TO_GRAVE_REDIRECT,"lv"},{EFFECT_AVOID_BATTLE_DAMAGE,"nbd"},{EFFECT_NO_BATTLE_DAMAGE,"nbd"}}
+local P={{EFFECT_CANNOT_REMOVE,"nr"},{EFFECT_CANNOT_TO_HAND,"nh"},{EFFECT_CANNOT_TO_DECK,"nd"},{EFFECT_CANNOT_TO_GRAVE,"ng"},{EFFECT_CANNOT_RELEASE,"nrl"}}
+local o={}
+local function own(e,c) local h=e:GetOwner() local code=0 if h then code=h:GetOriginalCode() end return code..","..((h==c) and 1 or 0) end
+local function scan(p,loc,n)
+ for q=0,n do local c=Duel.GetFieldCard(p,loc,q)
+  if c and c:IsFaceup() then
+   for _,v in ipairs(T) do if v[1] then local es={c:IsHasEffect(v[1])} for _,e in ipairs(es) do if e and e~=true then o[#o+1]=p..","..loc..","..q..","..v[2]..","..own(e,c) end end end end
+  end
+ end
+end
+local ok,err=pcall(function()
+ for p=0,1 do scan(p,LOCATION_MZONE,6) scan(p,LOCATION_SZONE,7)
+  for _,v in ipairs(P) do if v[1] then local es={Duel.IsPlayerAffectedByEffect(p,v[1])} for _,e in ipairs(es) do if e and e~=true then o[#o+1]=p..",0,0,"..v[2]..","..own(e,nil) end end end end
+ end
+end)
+if not ok then Debug.Message("KXE:"..tostring(err)) end
+Debug.Message("KXS:"..table.concat(o,";"))
+`;
+
 function randomSeed() {
   const a = new BigUint64Array(4);
   if (globalThis.crypto && crypto.getRandomValues) crypto.getRandomValues(a);
@@ -239,7 +273,27 @@ export class DuelHost {
       s.teams.push(z);
     }
     s.chain = field ? field.chain : [];
+    this.readStatus(s);
     return s;
+  }
+
+  /** Attach `fx: [{k, by, self}]` to every face-up field card something is affecting, and `rules` (per player) to the state. */
+  readStatus(s) {
+    if (this.opt.noStatus) return;
+    const keep = this.core.onLog; let line = null;
+    this.core.onLog = (text, t) => { if (typeof text === "string" && text.startsWith("KXS:")) line = text.slice(4); };
+    try { this.core.loadScriptText(this.duel, "kx-status.lua", STATUS_PROBE); } catch (e) { line = null; }
+    this.core.onLog = keep;
+    if (!line) return;
+    for (const part of line.split(";")) {
+      const [p, loc, seq, k, by, self] = part.split(",");
+      if (k == null) continue;
+      const z = s.teams[Number(p)]; if (!z) continue;
+      const e = { k, by: Number(by) || 0, self: self === "1" };
+      if (loc === "0") { (z.rules = z.rules || []).push(e); continue; }
+      const c = (Number(loc) === C.LOCATION_MZONE ? z.mzone : z.szone)[Number(seq)];
+      if (c && !(c.fx || (c.fx = [])).some((x) => x.k === e.k && x.by === e.by)) c.fx.push(e);
+    }
   }
 
   readField() {
@@ -269,6 +323,7 @@ export class DuelHost {
   viewFor(raw, viewer) {
     const teams = raw.teams.map((z, t) => {
       const out = { lp: z.lp, deck: z.deck, deckTop: z.deckTop || 0 };
+      if (z.rules) out.rules = z.rules;
       for (const [k, l] of LOCS) {
         out[k] = z[k].map((c, i) => {
           if (!c) return null;
