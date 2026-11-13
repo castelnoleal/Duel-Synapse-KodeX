@@ -270,7 +270,7 @@ export function show(style, { kind = "finale", src = "", title = "", line = "", 
         for (const [k, dx] of [["g1", -16], ["g2", 16]]) { const g = bigCard(L, src, "", "timestop ghost " + k, T); A(g, [{ transform: `translate(calc(-50% + ${dx}vmin),-50%) scale(1.08)`, opacity: 0 }, { transform: `translate(calc(-50% + ${dx}vmin),-50%) scale(1.08)`, opacity: 0, offset: Math.max(0, sf - .04) }, { transform: `translate(calc(-50% + ${dx * .5}vmin),-50%) scale(1.04)`, opacity: .5, offset: sf + .03 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 0, offset: sf + .14 }, { opacity: 0 }], { duration: T, fill: "both" }); }
         h = bigCard(L, src, title, "timestop", T);
         A(h, [{ transform: "translate(-50%,-50%) scale(1.5)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(1.5)", opacity: 0, offset: Math.max(0, sf - .03) }, { transform: "translate(-50%,-50%) scale(1)", opacity: 1, offset: sf + .08 }, { transform: "translate(-50%,-50%) scale(1.03)", opacity: 1, offset: resume }, { transform: "translate(-50%,-50%) scale(1.3)", opacity: 0 }], { duration: T, fill: "both", easing: "cubic-bezier(.2,.9,.3,1)" });
-        word(L, "TIME STOP", "timestop", T, sf + .06, "7%");
+        
         break;
       }
       case "freeze": {
@@ -286,14 +286,13 @@ export function show(style, { kind = "finale", src = "", title = "", line = "", 
         A(v, [{ clipPath: "circle(0% at 50% 46%)" }, { clipPath: "circle(0% at 50% 46%)", offset: .06 }, { clipPath: "circle(150% at 50% 46%)", offset: .32 }, { clipPath: "circle(150% at 50% 46%)", opacity: 1, offset: .9 }, { clipPath: "circle(150% at 50% 46%)", opacity: 0 }], { duration: T, fill: "both", easing: "cubic-bezier(.6,0,.2,1)" });
         for (const [k, dir] of [["a", 1], ["b", -1], ["c", 1]]) { const s = div("cf-sigil " + k); L.append(s); later(s, T); A(s, [{ transform: "translate(-50%,-50%) scale(.2) rotate(0)", opacity: 0 }, { transform: `translate(-50%,-50%) scale(1) rotate(${dir * 90}deg)`, opacity: 1, offset: .35 }, { transform: `translate(-50%,-50%) scale(1.05) rotate(${dir * 240}deg)`, opacity: 1, offset: .88 }, { transform: `translate(-50%,-50%) scale(1.3) rotate(${dir * 280}deg)`, opacity: 0 }], { duration: T, fill: "both" }); }
         h = bigCard(L, src, title, "domain", T); heroIn(h, T, "scale(.3)");
-        word(L, "DOMAIN EXPANSION", "domain", T, .34, "7%");
+        
         break;
       }
       case "allout": {
         // comic panels slam in, red and black, with a cut-out title
         for (let i = 0; i < 5; i++) { const p = div("cf-panel p" + i); if (src) p.style.backgroundImage = `url("${src}")`; L.append(p); later(p, T); A(p, [{ transform: `translateX(${i % 2 ? 130 : -130}%) skewX(-14deg)`, opacity: 0 }, { transform: "translateX(0) skewX(-14deg)", opacity: 1, offset: .08 + i * .05 }, { transform: "translateX(0) skewX(-14deg)", opacity: 1, offset: .86 }, { transform: `translateX(${i % 2 ? -40 : 40}%) skewX(-14deg)`, opacity: 0 }], { duration: T, fill: "both", easing: "cubic-bezier(.2,.9,.3,1)" }); }
-        const t = div("cf-cutout"); "ALL-OUT ATTACK".split("").forEach((ch, i) => { const b = document.createElement("b"); b.textContent = ch; b.style.setProperty("--r", `${(i * 37 % 13) - 6}deg`); t.append(b); });
-        L.append(t); later(t, T); fitWord(t, L); A(t, [{ transform: "translate(-50%,-50%) scale(2.4) rotate(-8deg)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(2.4) rotate(-8deg)", opacity: 0, offset: .3 }, { transform: "translate(-50%,-50%) scale(1) rotate(-6deg)", opacity: 1, offset: .38 }, { transform: "translate(-50%,-50%) scale(1.04) rotate(-6deg)", opacity: 1, offset: .9 }, { transform: "translate(-50%,-50%) scale(1.2) rotate(-6deg)", opacity: 0 }], { duration: T, fill: "both", easing: "cubic-bezier(.2,.9,.3,1)" });
+        // (the showdown is not named on screen: the card name and its line carry it)
         flag("cf-redshift", T * .3, T * .9);
         break;
       }
@@ -303,7 +302,7 @@ export function show(style, { kind = "finale", src = "", title = "", line = "", 
         const hits = [.18, .3, .42, .62];
         for (const k of hits) { flag("cf-inv", T * k, T * k + 90); at(T * k + 140, () => root.classList.add("cf-inv")); at(T * k + 210, () => root.classList.remove("cf-inv")); at(T * k, () => { const c = div("cf-crack", { left: rnd(25, 75) + "%", top: rnd(25, 70) + "%", rotate: rnd(0, 180) + "deg" }); L.append(c); later(c, 700); A(c, [{ transform: "translate(-50%,-50%) scale(.2)", opacity: 1 }, { transform: "translate(-50%,-50%) scale(1.3)", opacity: 0 }], { duration: 650, easing: "ease-out", fill: "both" }); }); }
         speedLines(L, "#ffffff", T);
-        word(L, "IMPACT", "impact", T, .64, "5%");
+        
         break;
       }
       case "destiny": {
@@ -314,7 +313,7 @@ export function show(style, { kind = "finale", src = "", title = "", line = "", 
         at(T * .38, () => { const f = div("cf-flash"); L.append(f); later(f, 500); A(f, [{ opacity: .9 }, { opacity: 0 }], { duration: 480, fill: "both" }); });
         const r = div("cf-rays", { left: "50%", top: "46%", "--c": "#ffe08a" }); L.append(r); later(r, T); A(r, [{ transform: "translate(-50%,-50%) scale(.3)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(.3)", opacity: 0, offset: .37 }, { transform: "translate(-50%,-50%) scale(1.3) rotate(40deg)", opacity: 1, offset: .5 }, { transform: "translate(-50%,-50%) scale(1.5) rotate(90deg)", opacity: 0 }], { duration: T, fill: "both" });
         h = bigCard(L, src, title, "destiny", T); A(h, [{ transform: "translate(-50%,-50%) rotateY(-90deg)", opacity: 0 }, { transform: "translate(-50%,-50%) rotateY(-90deg)", opacity: 0, offset: .38 }, { transform: "translate(-50%,-50%) rotateY(0) scale(1.06)", opacity: 1, offset: .48 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 1, offset: .88 }, { transform: "translate(-50%,-50%) scale(1.3)", opacity: 0 }], { duration: T, fill: "both", easing: "cubic-bezier(.2,.9,.3,1)" });
-        word(L, "DESTINY DRAW", "destiny", T, .5, "7%");
+        
         break;
       }
       case "finalblow": {
@@ -323,7 +322,7 @@ export function show(style, { kind = "finale", src = "", title = "", line = "", 
         speedLines(L, "#9fe2ff", T);
         h = bigCard(L, src, title, "finalblow", T); A(h, [{ transform: "translate(-50%,-50%) scale(.9)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 1, offset: .1 }, { transform: "translate(-50%,-50%) scale(1.22)", opacity: 1, offset: .62 }, { transform: "translate(-50%,-50%) scale(1.22)", opacity: 1, offset: .9 }, { transform: "translate(-50%,-50%) scale(1.6)", opacity: 0 }], { duration: T, fill: "both", easing: "cubic-bezier(.5,0,.9,.6)" });
         at(T * .62, () => { const f = div("cf-flash"); L.append(f); later(f, 600); A(f, [{ opacity: 1 }, { opacity: 0 }], { duration: 560, fill: "both" }); });
-        word(L, "FINAL BLOW", "finalblow", T, .2, "6%");
+        
         word(L, "K.O.!", "ko", T, .64, "calc(46% - .5em)");
         break;
       }
@@ -334,7 +333,7 @@ export function show(style, { kind = "finale", src = "", title = "", line = "", 
         for (let i = 0; i < Math.round(T / 90); i++) at(rnd(200, T - 500), () => { const s = div("cf-ember", { left: rnd(30, 70) + "%" }); L.append(s); later(s, 1100); A(s, [{ transform: "translateY(0) scale(1)", opacity: 1 }, { transform: `translate(${rnd(-30, 30)}px, -${rnd(30, 60)}vh) scale(.3)`, opacity: 0 }], { duration: 1050, easing: "ease-out", fill: "both" }); });
         for (let i = 0; i < 3; i++) at(T * (.25 + i * .18), () => { const b = div("cf-bolt", { left: rnd(25, 75) + "%", "--c": "#ffe066" }); L.append(b); later(b, 500); A(b, [{ opacity: 0 }, { opacity: 1, offset: .15 }, { opacity: .2, offset: .4 }, { opacity: 1, offset: .55 }, { opacity: 0 }], { duration: 480 }); });
         flag("cf-quake", T * .2, T * .75);
-        word(L, "POWER UP!", "powerup", T, .3, "7%");
+        
         break;
       }
       case "beam": {
@@ -344,7 +343,7 @@ export function show(style, { kind = "finale", src = "", title = "", line = "", 
         const bm = div("cf-beam"); L.append(bm); later(bm, T); A(bm, [{ transform: "translateY(-50%) scaleX(0) scaleY(.2)", opacity: 0 }, { transform: "translateY(-50%) scaleX(0) scaleY(.2)", opacity: 0, offset: .5 }, { transform: "translateY(-50%) scaleX(1) scaleY(1)", opacity: 1, offset: .58 }, { transform: "translateY(-50%) scaleX(1) scaleY(1.15)", opacity: 1, offset: .86 }, { transform: "translateY(-50%) scaleX(1) scaleY(0)", opacity: 0 }], { duration: T, fill: "both" });
         h = bigCard(L, src, title, "beam", T); A(h, [{ transform: "translate(-50%,-50%) scale(.6)", opacity: 0 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 1, offset: .14 }, { transform: "translate(-50%,-50%) scale(1)", opacity: 1, offset: .48 }, { transform: "translate(-50%,-50%) scale(.7)", opacity: 0, offset: .56 }, { opacity: 0 }], { duration: T, fill: "both" });
         flag("cf-quake", T * .55, T * .85);
-        word(L, "FULL POWER", "beam", T, .58, "78%");
+        
         break;
       }
       case "radiant": {

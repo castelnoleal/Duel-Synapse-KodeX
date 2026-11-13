@@ -1,0 +1,42 @@
+/* KodeX 9.7 (v64): shapes. Buttons that were squeezed, stretched or wrapped are given an even grid. */
+/* Premium Studio: six tabs in two even rows; the sound list is one full-width row per sound */
+.st-tabs{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.st-tabs button{min-width:0;padding:0 6px;overflow:hidden;text-overflow:ellipsis}
+.studio .snd-list{display:grid;gap:0;margin-bottom:0}
+.studio .snd-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:8px;padding:10px 0;border:0;border-top:1px solid var(--line);border-radius:0;background:none}
+.studio .snd-row:first-child{border-top:0}
+.studio .snd-row>span{min-width:0}
+.studio .snd-row strong,.studio .snd-row small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.studio .snd-row .btn{min-width:84px;min-height:42px;justify-content:center}
+/* card page: the main action on its own row, the two others side by side, one line each */
+.detail-actions.three{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.detail-actions.three #bAddDeck{grid-column:1/-1;order:-1}
+.detail-actions.three .btn{padding:8px 10px;font-size:.86rem;white-space:nowrap;text-align:center;justify-content:center;min-height:44px}
+/* Decks: four actions as an even 2 × 2 */
+.dk-bar:has([data-dknew]){display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.dk-bar:has([data-dknew]) .btn{width:100%;justify-content:center;min-height:44px}
+/* empty states: a word in bold stays a word */
+.cb-list .empty b{display:inline;font-size:inherit;margin:0;color:var(--text)}
+.cb-acts .btn[disabled]{opacity:.5}
+/* Settings: one button for the other MEIOCG apps */
+.ap-open{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border-radius:14px;border:1px solid var(--line);background:linear-gradient(135deg,rgba(51,71,240,.22),rgba(240,180,41,.12)),var(--panel2);color:var(--text);font:inherit;text-align:left;cursor:pointer}
+.ap-oi{display:flex;flex:none}
+.ap-oi i{width:30px;height:30px;border-radius:9px;border:2px solid var(--panel);background:linear-gradient(135deg,#3347f0,#6f7dff)}
+.ap-oi i+i{margin-left:-10px;background:linear-gradient(135deg,#f0b429,#ff8a3a)}
+.ap-ot{flex:1;min-width:0;display:grid}
+.ap-ot b{font-size:.95rem}
+.ap-ot small{color:var(--muted);font-size:.74rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ap-open em{font-style:normal;font-size:1.4rem;color:var(--muted);line-height:1}
+/* combo: what a card can do next */
+.cbn{display:grid;gap:10px}
+.cbn-only{padding:8px 12px;border-radius:10px;background:rgba(240,180,41,.12);border:1px solid rgba(240,180,41,.4);color:var(--gold,#f0b429);font-weight:700;font-size:.8rem}
+.cbn-play{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;align-items:center;width:100%;padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font:inherit;text-align:left;cursor:pointer}
+.cbn-play b{font-size:.88rem;line-height:1.3}
+.cbn-play small{grid-column:1;color:var(--muted);font-size:.74rem;line-height:1.3}
+.cbn-play em{grid-row:1/span 2;grid-column:2;font-style:normal;font-weight:800;font-size:.72rem;padding:4px 9px;border-radius:999px;background:rgba(111,125,255,.2);color:#c9d0ff;white-space:nowrap}
+.cbn-play.off{opacity:.55;cursor:default}
+.cbn-play.off em{background:none;border:1px dashed var(--line);color:var(--muted)}
+.cbn-src{display:flex;align-items:center;gap:8px;font-weight:800;font-size:.9rem}
+.cbn-src .cb-th{width:30px;flex:none}
+.cbn details summary{cursor:pointer;color:var(--muted);font-size:.78rem;padding:4px 0}
+.cbn details .cbn-play{margin-top:6px}

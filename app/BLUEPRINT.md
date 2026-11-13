@@ -56,8 +56,9 @@ the main script (`core-…`) is cut at its section comments. Later modules may r
 | `0580`–`0600` | 9.4: square deck image (three designs, editable preset, date, MEIOCG profile), saving Arena video clips |
 | `0620`–`0640` | 9.5: Test hub (Combo + Synapse Arena), combo generator (`cb*` functions, stored under `combos`), combo image, More from MEIOCG apps (`KX_APPS`), Arena vibration |
 | `0660`–`0680` | 9.6: performance overrides (no blur-behind, transform/opacity-only animations), combo hand-off to the Arena with a cover (`cbCover`, `cbSend`) |
+| `0700`–`0720` | 9.7: button-shape fixes, Arena closes to the Test tab, combo plays read from card text (`cbxPlays`, `cbxOpen`, `cbNextStep`, `cbFirstStep`, `cbxPick`) |
 
-To add a feature: add a new numbered pair (for example `0700-kx-v64.css`, `0720-kx-v64-late.js`) to `manifest.json`, or edit
+To add a feature: add a new numbered pair (for example `0740-kx-v65.css`, `0760-kx-v65-late.js`) to `manifest.json`, or edit
 the module that owns it. The constant `KODEX_BLUEPRINT` in the last module names the creator in the running app.
 
 ## 4. Build and release

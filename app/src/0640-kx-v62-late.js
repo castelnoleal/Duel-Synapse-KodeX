@@ -27,14 +27,18 @@ function kxAppPreview(k){
   <div class="ap-st"><span style="--w:92%"><i>1</i>Kasuteru<b>9</b></span><span style="--w:74%"><i>2</i>Aki<b>7</b></span><span style="--w:60%"><i>3</i>Kai<b>6</b></span></div></div>`;
 }
 (function(){const sb=document.querySelector('#Lset .sb');if(!sb)return;
- const sec=document.createElement('div');sec.className='sec';sec.textContent='More from MEIOCG';const g=document.createElement('div');g.className='ap-list';g.id='kxApps';
- g.innerHTML=KX_APPS.map(a=>`<article class="ap-card" data-app="${a.k}">${kxAppPreview(a.k)}<div class="ap-info"><h4>${esc(a.name)}</h4><small>${esc(a.tag)}</small><ul>${a.pts.map(p=>`<li>${esc(p)}</li>`).join('')}</ul><button class="btn p" data-appgo="${a.k}">See the app ↗</button></div></article>`).join('');
+ const sec=document.createElement('div');sec.className='sec';sec.textContent='More from MEIOCG';const g=document.createElement('button');g.type='button';g.className='ap-open';g.id='kxApps';
+ g.innerHTML=`<span class="ap-oi">${KX_APPS.map(a=>`<i data-k="${a.k}"></i>`).join('')}</span><span class="ap-ot"><b>More on MEIOCG</b><small>${esc(KX_APPS.map(a=>a.name).join(' · '))}</small></span><em aria-hidden="true">›</em>`;
  const about=[...sb.querySelectorAll('.sec')].find(x=>/^about$/i.test(x.textContent.trim()));
  if(about){sb.insertBefore(sec,about);sb.insertBefore(g,about)}else{sb.append(sec,g)}
+ g.onclick=()=>kxAppsOpen()})();
+function kxAppsOpen(){
+ const m=openModal(`<div class="dk-hd"><h3>More on MEIOCG</h3><button class="ibtn" data-close aria-label="Close">${ic('x')}</button></div><div class="ap-list"></div>`,'big xl','apps'),g=m.querySelector('.ap-list');
+ g.innerHTML=KX_APPS.map(a=>`<article class="ap-card" data-app="${a.k}">${kxAppPreview(a.k)}<div class="ap-info"><h4>${esc(a.name)}</h4><small>${esc(a.tag)}</small><ul>${a.pts.map(p=>`<li>${esc(p)}</li>`).join('')}</ul><button class="btn p" data-appgo="${a.k}">See the app ↗</button></div></article>`).join('');
  g.addEventListener('click',e=>{const b=e.target.closest('[data-appgo]');if(!b)return;const a=KX_APPS.find(x=>x.k===b.dataset.appgo);if(a)openLink(a.url,a.name)});
  // the previews only animate while they are on screen
  if('IntersectionObserver' in window){const io=new IntersectionObserver(es=>es.forEach(x=>x.target.classList.toggle('run',x.isIntersecting)),{threshold:.2});g.querySelectorAll('.ap-card').forEach(c=>io.observe(c))}else g.querySelectorAll('.ap-card').forEach(c=>c.classList.add('run'));
-})();
+}
 
 /* ---------- Test tab: two doors, Combo and Synapse Arena ---------- */
 const CB_ICON='<svg viewBox="0 0 48 48" width="44" height="44" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="17" width="11" height="15" rx="2"/><rect x="32" y="5" width="11" height="15" rx="2"/><rect x="32" y="28" width="11" height="15" rx="2"/><path d="M16 24h7m0 0c4 0 3-11 9-11m-9 11c4 0 3 11 9 11"/></svg>';
@@ -43,8 +47,8 @@ function kxTestHub(){const n=cbAll().length;
  tool('Test',`<div class="th-grid"><button class="th-tile" data-th="combo"><span class="th-ic">${CB_ICON}</span><b>Combo</b><small>Combo generator: plan lines from a starting hand, save them, play them as replays, export images</small><em>${n?n+' saved':'New'}</em></button>
  <button class="th-tile th-arena" data-th="arena"><span class="th-ic">${AR_ICON}</span><b>Synapse Arena</b><small>Playtest your decks, duel online, watch and record replays</small><em>${arenaActive?'Duel in progress':'Open'}</em></button></div>`);
  $('tb').querySelector('[data-th=combo]').onclick=()=>kxCombos();
- // the hub steps aside for the Arena, so Back from the Arena returns to where you were
- $('tb').querySelector('[data-th=arena]').onclick=()=>{if(L[L.length-1]==='tool'){history.back();setTimeout(()=>openArena(''),220)}else openArena('')};
+ // the hub stays underneath: closing the Arena comes back to Test
+ $('tb').querySelector('[data-th=arena]').onclick=()=>openArena('');
  navSync()}
 $('nTest').onclick=()=>kxTestHub();
 {const ns0=navSync;navSync=function(){ns0();const t=L[L.length-1]||'',tt=$('tt').textContent;$('nTest').classList.toggle('on',t==='arena'||(t==='tool'&&(tt==='Test'||tt==='Combos')))}}
@@ -150,7 +154,8 @@ function cbEdit(c){
   box.querySelectorAll('[data-chip]').forEach(b=>b.onclick=()=>{const [l,n,i]=b.dataset.chip.split(',').map(Number);cbChip(c,l,n,i,()=>{keep();draw()})});
   box.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{const [w,arg]=b.dataset.add.split(':'),p=(arg||'').split(',').map(Number);
    if(w==='hand')cbPick(c,{title:'Starting hand',many:true,from:[]},id=>{if(c.hand.length<12){c.hand.push(String(id));keep();draw()}});
-   else if(w==='line'){const from=c.hand.slice();cbPick(c,{title:'First card of the line',from,handFirst:true},id=>{c.lines.push([{cards:[{c:String(id),a:'auto'}],note:''}]);keep();draw()})}
+   else if(w==='line'){const from=c.hand.slice();cbPick(c,{title:'First card of the line',from,handFirst:true},id=>cbFirstStep(c,String(id),()=>{keep();draw()}))}
+   else if(w==='next'&&typeof cbNextStep==='function'){cbNextStep(c,p[0],()=>{keep();draw()})}
    else if(w==='next'){const last=c.lines[p[0]][c.lines[p[0]].length-1];cbPick(c,{title:'Next: after '+last.cards.map(x=>cbName(x.c)).join(' + '),from:last.cards.map(x=>x.c)},id=>{if(c.lines[p[0]].length<12){pushNode(p[0],id);keep();draw()}})}
    else if(w==='node'){const nd=c.lines[p[0]][p[1]];cbPick(c,{title:'Together with '+nd.cards.map(x=>cbName(x.c)).join(' + '),from:nd.cards.map(x=>x.c)},id=>{if(nd.cards.length<6){nd.cards.push({c:String(id),a:'auto'});keep();draw()}})}});
   box.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{const g=b.dataset.go;
