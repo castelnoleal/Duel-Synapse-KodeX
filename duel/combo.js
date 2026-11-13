@@ -88,6 +88,7 @@ export function comboPackets(combo, db, names = ["Duelist", "Opponent"]) {
         const t = take(c, a === "ns" ? ["hand", "extra", "grave", "banished"] : ["hand", "extra", "grave", "banished", "szone"]);
         const i = freeM(isX(c)); if (i < 0) { Z.grave.push(t.card); break; }
         t.card.position = C.POS_FACEUP_ATTACK; Z.mzone[i] = t.card; if (a === "ns") normal = true;
+        ev.push({ type: M.MOVE, code: c, from: t.from, to: at("mzone", i), reason: 0 });
         if (t.k === "deck") ev.push({ type: M.SHUFFLE_DECK, player: me });
         ev.push({ type: a === "ns" ? M.SUMMONING : M.SPSUMMONING, code: c, controller: me, location: C.LOCATION_MZONE, sequence: i, position: C.POS_FACEUP_ATTACK });
         break;
@@ -99,6 +100,7 @@ export function comboPackets(combo, db, names = ["Duelist", "Opponent"]) {
         const i = d.type & T.FIELD ? 5 : freeS(false); if (i < 0) { Z.grave.push(t.card); break; }
         t.card.position = C.POS_FACEUP_ATTACK; Z.szone[i] = t.card;
         if (!(d.type & (T.CONTINUOUS | T.FIELD | T.EQUIP))) temp.push(c);     // Normal, Quick-Play and Ritual Spells, Normal and Counter Traps leave after resolving
+        ev.push({ type: M.MOVE, code: c, from: t.from, to: at("szone", i), reason: 0 });
         if (t.k === "deck") ev.push({ type: M.SHUFFLE_DECK, player: me });
         ev.push({ type: M.CHAINING, code: c, controller: me, location: C.LOCATION_SZONE, sequence: i, chain_size: 1, description: "0" });
         break;
@@ -107,6 +109,7 @@ export function comboPackets(combo, db, names = ["Duelist", "Opponent"]) {
         const t = take(c, ["hand", "extra", "grave", "banished"]);
         const i = freeS(true); if (i < 0) { Z.hand.push(t.card); break; }
         t.card.position = C.POS_FACEUP_ATTACK; Z.szone[i] = t.card;
+        ev.push({ type: M.MOVE, code: c, from: t.from, to: at("szone", i), reason: 0 });
         if (t.k === "deck") ev.push({ type: M.SHUFFLE_DECK, player: me });
         ev.push({ type: M.CHAINING, code: c, controller: me, location: C.LOCATION_SZONE, sequence: i, chain_size: 1, description: "0" });
         break;
@@ -125,8 +128,8 @@ export function comboPackets(combo, db, names = ["Duelist", "Opponent"]) {
       }
       case "set": {
         const t = take(c, ["hand", "grave", "banished"]);
-        if (d.type & T.MONSTER) { const i = freeM(false); if (i < 0) { Z.hand.push(t.card); break; } t.card.position = C.POS_FACEDOWN_DEFENSE; Z.mzone[i] = t.card; }
-        else { const i = d.type & T.FIELD ? 5 : freeS(false); if (i < 0) { Z.hand.push(t.card); break; } t.card.position = C.POS_FACEDOWN_ATTACK; Z.szone[i] = t.card; }
+        if (d.type & T.MONSTER) { const i = freeM(false); if (i < 0) { Z.hand.push(t.card); break; } t.card.position = C.POS_FACEDOWN_DEFENSE; Z.mzone[i] = t.card; ev.push({ type: M.MOVE, code: c, from: t.from, to: at("mzone", i, C.POS_FACEDOWN_DEFENSE), reason: 0 }); }
+        else { const i = d.type & T.FIELD ? 5 : freeS(false); if (i < 0) { Z.hand.push(t.card); break; } t.card.position = C.POS_FACEDOWN_ATTACK; Z.szone[i] = t.card; ev.push({ type: M.MOVE, code: c, from: t.from, to: at("szone", i, C.POS_FACEDOWN_ATTACK), reason: 0 }); }
         if (t.k === "deck") ev.push({ type: M.SHUFFLE_DECK, player: me });
         ev.push({ type: M.SET, code: 0, controller: me });
         break;

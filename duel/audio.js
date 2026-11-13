@@ -127,6 +127,15 @@ Object.assign(SFX, {
 });
 // ---- vibration (phones): showdowns, Ace cards, big hits. Inside KodeX the app is asked to vibrate too.
 prefs.vibe = ls.get("duel:vibe", true);
+/** A live audio track of everything the Arena plays (for video clips). Returns { track, close } or null. */
+export function tap() {
+  const c = ac(); if (!c || !master || !c.createMediaStreamDestination) return null;
+  try {
+    const d = c.createMediaStreamDestination(); master.connect(d);
+    const track = d.stream.getAudioTracks()[0]; if (!track) return null;
+    return { track, close() { try { master.disconnect(d); } catch {} try { track.stop(); } catch {} } };
+  } catch { return null; }
+}
 export function vibrate(pattern) {
   if (!prefs.vibe) return;
   try { if (navigator.vibrate) navigator.vibrate(pattern); } catch { /* not allowed */ }

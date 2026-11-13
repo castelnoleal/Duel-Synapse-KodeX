@@ -37,6 +37,10 @@ export class Clip {
     this.cv = document.createElement("canvas"); this.cv.width = this.W; this.cv.height = this.H;
     this.g = this.cv.getContext("2d", { alpha: false });
     this.imgs = new Map(); this.fx = []; this.lp = [null, null]; this.lpShow = [0, 0];
+    // what the frame carries besides the table: the play-by-play and the card being played
+    this.show = { feed: o.feed !== false, card: o.details !== false }; this.show.any = this.show.feed || this.show.card;
+    this.th = Object.assign({ me: "108,150,255", op: "255,112,134", acc: "240,180,41", a: "#1b2358", b: "#0b0e1f", e: "#4654c4" }, o.theme || {});
+    this.notes = []; this.cur = null; this.headline = String(o.title || (o.intro && o.intro.title) || "").trim();
     this.logo = this.load(o.logo);
     if (o.intro) { this.introBg = this.load(o.intro.bg); this.introCard = this.load(o.intro.card); }
     this.layout();
@@ -55,34 +59,56 @@ export class Clip {
   art(code) { return code ? this.load(this.o.art(code)) : null; }
   /* ---------- layout ---------- */
   layout() {
-    const { W, H, u } = this, L = {};
+    const { W, H, u } = this, L = {}, sh = this.show;
     const land = W > H * 1.2, port = H > W * 1.2;
     L.land = land; L.port = port;
     // field: 7 columns × 5 rows of card slots
-    const fw = land ? W * 0.5 : W * 0.92, fh = land ? H * 0.9 : port ? H * 0.5 : H * 0.7;
-    const cell = Math.min(fw / 7, fh / 5 * (59 / 86) + 0) ;
+    const fw = land ? W * 0.5 : W * 0.92, fh = land ? H * 0.85 : port ? H * (sh.any ? 0.46 : 0.5) : H * 0.7;
+    const cell = Math.min(fw / 7, fh / 5 * (59 / 86));
     const ch = Math.min(fh / 5, cell * 86 / 59), cw = ch * 59 / 86, gap = cw * 0.1;
     L.cw = cw * 0.9; L.ch = ch * 0.9; L.pitchX = cw + gap * 0.2; L.pitchY = ch;
     const gridW = L.pitchX * 7, gridH = L.pitchY * 5;
-    L.fx0 = land ? (W - gridW) / 2 : (W - gridW) / 2;
-    L.fy0 = land ? (H - gridH) / 2 : port ? H * 0.5 - gridH / 2 : H * 0.53 - gridH / 2;
+    L.fx0 = (W - gridW) / 2;
+    L.fy0 = land ? 96 * u + (H - 126 * u - gridH) / 2 : port ? H * 0.5 - gridH / 2 : H * 0.53 - gridH / 2;
     L.gridW = gridW; L.gridH = gridH; this.L0w = gridW;
-    // plates and hands
+    // plates, hands and the information panels
     if (land) {
       const pw = Math.min(W * 0.23, (W - this.L0w) / 2 - 60 * u), ph = 170 * u;
       L.plate = [{ x: 40 * u, y: H - ph - 40 * u, w: pw, h: ph }, { x: 40 * u, y: 40 * u, w: pw, h: ph }];
       const hx = L.fx0 + gridW + 40 * u, hw = W - hx - 40 * u;
-      L.hand = [{ x: hx, y: H * 0.56, w: hw, h: H * 0.36 }, { x: hx, y: H * 0.08, w: hw, h: H * 0.36 }];
-      L.info = { x: 40 * u, y: H / 2 - 90 * u, w: pw, h: 180 * u };
+      if (sh.card) {
+        const hh = H * 0.19, mb = (this.o.watermark ? 84 : 40) * u;      // the mark sits under your hand
+        L.hand = [{ x: hx, y: H - mb - hh, w: hw, h: hh }, { x: hx, y: 40 * u, w: hw, h: hh }];
+        L.card = { x: hx, y: 40 * u + hh + 16 * u, w: hw, h: H - 40 * u - mb - hh * 2 - 32 * u };
+      } else L.hand = [{ x: hx, y: H * 0.56, w: hw, h: H * 0.36 }, { x: hx, y: H * 0.08, w: hw, h: H * 0.36 }];
+      L.info = { x: 40 * u, y: 40 * u + ph + 22 * u, w: pw, h: 146 * u };
+      const fy = L.info.y + L.info.h + 16 * u;
+      if (sh.feed) L.feed = { x: 40 * u, y: fy, w: pw, h: L.plate[0].y - 22 * u - fy };
     } else if (port) {
-      const pw = W - 80 * u, ph = 140 * u;
-      L.plate = [{ x: 40 * u, y: H - ph - 60 * u, w: pw, h: ph }, { x: 40 * u, y: 60 * u, w: pw, h: ph }];
-      L.hand = [{ x: 40 * u, y: L.fy0 + gridH + 30 * u, w: W - 80 * u, h: L.plate[0].y - (L.fy0 + gridH) - 60 * u }, { x: 40 * u, y: L.plate[1].y + ph + 30 * u, w: W - 80 * u, h: L.fy0 - (L.plate[1].y + ph) - 60 * u }];
+      const pw = W - 80 * u;
+      if (sh.any) {
+        const ph = 120 * u, top = 90 * u, th = 96 * u;
+        L.head = { x: 40 * u, y: 20 * u, w: pw, h: 56 * u };
+        L.plate = [{ x: 40 * u, y: H - ph - 60 * u, w: pw, h: ph }, { x: 40 * u, y: top, w: pw, h: ph }];
+        const a = top + ph + 12 * u, b = L.plate[0].y - 12 * u, free = Math.max(0, b - a - gridH - th - 36 * u), oh = free * 0.4;
+        L.hand = [null, { x: 40 * u, y: a, w: pw, h: oh }];
+        L.fy0 = a + oh + 10 * u;
+        L.tick = { x: 40 * u, y: L.fy0 + gridH + 14 * u, w: pw, h: th };
+        const hy = L.tick.y + th + 10 * u; L.hand[0] = { x: 40 * u, y: hy, w: pw, h: b - hy };
+      } else {
+        const ph = 140 * u;
+        L.plate = [{ x: 40 * u, y: H - ph - 60 * u, w: pw, h: ph }, { x: 40 * u, y: 60 * u, w: pw, h: ph }];
+        L.hand = [{ x: 40 * u, y: L.fy0 + gridH + 30 * u, w: pw, h: L.plate[0].y - (L.fy0 + gridH) - 60 * u }, { x: 40 * u, y: L.plate[1].y + ph + 30 * u, w: pw, h: L.fy0 - (L.plate[1].y + ph) - 60 * u }];
+      }
       L.info = null;
     } else {
       const pw = W * 0.46, ph = 110 * u;
       L.plate = [{ x: 30 * u, y: H - ph - 24 * u, w: pw, h: ph }, { x: W - pw - 30 * u, y: 24 * u, w: pw, h: ph }];
       L.hand = [null, null]; L.info = null;
+      if (sh.any) {
+        L.head = { x: 30 * u, y: 24 * u, w: W - pw - 80 * u, h: ph };
+        L.tick = { x: 50 * u + pw, y: H - ph - 24 * u, w: W - pw - 80 * u, h: 64 * u };
+      }
     }
     this.L = L;
   }
@@ -104,9 +130,33 @@ export class Clip {
     return { x: L.fx0 + L.pitchX * (col + 0.5), y: L.fy0 + L.pitchY * (row + 0.5) };
   }
   /* ---------- events become effects ---------- */
+  /** Where a card is on the frame: a zone or pile, or the middle of a hand. */
+  spot(w) {
+    if (!w) return null;
+    const loc = w.location & ~C.LOCATION_OVERLAY;
+    if (loc === C.LOCATION_HAND) { const R = this.L.hand[w.controller === this.o.team() ? 0 : 1]; return R ? { x: R.x + R.w / 2, y: R.y + R.h / 2 } : null; }
+    return this.slot(w.controller, loc, w.sequence);
+  }
   feed(p) {
     const now = performance.now(), me = this.o.team();
+    let nf = 0, lit = false;
+    const light = (code, tag, team) => { if (!code) return; lit = true; if (this.cur && this.cur.code === Number(code) && this.cur.tag === tag && now - this.cur.t0 < 1500) return; this.cur = { code: Number(code), tag, team, t0: now }; };
     for (const e of p.events || []) {
+      if (e.type === M.CHAINING) light(e.code, "ACTIVATE", e.controller);
+      else if (e.type === M.SUMMONING) light(e.code, "NORMAL SUMMON", e.controller);
+      else if (e.type === M.SPSUMMONING) light(e.code, "SPECIAL SUMMON", e.controller);
+      else if (e.type === M.FLIPSUMMONING) light(e.code, "FLIP SUMMON", e.controller);
+      // a card that changes place travels there (hand, Deck, piles, zones)
+      if (e.type === M.MOVE && e.from && e.to && e.from.location && e.to.location && nf < 10) {
+        const a = this.spot(e.from), b = this.spot(e.to), tl = e.to.location & ~C.LOCATION_OVERLAY;
+        if (a && b && Math.hypot(a.x - b.x, a.y - b.y) > 8) {
+          const down = tl === C.LOCATION_DECK || ((tl === C.LOCATION_MZONE || tl === C.LOCATION_SZONE) && e.to.position & C.POS_FACEDOWN);
+          this.fx.push({ k: "fly", code: down ? 0 : e.code, a, b, t0: now + nf * 70, d: 420, key: tl === C.LOCATION_MZONE || tl === C.LOCATION_SZONE ? `${e.to.controller}:${tl}:${e.to.sequence}` : "" }); nf++;
+        }
+      } else if (e.type === M.DRAW && e.drawn && nf < 10) {
+        const a = this.spot({ controller: e.player, location: C.LOCATION_DECK, sequence: 0 }), b = this.spot({ controller: e.player, location: C.LOCATION_HAND });
+        if (a && b) e.drawn.slice(0, 6).forEach((d) => { this.fx.push({ k: "fly", code: e.player === me ? d.code : 0, a, b, t0: now + nf * 70, d: 420, key: "" }); nf++; });
+      }
       if (e.type === M.CHAINING) {
         const ace = this.o.aces && this.o.aces(e.controller).has(Number(e.code));
         this.fx.push({ k: ace ? "ace" : "cut", code: e.code, team: e.controller, t0: now, d: ace ? 2600 : 1500, n: e.chain_size || 1 });
@@ -127,9 +177,47 @@ export class Clip {
         if (at) this.fx.push({ k: "break", at, t0: now, d: 700 });
       }
     }
+    // nothing announced itself: a card that came to the field face-up, or was added to a hand you can see
+    if (!lit) for (const e of p.events || []) {
+      if (e.type !== M.MOVE || !e.code || !e.to || !e.from) continue;
+      const tl = e.to.location & ~C.LOCATION_OVERLAY, fl = e.from.location & ~C.LOCATION_OVERLAY;
+      if ((tl === C.LOCATION_MZONE || tl === C.LOCATION_SZONE) && fl !== tl && !(e.to.position & C.POS_FACEDOWN)) { light(e.code, p.combo ? "PLAY" : "TO THE FIELD", e.to.controller); break; }
+      if (tl === C.LOCATION_HAND && fl === C.LOCATION_DECK && (e.to.controller === me || p.combo)) { light(e.code, "ADD TO HAND", e.to.controller); break; }
+    }
     if (p.ended && !this.endShown) { this.endShown = true; this.fx.push({ k: "win", winner: p.ended.winner, reason: p.ended.reason, t0: now + 600, d: 999999 }); }
   }
+  /** A line for the play-by-play (the same words as the duel log). */
+  note(text, code, cls) {
+    if (!text || cls === "phase") return;
+    this.notes.unshift({ text: String(text), code: Number(code) || 0, cls: cls || "", t0: performance.now() });
+    if (this.notes.length > 14) this.notes.length = 14;
+  }
   /* ---------- drawing ---------- */
+  font(size, weight = 800, body = false) { this.g.font = `${weight} ${Math.round(size)}px ${body ? '"Plus Jakarta Sans", "Chakra Petch", system-ui, sans-serif' : '"Chakra Petch", "Plus Jakarta Sans", system-ui, sans-serif'}`; }
+  /** Break text into lines that fit (the font must be set first); the last line gets an ellipsis when cut. */
+  wrap(t, maxW, maxLines) {
+    const g = this.g, out = [];
+    for (const para of String(t || "").split(/\n+/)) {
+      let line = "";
+      for (const w of para.split(/\s+/)) {
+        if (!w) continue;
+        const tryL = line ? line + " " + w : w;
+        if (g.measureText(tryL).width <= maxW || !line) line = tryL; else { out.push(line); line = w; }
+        if (out.length >= maxLines) break;
+      }
+      if (out.length >= maxLines) break;
+      if (line) out.push(line);
+    }
+    const cut = out.length > maxLines || String(t || "").split(/\s+/).join(" ").length > out.slice(0, maxLines).join(" ").length + 1;
+    out.length = Math.min(out.length, maxLines);
+    if (cut && out.length) { let l = out[out.length - 1]; while (l.length > 3 && g.measureText(l + "…").width > maxW) l = l.slice(0, -1); out[out.length - 1] = l.replace(/[\s.,;:]+$/, "") + "…"; }
+    return out;
+  }
+  panel(R, o = {}) {
+    const g = this.g, u = this.u;
+    this.rr(R.x, R.y, R.w, R.h, o.r || 22 * u); g.fillStyle = o.fill || "#0a0e22d9"; g.fill();
+    g.lineWidth = 2 * u; g.strokeStyle = o.stroke || "#ffffff1f"; g.stroke();
+  }
   rr(x, y, w, h, r) { const g = this.g; g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
   text(t, x, y, size, color, o = {}) {
     const g = this.g;
@@ -176,19 +264,31 @@ export class Clip {
   }
   plate(team, R, p, now) {
     const g = this.g, u = this.u, st = p.state.teams[team], active = !p.ended && p.turnPlayer === team, pf = this.o.profile(team);
+    const side = team === this.o.team() ? this.th.me : this.th.op;
     g.save(); this.rr(R.x, R.y, R.w, R.h, 26 * u);
-    const gr = g.createLinearGradient(R.x, R.y, R.x + R.w, R.y + R.h); gr.addColorStop(0, active ? "#1d2a7aee" : "#121734ee"); gr.addColorStop(1, "#0b0f26ee");
-    g.fillStyle = gr; g.fill(); g.lineWidth = 3 * u; g.strokeStyle = active ? "#8d99ff" : "#ffffff22"; g.stroke(); g.restore();
+    const gr = g.createLinearGradient(R.x, R.y, R.x + R.w, R.y + R.h); gr.addColorStop(0, active ? `rgba(${side},.3)` : "#121734ee"); gr.addColorStop(1, "#0b0f26ee");
+    g.fillStyle = "#0b0f26"; g.fill(); g.fillStyle = gr; g.fill(); g.lineWidth = 3 * u; g.strokeStyle = active ? `rgb(${side})` : "#ffffff22"; g.stroke(); g.restore();
     const r = R.h * 0.34; this.avatar(team, R.x + R.h * 0.5, R.y + R.h * 0.5, r);
-    const tx = R.x + R.h, nm = p.names[team] || "Duelist";
-    this.text(nm, tx, R.y + R.h * 0.36, 32 * u, "#fff", { max: R.w - R.h - 24 * u });
-    this.text((pf && pf.title) || `Hand ${st.hand.length} · Deck ${st.deck}`, tx, R.y + R.h * 0.58, 20 * u, pf && pf.title ? "#a9b4ff" : "#9aa3c7", { weight: 600, max: R.w - R.h - 24 * u });
+    const tx = R.x + R.h, right = R.x + R.w - 26 * u, nm = p.names[team] || "Duelist";
     // Life Points count towards their new value
     if (this.lp[team] == null) this.lp[team] = st.lp;
     this.lp[team] += (st.lp - this.lp[team]) * 0.18; if (Math.abs(st.lp - this.lp[team]) < 1) this.lp[team] = st.lp;
-    const low = st.lp <= 2000;
-    this.text(String(Math.round(this.lp[team])), R.x + R.w - 26 * u, R.y + R.h * 0.88, 50 * u, low ? "#ff8a9a" : "#fff", { align: "right", glow: low ? "#e0102a" : "#3347f0" });
-    this.text("LP", R.x + R.w - 26 * u - this.g.measureText(String(Math.round(this.lp[team]))).width - 10 * u, R.y + R.h * 0.86, 18 * u, "#9aa3c7", { align: "right", weight: 800 });
+    const low = st.lp <= 2000, lpT = String(Math.round(this.lp[team]));
+    this.text(lpT, right, R.y + R.h * 0.62, 50 * u, low ? "#ff8a9a" : "#fff", { align: "right", glow: low ? "#e0102a" : `rgb(${side})` });
+    const lw = g.measureText(lpT).width;
+    this.text("LP", right - lw - 10 * u, R.y + R.h * 0.6, 18 * u, "#9aa3c7", { align: "right", weight: 800 });
+    const narrow = R.w < 600 * u, maxT = right - lw - 60 * u - tx, title = pf && pf.title;
+    this.text(nm, tx, R.y + R.h * (narrow ? 0.3 : 0.36), 32 * u, "#fff", { max: narrow ? right - tx : maxT });
+    const full = `Hand ${st.hand.length} · Deck ${st.deck} · GY ${st.grave.length}${st.banished.length ? " · Banished " + st.banished.length : ""} · Extra ${st.extra.length}`;
+    // the Life Point bar; the counts sit beside the name on a wide plate and under the bar on a narrow one
+    const by = R.y + R.h * 0.72, bw = right - tx, bh = Math.max(6 * u, R.h * 0.06), k = clamp01(this.lp[team] / 8000);
+    this.rr(tx, by, bw, bh, bh / 2); g.fillStyle = "#ffffff1a"; g.fill();
+    if (k > 0) { this.rr(tx, by, Math.max(bh, bw * k), bh, bh / 2); const bg = g.createLinearGradient(tx, 0, tx + bw, 0); bg.addColorStop(0, low ? "#e0102a" : `rgba(${side},.75)`); bg.addColorStop(1, low ? "#ff8a9a" : `rgb(${side})`); g.fillStyle = bg; g.fill(); }
+    if (narrow) {
+      if (title && maxT > 90 * u) this.text(title, tx, R.y + R.h * 0.56, 18 * u, "#a9b4ff", { weight: 600, max: maxT });
+      this.font(16 * u, 600); const fits = g.measureText(full).width <= bw;
+      this.text(fits ? full : `Hand ${st.hand.length} · Deck ${st.deck} · GY ${st.grave.length} · EX ${st.extra.length}`, tx, R.y + R.h * 0.92, 16 * u, "#9aa3c7", { weight: 600, max: bw });
+    } else this.text(title ? `${title}  ·  ${full}` : full, tx, R.y + R.h * 0.58, 19 * u, "#9aa3c7", { weight: 600, max: maxT });
   }
   hand(team, R, p) {
     if (!R || R.h < 40) return;
@@ -200,17 +300,31 @@ export class Clip {
   }
   field(p, now) {
     const g = this.g, L = this.L, u = this.u;
-    // mats
+    this.flying = new Set(this.fx.filter((f) => f.k === "fly" && f.key && now - f.t0 < f.d).map((f) => f.key));
+    // the mat: the theme's colours, the opponent's tint above and yours below, the emblem at the centre
+    const T = this.th, mx = L.fx0 - 12 * u, my = L.fy0 - 8 * u, mw = L.gridW + 24 * u, mh = L.gridH + 16 * u;
+    g.save(); this.rr(mx, my, mw, mh, 26 * u);
+    const mg = g.createRadialGradient(mx + mw / 2, my + mh / 2, 0, mx + mw / 2, my + mh / 2, Math.max(mw, mh) * 0.62); mg.addColorStop(0, T.a); mg.addColorStop(1, T.b);
+    g.shadowColor = `rgba(${T.acc},.25)`; g.shadowBlur = 40 * u; g.fillStyle = mg; g.fill(); g.shadowBlur = 0;
+    const tg = g.createLinearGradient(0, my, 0, my + mh); tg.addColorStop(0, `rgba(${T.op},.2)`); tg.addColorStop(.4, `rgba(${T.op},0)`); tg.addColorStop(.6, `rgba(${T.me},0)`); tg.addColorStop(1, `rgba(${T.me},.22)`);
+    g.fillStyle = tg; g.fill(); g.lineWidth = 3 * u; g.strokeStyle = T.e; g.stroke(); g.restore();
+    const cy0 = L.fy0 + L.pitchY * 2.5, lg = g.createLinearGradient(mx, 0, mx + mw, 0);
+    lg.addColorStop(0, `rgba(${T.acc},0)`); lg.addColorStop(.2, `rgba(${T.acc},.6)`); lg.addColorStop(.42, `rgba(${T.acc},0)`); lg.addColorStop(.58, `rgba(${T.acc},0)`); lg.addColorStop(.8, `rgba(${T.acc},.6)`); lg.addColorStop(1, `rgba(${T.acc},0)`);
+    g.fillStyle = lg; g.fillRect(mx + 20 * u, cy0 - u, mw - 40 * u, 2 * u);
+    if (this.logo && this.logo.ok) { const s = L.cw * 0.9; g.globalAlpha = 0.16; g.drawImage(this.logo.img, mx + mw / 2 - s / 2, cy0 - s / 2, s, s); g.globalAlpha = 1; }
     for (let row = 0; row < 5; row++) for (let col = 0; col < 7; col++) {
       if (row === 2 && col !== 2 && col !== 4 && col !== 0 && col !== 6) continue;
       const x = L.fx0 + L.pitchX * col + (L.pitchX - L.cw) / 2, y = L.fy0 + L.pitchY * row + (L.pitchY - L.ch) / 2;
-      this.rr(x, y, L.cw, L.ch, 10 * u); g.fillStyle = row < 2 ? "#2a0f2e66" : row > 2 ? "#0f1a4a66" : "#ffffff08"; g.fill();
-      g.lineWidth = 2 * u; g.strokeStyle = row < 2 ? "#ff5a7a44" : row > 2 ? "#6f7dff55" : "#ffffff22"; g.setLineDash(row === 2 && (col === 2 || col === 4) ? [8 * u, 6 * u] : []); g.stroke(); g.setLineDash([]);
+      const pile = col === 0 || col === 6, emz = row === 2 && !pile, c = row < 2 ? T.op : T.me, main = row === 1 || row === 3;
+      this.rr(x, y, L.cw, L.ch, 10 * u);
+      g.fillStyle = pile ? "#00000073" : emz ? `rgba(${T.acc},.1)` : `rgba(${c},${main ? .16 : .08})`; g.fill();
+      g.lineWidth = 2 * u; g.strokeStyle = pile ? "#ffffff3d" : emz ? `rgba(${T.acc},.85)` : `rgba(${c},${main ? .75 : .45})`; g.setLineDash(emz ? [8 * u, 6 * u] : []); g.stroke(); g.setLineDash([]);
     }
     for (const t of [0, 1]) {
       const z = p.state.teams[t];
       const put = (c, loc, i, cnt) => {
         const s = this.slot(t, loc, i); if (!s || !c) return;
+        if (!cnt && this.flying && this.flying.has(`${t}:${loc}:${i}`)) return;      // still on its way here
         const down = c.hidden || !!(c.position & C.POS_FACEDOWN), def = loc === C.LOCATION_MZONE && c.position & C.POS_DEFENSE;
         const w = L.cw, h = L.ch;
         g.save(); g.translate(s.x, s.y); if (def) g.rotate(Math.PI / 2 * (t === this.o.team() ? 1 : -1));
@@ -235,15 +349,136 @@ export class Clip {
   bg() {
     const g = this.g, { W, H } = this;
     const gr = g.createRadialGradient(W * 0.5, H * 0.45, 0, W * 0.5, H * 0.5, Math.max(W, H) * 0.75);
-    gr.addColorStop(0, "#1a2260"); gr.addColorStop(0.55, "#0c1030"); gr.addColorStop(1, "#05060f");
+    gr.addColorStop(0, this.th.a); gr.addColorStop(0.5, this.th.b); gr.addColorStop(1, "#04050c");
     g.fillStyle = gr; g.fillRect(0, 0, W, H);
+  }
+  phases(p, x, y, w, h) {
+    const g = this.g, u = this.u, ph = ["DP", "SP", "M1", "BP", "M2", "EP"], bits = [0x01, 0x02, 0x04, 0xf8, 0x100, 0x200], gap = 6 * u, pw = (w - gap * 5) / 6;
+    ph.forEach((n, i) => { const on = p.phase & bits[i]; this.rr(x + i * (pw + gap), y, pw, h, h * 0.3); g.fillStyle = on ? `rgb(${this.th.acc})` : "#ffffff14"; g.fill(); this.text(n, x + i * (pw + gap) + pw / 2, y + h * 0.7, h * 0.5, on ? "#141005" : "#9aa3c7", { align: "center" }); });
+  }
+  /** Turn, phase and whose turn it is (or, for a combo, its name). */
+  head(p) {
+    const L = this.L, u = this.u, g = this.g, mine = p.turnPlayer === this.o.team(), side = mine ? this.th.me : this.th.op;
+    const who = p.ended ? "Duel over" : `${p.names[p.turnPlayer] || "Duelist"}'s turn`;
+    if (L.info) {
+      const I = L.info; this.panel(I);
+      if (p.combo) {
+        this.text("COMBO", I.x + 20 * u, I.y + 38 * u, 20 * u, `rgb(${this.th.acc})`);
+        this.font(30 * u); const ls = this.wrap(this.headline || "Combo line", I.w - 40 * u, 2);
+        ls.forEach((l, i) => this.text(l, I.x + 20 * u, I.y + 78 * u + i * 36 * u, 30 * u, "#fff"));
+      } else {
+        this.text(`TURN ${p.turn}`, I.x + 20 * u, I.y + 54 * u, 42 * u, "#fff", { italic: true });
+        const tw = g.measureText(`TURN ${p.turn}`).width;
+        this.text(who, I.x + I.w - 20 * u, I.y + 50 * u, 20 * u, `rgb(${side})`, { align: "right", weight: 700, max: I.w - tw - 60 * u });
+        this.phases(p, I.x + 20 * u, I.y + 82 * u, I.w - 40 * u, 42 * u);
+      }
+      // the headline (or the matchup) above the field
+      if (!p.combo && L.fy0 > 60 * u) this.text(this.headline || `${p.names[this.o.team()] || "Duelist"}  vs  ${p.names[1 - this.o.team()] || "Duelist"}`, this.W / 2, 52 * u, 30 * u, "#fffffff0", { align: "center", max: L.gridW, base: "middle", stroke: 6 * u, strokeColor: "#04050c" });
+      return;
+    }
+    if (p.combo && L.port && L.plate[1]) {
+      // a combo has no opponent: its name takes that place
+      const R = L.plate[1]; this.panel(R);
+      this.text("COMBO", R.x + 26 * u, R.y + R.h * 0.36, 20 * u, `rgb(${this.th.acc})`);
+      this.text(this.headline || "Combo line", R.x + 26 * u, R.y + R.h * 0.74, 36 * u, "#fff", { max: R.w - 52 * u });
+    }
+    if (!L.head || p.combo) return;
+    const R = L.head; this.panel(R, { r: 18 * u });
+    if (L.port) {
+      this.text(`TURN ${p.turn}`, R.x + 18 * u, R.y + R.h * 0.68, 28 * u, "#fff", { italic: true });
+      const tw = g.measureText(`TURN ${p.turn}`).width, pw = Math.min(R.w * 0.42, 420 * u);
+      this.text(this.headline || who, R.x + 34 * u + tw, R.y + R.h * 0.66, 20 * u, this.headline ? "#ffffffcc" : `rgb(${side})`, { weight: 700, max: R.w - tw - pw - 70 * u });
+      this.phases(p, R.x + R.w - pw - 12 * u, R.y + 10 * u, pw, R.h - 20 * u);
+    } else {
+      this.text(`TURN ${p.turn}`, R.x + 16 * u, R.y + 42 * u, 30 * u, "#fff", { italic: true });
+      const tw = g.measureText(`TURN ${p.turn}`).width;
+      this.text(this.headline || who, R.x + R.w - 16 * u, R.y + 40 * u, 18 * u, this.headline ? "#ffffffcc" : `rgb(${side})`, { align: "right", weight: 700, max: R.w - tw - 50 * u });
+      this.phases(p, R.x + 16 * u, R.y + 60 * u, R.w - 32 * u, 36 * u);
+    }
+  }
+  noteColor(n) { return n.cls === "chain" ? `rgb(${this.th.acc})` : n.cls === "dmg" ? "#ff5a7a" : n.cls === "turn" ? "#ffffff" : n.cls === "sys" ? "#9aa3c7" : `rgb(${this.th.me})`; }
+  /** Play-by-play: the newest line on top, older lines fading below it. */
+  feedPanel(now) {
+    const R = this.L.feed, g = this.g, u = this.u; if (!R || R.h < 120 * u) return;
+    this.panel(R);
+    this.text("PLAY-BY-PLAY", R.x + 20 * u, R.y + 34 * u, 17 * u, `rgb(${this.th.acc})`);
+    const top = R.y + 50 * u, rh = 66 * u, step = rh + 8 * u, rows = Math.floor((R.y + R.h - 10 * u - top) / step);
+    if (!this.notes.length) { this.text("The plays appear here as they happen", R.x + 20 * u, top + 30 * u, 17 * u, "#9aa3c7", { weight: 600, max: R.w - 40 * u }); return; }
+    const k = ease((now - this.notes[0].t0) / 260);
+    g.save(); g.beginPath(); g.rect(R.x, top - 2 * u, R.w, R.y + R.h - top - 4 * u); g.clip();
+    this.notes.slice(0, rows + 1).forEach((n, i) => {
+      const y = top + i * step - (1 - k) * step, a = i === 0 ? k : Math.max(.3, 1 - i * .13);
+      if (y + rh > R.y + R.h - 6 * u) return;
+      g.globalAlpha = a;
+      this.rr(R.x + 12 * u, y, R.w - 24 * u, rh, 12 * u); g.fillStyle = i === 0 ? "#1a2150" : "#11163a"; g.fill();
+      g.fillStyle = this.noteColor(n); g.fillRect(R.x + 12 * u, y + 10 * u, 4 * u, rh - 20 * u);
+      let tx = R.x + 28 * u;
+      if (n.code) { const h = rh - 10 * u, w = h * 59 / 86; this.card(n.code, tx, y + 5 * u, w, h); tx += w + 12 * u; }
+      this.font(18 * u, n.cls === "turn" ? 800 : 600, true);
+      if (!n.lines) n.lines = this.wrap(n.text, R.x + R.w - 24 * u - tx, 2);
+      n.lines.forEach((l, j) => this.text(l, tx, y + rh / 2 + (n.lines.length === 1 ? 6 * u : (j ? 19 * u : -4 * u)), 18 * u, n.cls === "turn" ? `rgb(${this.th.acc})` : "#eef0ff", { weight: n.cls === "turn" ? 800 : 600, font: '"Plus Jakarta Sans", "Chakra Petch", system-ui, sans-serif' }));
+    });
+    g.restore(); g.globalAlpha = 1;
+  }
+  /** The card being played, large, with what it is and what it does. */
+  cardPanel(now) {
+    const R = this.L.card, g = this.g, u = this.u, c = this.cur; if (!R) return;
+    this.panel(R);
+    if (!c) {
+      if (this.logo && this.logo.ok) { const s = Math.min(R.w, R.h) * 0.3; g.globalAlpha = .22; g.drawImage(this.logo.img, R.x + (R.w - s) / 2, R.y + R.h / 2 - s * 0.7, s, s); g.globalAlpha = 1; }
+      this.text("The card in play shows here", R.x + R.w / 2, R.y + R.h / 2 + Math.min(R.w, R.h) * 0.2, 18 * u, "#9aa3c7", { align: "center", weight: 600, max: R.w - 30 * u });
+      return;
+    }
+    const k = ease((now - c.t0) / 320), side = c.team === this.o.team() ? this.th.me : this.th.op;
+    if (!c.info) c.info = (this.o.info && this.o.info(c.code)) || { name: this.o.name(c.code), line: "", stats: "", text: "" };
+    g.save(); g.globalAlpha = k;
+    // what happened, in the player's colour
+    this.font(17 * u); const tw = g.measureText(c.tag).width + 28 * u;
+    this.rr(R.x + 16 * u, R.y + 16 * u, tw, 34 * u, 12 * u); g.fillStyle = `rgb(${side})`; g.fill();
+    this.text(c.tag, R.x + 16 * u + tw / 2, R.y + 40 * u, 17 * u, "#0a0d1c", { align: "center" });
+    const chh = Math.min(R.h * 0.44, (R.w - 60 * u) * 86 / 59), cww = chh * 59 / 86, cx = R.x + (R.w - cww) / 2, cy = R.y + 64 * u + (1 - k) * 14 * u;
+    this.card(c.code, cx, cy, cww, chh, { glow: `rgba(${side},.8)` });
+    let y = cy + chh + 40 * u;
+    this.text(c.info.name, R.x + R.w / 2, y, 27 * u, "#fff", { align: "center", max: R.w - 32 * u });
+    if (c.info.line) { y += 28 * u; this.text(c.info.line, R.x + R.w / 2, y, 16 * u, "#a9b4ff", { align: "center", weight: 700, max: R.w - 32 * u }); }
+    if (c.info.stats) { y += 32 * u; this.text(c.info.stats, R.x + R.w / 2, y, 21 * u, `rgb(${this.th.acc})`, { align: "center", max: R.w - 32 * u }); }
+    y += 18 * u;
+    const lh = 22 * u, n = Math.floor((R.y + R.h - 14 * u - y) / lh);
+    if (n > 0 && c.info.text) {
+      this.font(16 * u, 500, true);
+      if (!c.lines || c.linesN !== n) { c.lines = this.wrap(c.info.text, R.w - 40 * u, n); c.linesN = n; }
+      c.lines.forEach((l, i) => this.text(l, R.x + 20 * u, y + (i + 1) * lh - 4 * u, 16 * u, "#cfd5f2", { weight: 500, font: '"Plus Jakarta Sans", "Chakra Petch", system-ui, sans-serif' }));
+    }
+    g.restore();
+  }
+  /** Portrait and square: one strip with the latest play and the card it is about. */
+  ticker(now) {
+    const R = this.L.tick, g = this.g, u = this.u, n = this.notes[0], c = this.cur; if (!R) return;
+    this.panel(R, { r: Math.min(20 * u, R.h * 0.3) });
+    const code = (this.show.feed && n && n.code) || (c && c.code) || 0;
+    let tx = R.x + 16 * u;
+    if (code) { const h = R.h - 12 * u, w = h * 59 / 86; this.card(code, tx, R.y + 6 * u, w, h); tx += w + 14 * u; }
+    const f1 = R.h * 0.27, f2 = R.h * 0.21, max = R.x + R.w - 16 * u - tx;
+    const line1 = this.show.feed ? (n ? n.text : "The plays appear here as they happen") : c ? `${c.tag[0]}${c.tag.slice(1).toLowerCase()}: ${this.o.name(c.code)}` : "The card in play shows here";
+    let line2 = "";
+    if (this.show.card && code) { const key = "i" + code; this.infoC = this.infoC || new Map(); if (!this.infoC.has(key)) this.infoC.set(key, (this.o.info && this.o.info(code)) || null); const inf = this.infoC.get(key); if (inf) line2 = [inf.line, inf.stats].filter(Boolean).join("  ·  "); }
+    const a = n && this.show.feed ? Math.max(.35, ease((now - n.t0) / 260)) : 1;
+    g.globalAlpha = a;
+    this.text(line1, tx, R.y + (line2 ? R.h * 0.44 : R.h * 0.6), f1, n && n.cls === "chain" ? `rgb(${this.th.acc})` : "#fff", { weight: 700, max, font: '"Plus Jakarta Sans", "Chakra Petch", system-ui, sans-serif' });
+    g.globalAlpha = 1;
+    if (line2) this.text(line2, tx, R.y + R.h * 0.78, f2, "#a9b4ff", { weight: 700, max });
   }
   drawFx(now, p) {
     const g = this.g, { W, H, u } = this;
     this.fx = this.fx.filter((f) => now - f.t0 < f.d);
     for (const f of this.fx) {
       const t = (now - f.t0) / f.d; if (t < 0) continue;
-      if (f.k === "summon" && f.at) {
+      if (f.k === "fly") {
+        const e = ease(t), lift = 1 + .16 * Math.sin(Math.PI * t), w = this.L.cw * lift, h = this.L.ch * lift;
+        const x = f.a.x + (f.b.x - f.a.x) * e, y = f.a.y + (f.b.y - f.a.y) * e - 18 * u * Math.sin(Math.PI * t);
+        g.save(); g.shadowColor = "#000c"; g.shadowBlur = 26 * u; g.shadowOffsetY = 10 * u; this.rr(x - w / 2, y - h / 2, w, h, 8 * u); g.fillStyle = "#0b1024"; g.fill(); g.restore();
+        this.card(f.code, x - w / 2, y - h / 2, w, h, { down: !f.code });
+      } else if (f.k === "summon" && f.at) {
         const r = (60 + 160 * ease(t)) * u; g.globalAlpha = 1 - t; g.lineWidth = 8 * u * (1 - t); g.strokeStyle = "#c9d2ff";
         g.beginPath(); g.arc(f.at.x, f.at.y, r, 0, Math.PI * 2); g.stroke();
         const beam = g.createLinearGradient(f.at.x, 0, f.at.x, f.at.y); beam.addColorStop(0, "#8d99ff00"); beam.addColorStop(1, "#ffffffcc");
@@ -301,18 +536,25 @@ export class Clip {
     }
   }
   /* ---------- a combo: its title card (the first seconds of the video) and the step caption ---------- */
-  cover(r, x, y, w, h, zoom = 1, fy = 0.3) {
-    const g = this.g, iw = r.img.naturalWidth, ih = r.img.naturalHeight, sc = Math.max(w / iw, h / ih) * zoom, dw = iw * sc, dh = ih * sc;
-    g.drawImage(r.img, x + (w - dw) / 2, y + (h - dh) * fy, dw, dh);
+  /** Draws the picture to fill w×h, zoomed about the centre. A card picture is cropped to its artwork. */
+  cover(img, w, h, zoom = 1, isCard = false) {
+    const g = this.g, iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height, a = isCard ? { x: .14, y: .2, w: .72, h: .42 } : { x: 0, y: 0, w: 1, h: 1 };
+    const k = Math.max(w / (iw * a.w), h / (ih * a.h)) * zoom, sw = w / k, sh = h / k;
+    g.drawImage(img, iw * (a.x + a.w / 2) - sw / 2, ih * (a.y + a.h / 2) - sh / 2, sw, sh, 0, 0, w, h);
   }
   drawIntro(k) {
     const g = this.g, { W, H, u } = this, it = this.o.intro, wide = W > H * 1.2, E = (a, b) => ease((k - a) / (b - a));
     g.fillStyle = "#070914"; g.fillRect(0, 0, W, H);
     const bg = this.introBg && this.introBg.ok ? this.introBg : this.introCard && this.introCard.ok ? this.introCard : null;
     if (bg) {
-      const f = E(0, .55), blur = (1 - f) * 30 * u;
-      g.save(); if (blur > 0.5) g.filter = `blur(${blur.toFixed(1)}px) saturate(1.25)`;
-      this.cover(bg, -W * .04, -H * .04, W * 1.08, H * 1.08, 1.5 - .46 * f, .3); g.restore(); g.filter = "none";
+      // clears from soft to sharp: the soft version is the same view on a tiny canvas drawn over it (a blur filter
+      // on every frame slowed the recording)
+      const f = E(0, .55), card = bg === this.introCard || !!it.bgCard;
+      this.cover(bg.img, W, H, 1.18 - .16 * E(0, .75), card);
+      if (f < 1) {
+        if (!this.introSoft) { const c = document.createElement("canvas"); c.width = 48; c.height = Math.max(8, Math.round(48 * H / W)); const cg = c.getContext("2d"), keep = this.g; this.g = cg; try { this.cover(bg.img, c.width, c.height, 1.1, card); } catch { /* not drawable */ } this.g = keep; this.introSoft = c; }
+        const a0 = g.globalAlpha; g.globalAlpha = a0 * (1 - f); g.imageSmoothingQuality = "high"; g.drawImage(this.introSoft, 0, 0, W, H); g.globalAlpha = a0;
+      }
     } else { this.bg(); }
     let sh = g.createLinearGradient(0, H, 0, 0); sh.addColorStop(0.04, "#05060fee"); sh.addColorStop(0.5, "#05060f66"); sh.addColorStop(0.75, "#05060f22"); sh.addColorStop(1, "#05060f99"); g.fillStyle = sh; g.fillRect(0, 0, W, H);
     if (wide) { sh = g.createLinearGradient(0, 0, W * .62, 0); sh.addColorStop(0, "#05060fb8"); sh.addColorStop(1, "#05060f00"); g.fillStyle = sh; g.fillRect(0, 0, W, H); }
@@ -377,12 +619,10 @@ export class Clip {
       this.hand(me, this.L.hand[0], p); if (!p.combo) this.hand(op, this.L.hand[1], p);
       this.plate(me, this.L.plate[0], p, now); if (!p.combo) this.plate(op, this.L.plate[1], p, now);
       if (p.combo) this.caption(p.combo);
-      if (this.L.info) {
-        const I = this.L.info, u = this.u;
-        this.text(`TURN ${p.turn}`, I.x, I.y + 40 * u, 44 * u, "#fff", { italic: true });
-        const ph = ["DP", "SP", "M1", "BP", "M2", "EP"], bits = [0x01, 0x02, 0x04, 0xf8, 0x100, 0x200];
-        ph.forEach((n, i) => { const on = p.phase & bits[i]; this.rr(I.x + i * 58 * u, I.y + 70 * u, 50 * u, 36 * u, 10 * u); this.g.fillStyle = on ? "#3347f0" : "#ffffff12"; this.g.fill(); this.text(n, I.x + i * 58 * u + 25 * u, I.y + 95 * u, 18 * u, on ? "#fff" : "#9aa3c7", { align: "center" }); });
-      }
+      this.head(p);
+      if (this.L.feed) this.feedPanel(now);
+      if (this.L.card) this.cardPanel(now);
+      if (this.L.tick) this.ticker(now);
       this.drawFx(now, p);
     }
     // a combo's title card covers the first seconds, then fades into the table
@@ -402,7 +642,14 @@ export class Clip {
     const fps = this.o.fps || 30, br = { 1080: 12e6, 1440: 20e6, 2160: 40e6 }[this.o.size] || 12e6;
     this.frame();
     this.stream = this.cv.captureStream(fps);
-    this.rec = new MediaRecorder(this.stream, { mimeType: mime, videoBitsPerSecond: br * (fps > 30 ? 1.5 : 1) });
+    // the duel's own sounds go into the clip; if this device can't mix them in, the clip is recorded without sound
+    const opt = { mimeType: mime, videoBitsPerSecond: br * (fps > 30 ? 1.5 : 1) };
+    this.sound = false;
+    if (this.o.audio) {
+      try { const st = new MediaStream([...this.stream.getVideoTracks(), this.o.audio]); this.rec = new MediaRecorder(st, { ...opt, audioBitsPerSecond: 160000 }); this.stream = st; this.sound = true; }
+      catch { try { const m2 = mime.split(";")[0]; const st = new MediaStream([...this.stream.getVideoTracks(), this.o.audio]); this.rec = new MediaRecorder(st, { ...opt, mimeType: m2, audioBitsPerSecond: 160000 }); this.stream = st; this.sound = true; } catch { this.rec = null; } }
+    }
+    if (!this.rec) this.rec = new MediaRecorder(this.stream, opt);
     const parts = []; this.rec.ondataavailable = (e) => { if (e.data && e.data.size) parts.push(e.data); };
     this.done = new Promise((ok) => { this.rec.onstop = () => ok({ blob: new Blob(parts, { type: mime.split(";")[0] }), mime, ext: mime.startsWith("video/mp4") ? "mp4" : "webm" }); });
     this.rec.start(1000);

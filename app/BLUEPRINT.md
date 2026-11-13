@@ -55,8 +55,9 @@ the main script (`core-…`) is cut at its section comments. Later modules may r
 | `0540`–`0560` | 9.3: Premium pitch and 5-day trial, blueprint constant |
 | `0580`–`0600` | 9.4: square deck image (three designs, editable preset, date, MEIOCG profile), saving Arena video clips |
 | `0620`–`0640` | 9.5: Test hub (Combo + Synapse Arena), combo generator (`cb*` functions, stored under `combos`), combo image, More from MEIOCG apps (`KX_APPS`), Arena vibration |
+| `0660`–`0680` | 9.6: performance overrides (no blur-behind, transform/opacity-only animations), combo hand-off to the Arena with a cover (`cbCover`, `cbSend`) |
 
-To add a feature: add a new numbered pair (for example `0660-kx-v63.css`, `0680-kx-v63-late.js`) to `manifest.json`, or edit
+To add a feature: add a new numbered pair (for example `0700-kx-v64.css`, `0720-kx-v64-late.js`) to `manifest.json`, or edit
 the module that owns it. The constant `KODEX_BLUEPRINT` in the last module names the creator in the running app.
 
 ## 4. Build and release
