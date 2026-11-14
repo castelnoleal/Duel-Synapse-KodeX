@@ -1,4 +1,4 @@
-/* KodeX 9.8 (v65): app screens do not zoom; the Arena is part of the app (a browser is pointed to Google Play);
+/* KodeX 9.8 (v65): app screens do not zoom;
    combo images carry their combo, so an image can be read back into a combo and its replay; replays from the Arena
    arrive as combos. Created by Castel Noleal, creator of MEIOCG. A project of Meta Insider OCG since 2023. */
 const KX_STORE='https://play.google.com/store/search?q=Duel%20Synapse%20KodeX&c=apps';   // replace with the store listing link once it is live
@@ -11,16 +11,6 @@ if(kxInApp()){document.documentElement.classList.add('kx-app');
  addEventListener('touchmove',e=>{if(e.touches.length>1)e.preventDefault()},{passive:false});
  for(const g of ['gesturestart','gesturechange'])addEventListener(g,e=>e.preventDefault(),{passive:false});
  addEventListener('wheel',e=>{if(e.ctrlKey)e.preventDefault()},{passive:false})}
-/* ---------- the Arena is in the app ---------- */
-function kxGetApp(){const m=openModal(`<div class="ga-card"><img src="${esc((document.querySelector('link[rel=icon]')||{}).href||'')}" alt="" onerror="this.remove()"><h3>Synapse Arena is in the app</h3>
- <p>Playtests, online duels, replays and combo replays run inside <b>Duel Synapse: KodeX</b> for Android.</p>
- <ul><li>Works offline once installed</li><li>Replays become combos, combo images become replays</li><li>Your decks and combos come with you</li></ul>
- <a class="btn p" href="${esc(KX_STORE)}" target="_blank" rel="noopener" data-store>Get it on Google Play</a><button class="btn" data-close>Not now</button></div>`,'','getapp');return m}
-{const oa=openArena;openArena=function(){if(!kxInApp()){kxGetApp();return}return oa.apply(this,arguments)}}
-{const th=kxTestHub;kxTestHub=function(){th.apply(this,arguments);if(kxInApp())return;const tb=$('tb'),g=tb.querySelector('.th-grid');if(!g||tb.querySelector('.ga-strip'))return;
-  const em=tb.querySelector('[data-th=arena] em');if(em)em.textContent='In the app';
-  const b=document.createElement('button');b.type='button';b.className='ga-strip';b.innerHTML='<i>▶</i><span><b>Get Duel Synapse: KodeX on Google Play</b><small>Synapse Arena, replays and combo replays are part of the Android app</small></span>';b.onclick=()=>kxGetApp();g.after(b)};
- $('nTest').onclick=()=>kxTestHub()}
 /* ---------- the combo code: a strip of cells in every combo image that holds the combo itself ---------- */
 const CBQ={cell:8,cal:6,maxRows:26,foot:74,acts:['auto','act','ns','ss','add','set','scale','eff','gy','ban']};
 const cbqCrc=b=>{let c=~0;for(let i=0;i<b.length;i++){c^=b[i];for(let k=0;k<8;k++)c=c>>>1^(0xEDB88320&-(c&1))}return ~c>>>0};
@@ -81,7 +71,7 @@ function cbAdopt(raw,from){const c=cbNew({title:String(raw.title||'').slice(0,60
   lines:(raw.lines||[]).slice(0,16).map(l=>l.slice(0,12).map(n=>({cards:(n.cards||[]).slice(0,6).map(x=>({c:cbqId(x.c),a:CBQ.acts.includes(x.a)?x.a:'auto'})),note:String(n.note||'').slice(0,80)})).filter(n=>n.cards.length)).filter(l=>l.length)});
  if(from)c.from=from;if(!cbHas(c))return null;cbStore(c);return c}
 /** Keeps the combo in the Arena's Replays list too (when the Arena is loaded; otherwise it is kept the first time it is played). */
-async function cbKeepReplay(c){try{const f=$('arenaFrame');if(!kxInApp()||!f||!f.dataset.ready)return false;const p=await cbPayload(c);cbPost({kx:'comboKeep',combo:p});return true}catch(e){return false}}
+async function cbKeepReplay(c){try{const f=$('arenaFrame');if(!f||!f.dataset.ready)return false;const p=await cbPayload(c);cbPost({kx:'comboKeep',combo:p});return true}catch(e){return false}}
 function cbImportImage(file){
  if(!file||!/^image\//.test(file.type||'')||file.size>3e7){toast('Choose a MEIOCG combo image (PNG or JPG)');return}
  const im=new Image(),u=URL.createObjectURL(file);

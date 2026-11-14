@@ -527,6 +527,7 @@ function scanReplay(bytes) {
   });
 }
 async function rpToCombo(r, btn) {
+  if (!hostApp) { comboAd(); return; }
   if (S.active && S.packet && !S.packet.ended) { toast("Finish the duel first."); return; }
   if (btn) { btn.disabled = true; btn.textContent = "Reading…"; }
   let scan;
@@ -555,18 +556,25 @@ async function rpToCombo(r, btn) {
   if (!$("#rpTurn").open) $("#rpTurn").showModal();
 }
 $("#rpTurnClose").addEventListener("click", () => $("#rpTurn").close());
-// ----- in the app the page never zooms (it is an app screen, not a web page) -----
-const IN_APP = document.body.classList.contains("embed") || /[?&](app|embed)=1/.test(location.search) || /; wv\)/.test(navigator.userAgent) || window.parent !== window;
-if (IN_APP) {
+// ----- the installed app: the page never zooms there (it is an app screen, not a web page), and Combos live there.
+// A browser plays the Arena as usual. KodeX says when it is the app ({kx:"host"}); an Android WebView says so itself. -----
+let hostApp = /; wv\)/.test(navigator.userAgent) || location.hostname === "appassets.androidplatform.net" || navigator.webdriver === true;
+function lockZoom() {
+  if (lockZoom.on) return; lockZoom.on = true;
   document.documentElement.classList.add("no-zoom");
   const vp = $("#vp"); if (vp) vp.content = "width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover";
   addEventListener("touchmove", (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
   for (const g of ["gesturestart", "gesturechange"]) addEventListener(g, (e) => e.preventDefault(), { passive: false });
   addEventListener("wheel", (e) => { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
-} else if (!navigator.webdriver) {
-  // a browser: the Arena is part of the app, so this page points there
-  $("#appOnly").hidden = false; document.body.classList.add("app-only-on");
 }
+if (hostApp) lockZoom();
+addEventListener("message", (e) => { const d = e.data; if (d && d.kx === "host" && e.source === window.parent && window.parent !== window) { hostApp = d.app === true; if (hostApp) lockZoom(); } });
+/** Combos are part of the app: in a browser, what the feature does is shown instead. */
+function comboAd() {
+  if (window.parent !== window) { try { window.parent.postMessage({ kx: "comboAd" }, "*"); return; } catch { /* shown here instead */ } }
+  const d = $("#comboAd"); if (!d.open) d.showModal();
+}
+$("#comboAdClose").addEventListener("click", () => $("#comboAd").close());
 $("#replayOpen").addEventListener("click", rpOpenLib);
 $("#rpLibClose").addEventListener("click", () => $("#rpLib").close());
 $("#replayFile2").addEventListener("change", async (e) => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (!f) return; if (f.size > 8e6) { toast("That file is too large to be a replay."); return; } const b = new Uint8Array(await f.arrayBuffer()); await rpKeep(b, [f.name.replace(/\.yrpx?$/i, "").replace(/_/g, " ")], "file"); $("#rpLib").close(); watchReplay(b.slice().buffer); });
@@ -2941,6 +2949,7 @@ if (window.parent === window) addEventListener("beforeunload", (e) => { if (S.ac
 window.__duel = S; // for automated tests and debugging
 window.__arena = { fxEvents, showReveal, toggleSide, watchCombo, restartDuel, tossShow };
 window.__arenaFx = (p) => bigFx(p);
+window.__arenaCombo = (r) => rpToCombo(r || {});
 window.__arenaLeave = (fx, id, code) => { const z = document.getElementById(id), r = z && visRect(z.querySelector(".card") || z); if (r) flyRun([{ r, fx, code: code || 0, op: /^op/.test(id) }]); return !!r; };
 window.__arenaFin = (side, style) => runFinisher({ side, style, mat: $("#field"), art: style === "meteor" ? artUrl(27204311) : "" });
 window.__arenaDmg = (side, lvl) => matDamage(side, lvl);

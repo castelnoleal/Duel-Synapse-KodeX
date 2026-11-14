@@ -326,10 +326,13 @@
 <dialog id="rpTurn" class="dlg rp-lib"><div class="pile-head"><h3>Turn into a combo</h3><button class="icon" id="rpTurnClose" type="button" aria-label="Close">×</button></div>
   <p class="hint">Choose the turn to map out. Its plays become a combo: the starting hand, then each play and what it led to. You can edit it and save it as an image in Combos.</p>
   <ul id="rpTurnList" class="rp-list"></ul></dialog>
-<div id="appOnly" class="app-only" hidden><div class="ao-card"><img src="./assets/meiocg-512.webp" alt="" width="84" height="84"><h2>Synapse Arena is in the app</h2>
-  <p>Duels, playtests, replays and combos run inside <b>Duel Synapse: KodeX</b> for Android. Get it on Google Play, then open <b>Test → Synapse Arena</b>.</p>
-  <a class="btn primary" id="aoStore" href="https://play.google.com/store/search?q=Duel%20Synapse%20KodeX&amp;c=apps" target="_blank" rel="noopener">Get it on Google Play</a>
-  <small>A project of Meta Insider OCG since 2023</small></div></div>
+<dialog id="comboAd" class="dlg combo-ad"><div class="pile-head"><h3>Combos are in the app</h3><button class="icon" id="comboAdClose" type="button" aria-label="Close">×</button></div>
+  <div class="cad-scene" aria-hidden="true"><div class="cad-row cad-hand"><i></i><i></i><i></i><i></i><i></i><span>Starting hand</span></div>
+    <div class="cad-row cad-line"><i></i><b>→</b><i></i><b>→</b><i></i><b>+</b><i></i><span>Each play and what it leads to</span></div>
+    <div class="cad-row cad-out"><em>▶ Replay</em><em>▣ Image</em><em>● Video</em><span>Play it, save it, share it</span></div></div>
+  <ul class="cad-list"><li><b>Build</b> a line from any starting hand; KodeX reads each card and offers what it can do</li><li><b>Turn a replay into a combo</b>, one turn at a time</li><li><b>Save a combo image</b> that carries the combo, and load one back with its replay</li></ul>
+  <a class="btn primary" id="aoStore" href="https://play.google.com/store/search?q=Duel%20Synapse%20KodeX&amp;c=apps" target="_blank" rel="noopener">Get Duel Synapse: KodeX on Google Play</a>
+  <p class="hint">Duels here stay free in your browser. Combos need the Android app.</p></dialog>
 <dialog id="orderDlg" class="dlg order-dlg"><div class="pile-head"><h3>Arrange your deck</h3><button class="icon" id="orderClose" type="button" aria-label="Close">×</button></div><p class="hint">Top of the deck first. The first cards are your opening hand.</p><ol id="orderList" class="order-list"></ol><div class="dlg-actions"><button class="btn" id="orderReset" type="button">Reset</button><button class="btn primary" id="orderOk" type="button">Done</button></div></dialog>
 <div id="revealFx" class="reveal-fx" aria-live="polite"></div>
 <dialog id="reveal" class="dlg"><div class="pile-head"><h3 id="revealTitle">Revealed</h3><button class="icon" id="revealClose" type="button" aria-label="Close">×</button></div><div id="revealBody" class="pile-body reveal-body"></div><div class="dlg-actions"><button class="btn primary" id="revealOk" type="button">OK</button></div></dialog>

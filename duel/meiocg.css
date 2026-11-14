@@ -798,12 +798,25 @@ body.ace-on .cl-stage { visibility: hidden; }
 .leave-fx .lf-mote { position: absolute; width: 9px; height: 9px; border-radius: 50%; background: radial-gradient(closest-side, #fff, #ffd76a 60%, transparent); opacity: 0; }
 /* in the app the page never zooms: pinch and double-tap are for the cards, not the screen */
 html.no-zoom, html.no-zoom body { touch-action: pan-x pan-y; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
-/* a browser: the Arena is part of the app */
-.app-only { position: fixed; inset: 0; z-index: 400; display: grid; place-items: center; padding: 20px; background: radial-gradient(120% 80% at 50% 0%, #1a2260 0%, #0c0f1f 60%, #070914 100%); }
-.app-only[hidden] { display: none; }
-.ao-card { max-width: 440px; display: grid; justify-items: center; gap: 12px; padding: 28px 22px; border-radius: 22px; background: #0d1230; border: 1px solid #f0b42955; box-shadow: 0 24px 60px #000a; text-align: center; }
-.ao-card h2 { margin: 4px 0 0; font: 800 22px/1.2 "Chakra Petch", system-ui, sans-serif; color: #fff; }
-.ao-card p { margin: 0; color: #cfd5f2; font-size: 14.5px; line-height: 1.5; }
-.ao-card .btn { min-height: 48px; padding: 0 22px; font-size: 15px; text-decoration: none; display: inline-flex; align-items: center; }
-.ao-card small { color: #9aa3c7; font-size: 11.5px; }
-body.app-only-on > :not(.app-only) { visibility: hidden; }
+/* Combos are part of the app: what a browser is shown instead (a small looping picture of the feature) */
+.combo-ad { max-width: min(94vw, 460px); }
+.combo-ad .btn.primary { display: flex; justify-content: center; align-items: center; min-height: 48px; margin: 12px 0 4px; text-decoration: none; text-align: center; }
+.cad-list { margin: 12px 0 0; padding: 0; list-style: none; display: grid; gap: 7px; font-size: 13.5px; line-height: 1.4; color: #cfd5f2; }
+.cad-list li { padding-left: 16px; position: relative; } .cad-list li::before { content: "◆"; position: absolute; left: 0; top: 2px; font-size: 9px; color: #f0b429; }
+.cad-list b { color: #fff; }
+.cad-scene { display: grid; gap: 10px; padding: 14px; border-radius: 16px; background: linear-gradient(160deg, #141a44, #0a0d1f); border: 1px solid #f0b42944; overflow: hidden; }
+.cad-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; opacity: 0; animation: cadRow 9s ease-in-out infinite; }
+.cad-row span { flex: 1 1 100%; font: 700 10.5px/1.2 "Chakra Petch", system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: #9aa3c7; }
+.cad-row i { width: 30px; aspect-ratio: 59 / 86; border-radius: 4px; background: linear-gradient(160deg, #6f7dff, #2a3170); border: 1px solid #ffffff55; opacity: 0; animation: cadPop 9s ease-out infinite; }
+.cad-row i:nth-of-type(2n) { background: linear-gradient(160deg, #38c9a6, #14463c); } .cad-row i:nth-of-type(3n) { background: linear-gradient(160deg, #f0b429, #6b4a08); }
+.cad-row b { color: #f0b429; font-size: 15px; opacity: 0; animation: cadPop 9s ease-out infinite; }
+.cad-row em { font: 800 11.5px/1 "Chakra Petch", system-ui, sans-serif; font-style: normal; padding: 8px 10px; border-radius: 999px; background: #f0b429; color: #141005; opacity: 0; animation: cadPop 9s ease-out infinite; }
+.cad-hand { animation-delay: 0s; } .cad-line { animation-delay: 1.6s; } .cad-out { animation-delay: 4s; }
+.cad-hand > :nth-child(1) { animation-delay: .1s; } .cad-hand > :nth-child(2) { animation-delay: .25s; } .cad-hand > :nth-child(3) { animation-delay: .4s; } .cad-hand > :nth-child(4) { animation-delay: .55s; } .cad-hand > :nth-child(5) { animation-delay: .7s; }
+.cad-line > :nth-child(1) { animation-delay: 1.7s; } .cad-line > :nth-child(2) { animation-delay: 2s; } .cad-line > :nth-child(3) { animation-delay: 2.3s; } .cad-line > :nth-child(4) { animation-delay: 2.6s; } .cad-line > :nth-child(5) { animation-delay: 2.9s; } .cad-line > :nth-child(6) { animation-delay: 3.2s; } .cad-line > :nth-child(7) { animation-delay: 3.5s; }
+.cad-out > :nth-child(1) { animation-delay: 4.1s; } .cad-out > :nth-child(2) { animation-delay: 4.5s; } .cad-out > :nth-child(3) { animation-delay: 4.9s; }
+@keyframes cadRow { 0% { opacity: 0; } 4%, 92% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes cadPop { 0% { opacity: 0; transform: translateY(8px) scale(.7); } 5%, 80% { opacity: 1; transform: none; } 90%, 100% { opacity: 0; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .cad-row, .cad-row i, .cad-row b, .cad-row em { animation: none; opacity: 1; } }
+.combo-ad .cad-scene, .combo-ad .cad-list, .combo-ad .btn.primary, .combo-ad .hint { margin-left: 14px; margin-right: 14px; }
+.combo-ad .cad-scene { margin-top: 12px; } .combo-ad .hint { margin-bottom: 14px; text-align: center; }

@@ -134,16 +134,27 @@ for (const [w, h, tag] of [[412, 915, "p"], [915, 412, "l"]]) {
   const z = await f.evaluate(() => ({ cls: document.documentElement.classList.contains("no-zoom"), vp: document.querySelector("#vp").content, ta: getComputedStyle(document.documentElement).touchAction,
     pinch: (() => { const e = new Event("touchmove", { cancelable: true, bubbles: true }); e.touches = [{}, {}]; document.body.dispatchEvent(e); return e.defaultPrevented; })() }));
   ok(z.cls && /user-scalable=no/.test(z.vp) && /pan-x/.test(z.ta) && z.pinch, "in the app the Arena cannot be zoomed " + JSON.stringify(z));
-  ok(await f.evaluate(() => document.querySelector("#appOnly").hidden), "in the app there is no download page");
   await page.close();
+  // a browser tab: the Arena is open as usual (and may be zoomed); "Combo" on a replay shows how Combos work in the app
   const p2 = await browser.newPage({ viewport: { width: 412, height: 915 } });
   await p2.addInitScript(() => Object.defineProperty(Navigator.prototype, "webdriver", { get: () => false }));
   await p2.route(/(ygoprodeck|fonts\.g)/, (r) => r.abort());
   await p2.goto(`${base}/duel/`); await p2.waitForTimeout(1500);
-  const ao = await p2.evaluate(() => { const a = document.querySelector("#appOnly"), b = a.querySelector("#aoStore"), r = b.getBoundingClientRect(); return { shown: !a.hidden, href: b.href, top: document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) === b, zoom: document.documentElement.classList.contains("no-zoom") }; });
-  ok(ao.shown && /^https:\/\/play\.google\.com\//.test(ao.href) && ao.top && !ao.zoom, "a browser tab shows the Google Play page instead of the Arena " + JSON.stringify(ao));
-  if (shot) await p2.screenshot({ path: `${out}/v65-apponly.png` });
+  const br = await p2.evaluate(() => { const b = document.querySelector("#replayOpen"), r = b.getBoundingClientRect(); return { zoom: document.documentElement.classList.contains("no-zoom"), lobby: r.width > 0 && !document.querySelector("#appOnly") && !document.body.classList.contains("app-only-on") && getComputedStyle(document.querySelector("#lobby")).visibility === "visible", ad: document.querySelector("#comboAd").open }; });
+  if (shot) await p2.screenshot({ path: `${out}/v66-arena-browser.png` });
+  ok(!br.zoom && br.lobby && !br.ad, "a browser tab: the Arena is open as usual " + JSON.stringify(br));
+  await p2.evaluate(() => window.__arenaCombo()); await p2.waitForTimeout(600);
+  const ad = await p2.evaluate(() => { const d = document.querySelector("#comboAd"); return { open: d.open, href: d.querySelector("#aoStore").href, scene: d.querySelectorAll(".cad-scene .cad-row").length, anim: getComputedStyle(d.querySelector(".cad-row i")).animationName }; });
+  ok(ad.open && /^https:\/\/play\.google\.com\//.test(ad.href) && ad.scene === 3 && ad.anim === "cadPop", "a browser tab: Combo on a replay shows the Combo advert " + JSON.stringify(ad));
+  await p2.waitForTimeout(4200);
+  if (shot) await p2.screenshot({ path: `${out}/v66-comboad-arena.png` });
   await p2.close();
+  // embedded in KodeX in a browser: KodeX says it is not the app, and the advert is KodeX's
+  const e2 = await open(412, 915);
+  await e2.page.evaluate(() => { addEventListener("message", (e) => { if (e.data && e.data.kx === "comboAd") window.__ad = 1; }); document.getElementById("f").contentWindow.postMessage({ kx: "host", app: false }, "*"); });
+  await e2.page.waitForTimeout(300); await e2.f.evaluate(() => window.__arenaCombo()); await e2.page.waitForTimeout(300);
+  ok(await e2.page.evaluate(() => window.__ad === 1), "inside KodeX in a browser: KodeX is asked to show the Combo advert");
+  await e2.page.close();
 }
 if (errors.length) fail("page errors");
 console.log("OK: v65");
