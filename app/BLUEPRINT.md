@@ -57,9 +57,10 @@ the main script (`core-…`) is cut at its section comments. Later modules may r
 | `0620`–`0640` | 9.5: Test hub (Combo + Synapse Arena), combo generator (`cb*` functions, stored under `combos`), combo image, More from MEIOCG apps (`KX_APPS`), Arena vibration |
 | `0660`–`0680` | 9.6: performance overrides (no blur-behind, transform/opacity-only animations), combo hand-off to the Arena with a cover (`cbCover`, `cbSend`) |
 | `0700`–`0720` | 9.7: button-shape fixes, Arena closes to the Test tab, combo plays read from card text (`cbxPlays`, `cbxOpen`, `cbNextStep`, `cbFirstStep`, `cbxPick`) |
-| `0740`–`0760` | 9.8: no zoom in the app (`kxInApp`), Arena only in the app (`kxGetApp`, `KX_STORE`), combo code in images (`cbqPack`, `cbqBand`, `cbqRead`), image import (`cbImportImage`), replay combos from the Arena (`comboNew`) |
+| `0740`–`0760` | 9.8: no zoom in the app (`kxInApp`), store link (`KX_STORE`), combo code in images (`cbqPack`, `cbqBand`, `cbqRead`), image import (`cbImportImage`), replay combos from the Arena (`comboNew`) |
+| `0780`–`0800` | 9.9: Combos only in the app (`kxComboAd` wraps every way into Combos in a browser); the Arena is told whether it is in the app (`{kx:"host"}`) |
 
-To add a feature: add a new numbered pair (for example `0780-kx-v66.css`, `0800-kx-v66-late.js`) to `manifest.json`, or edit
+To add a feature: add a new numbered pair (for example `0820-kx-v67.css`, `0840-kx-v67-late.js`) to `manifest.json`, or edit
 the module that owns it. The constant `KODEX_BLUEPRINT` in the last module names the creator in the running app.
 
 ## 4. Build and release
