@@ -234,7 +234,7 @@ function buildComboSvg(list,meta,bg){
  list.forEach((c,ci)=>{if(list.length>1)rows.push({k:'head',t:cbTitle(c),n:ci+1});
   rows.push({k:'hand',items:c.hand.map(id=>({id,a:''}))});
   c.lines.forEach((l,li)=>{const items=[];l.forEach((n,ni)=>{if(ni)items.push({sep:'→'});n.cards.forEach((x,i)=>{if(i)items.push({sep:'+'});items.push({id:x.c,a:CB_SHORT[x.a]||''})})});rows.push({k:'line',n:li+1,items,note:l.map(n=>n.note).filter(Boolean).join(' · ')})})});
- const top=206+ts,bottom=H-92,lab=118,availW=W-pad*2-lab;
+ const band=typeof cbqBand==='function'?cbqBand(list,W,H,pad,P):null,top=206+ts,bottom=H-92-(band?band.h:0),lab=118,availW=W-pad*2-lab;
  const unit=it=>it.sep?(it.sep==='→'?.5:.3):1;
  let L=null;
  for(let cw=168;cw>=40;cw-=4){const ch=Math.round(cw*86/59),gap=Math.max(6,cw*.08),nameH=Math.max(18,cw*.2),rowH=ch+nameH+gap*1.6+12;let h=0;const lay=[];
@@ -271,6 +271,7 @@ function buildComboSvg(list,meta,bg){
   l.strips.forEach((st,si)=>{let x=pad+lab;const y=y0+gap+si*rowH;
    for(const it of st){if(it.sep){const w=unit(it)*(cw+gap);o.push(`<text x="${x+w/2-gap/2}" y="${y+ch/2+(it.sep==='→'?cw*.14:cw*.1)}" font-family="${F}" font-size="${it.sep==='→'?cw*.42:cw*.3}" font-weight="800" fill="${it.sep==='→'?acc:P.sub}" text-anchor="middle">${it.sep}</text>`);x+=w}else{cardAt(it,x,y);x+=cw+gap}}});
   if(r.note)o.push(`<text x="${pad+lab}" y="${y0+l.strips.length*rowH+14}" font-family="${B}" font-size="17" font-style="italic" fill="${P.mute}">${X(r.note.slice(0,120))}</text>`)}
+ if(band)o.push(band.svg);
  o.push(`<g font-family="${F}"><text x="${pad}" y="${H-44}" font-size="18" fill="${P.mute}">Made with Duel Synapse: KodeX · a project of Meta Insider OCG</text><text x="${W-pad}" y="${H-44}" font-size="18" fill="${P.gold}" text-anchor="end" font-weight="700">kodex.meiocg.org</text></g></svg>`);
  return o.join('')}
 function cbImage(ids){

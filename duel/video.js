@@ -149,7 +149,9 @@ export class Clip {
       // a card that changes place travels there (hand, Deck, piles, zones)
       if (e.type === M.MOVE && e.from && e.to && e.from.location && e.to.location && nf < 10) {
         const a = this.spot(e.from), b = this.spot(e.to), tl = e.to.location & ~C.LOCATION_OVERLAY;
-        if (a && b && Math.hypot(a.x - b.x, a.y - b.y) > 8) {
+        // banished: the card is squeezed into a line of light where it stood and drawn upward
+        if (a && tl === C.LOCATION_REMOVED) { this.fx.push({ k: "rift", at: a, code: e.code && !(e.to.position & C.POS_FACEDOWN) ? e.code : 0, t0: now + nf * 70, d: 600 }); nf++; }
+        else if (a && b && Math.hypot(a.x - b.x, a.y - b.y) > 8) {
           const down = tl === C.LOCATION_DECK || ((tl === C.LOCATION_MZONE || tl === C.LOCATION_SZONE) && e.to.position & C.POS_FACEDOWN);
           this.fx.push({ k: "fly", code: down ? 0 : e.code, a, b, t0: now + nf * 70, d: 420, key: tl === C.LOCATION_MZONE || tl === C.LOCATION_SZONE ? `${e.to.controller}:${tl}:${e.to.sequence}` : "" }); nf++;
         }
@@ -483,6 +485,12 @@ export class Clip {
         g.beginPath(); g.arc(f.at.x, f.at.y, r, 0, Math.PI * 2); g.stroke();
         const beam = g.createLinearGradient(f.at.x, 0, f.at.x, f.at.y); beam.addColorStop(0, "#8d99ff00"); beam.addColorStop(1, "#ffffffcc");
         g.fillStyle = beam; g.fillRect(f.at.x - 30 * u * (1 - t), 0, 60 * u * (1 - t), f.at.y); g.globalAlpha = 1;
+      } else if (f.k === "rift" && f.at) {
+        const k = ease(Math.min(1, t / .65)), up = clamp01((t - .65) / .35), w = this.L.cw * (1 - .95 * k), h = this.L.ch * (1 + .3 * k), y = f.at.y - up * this.L.ch * .9;
+        g.save(); g.globalAlpha = 1 - up; g.shadowColor = "#b98bff"; g.shadowBlur = 30 * u;
+        if (k < .9) this.card(f.code, f.at.x - w / 2, y - h / 2, w, h, { down: !f.code });
+        g.globalAlpha = (1 - up) * k; g.fillStyle = "#f1e6ff"; this.rr(f.at.x - 5 * u, y - h * .8, 10 * u, h * 1.6, 5 * u); g.fill();
+        g.globalAlpha = (1 - t) * .9; g.lineWidth = 5 * u; g.strokeStyle = "#c9a6ff"; g.beginPath(); g.arc(f.at.x, f.at.y, (40 + 120 * ease(t)) * u, 0, Math.PI * 2); g.stroke(); g.restore();
       } else if (f.k === "break" && f.at) {
         g.globalAlpha = 1 - t; for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2, d = 140 * u * ease(t); g.fillStyle = i % 2 ? "#ffb347" : "#fff"; g.fillRect(f.at.x + Math.cos(a) * d, f.at.y + Math.sin(a) * d, 12 * u, 12 * u); } g.globalAlpha = 1;
       } else if (f.k === "atk" && f.a) {

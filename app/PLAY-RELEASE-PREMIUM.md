@@ -11,7 +11,7 @@ skins are added).
 | Source | Upload the **ZIP** (`KodeX_Premium_v57_instApped.zip`), not the HTML file. It carries the Duel Arena and all card scripts. |
 | App name | `KodeX Premium` |
 | Package name | `com.duelsynapse.kodex.premium` (must differ from the free app; can't be changed after the first upload) |
-| Version | versionName `9.7.1`, versionCode higher than any earlier upload of this package (first upload: `1`) |
+| Version | versionName `9.8.1`, versionCode higher than any earlier upload of this package (first upload: `1`) |
 | instApped | Build with an instApped version that has **library folders** (`window.CastelFiles`); KodeX uses them for its offline database folders. They switch on by themselves (no option to set) and add no permission. |
 | Orientation | **Auto / sensor** (the Arena has a landscape layout; a locked orientation stops rotation) |
 | Permissions | **Camera** on (card scanner) |

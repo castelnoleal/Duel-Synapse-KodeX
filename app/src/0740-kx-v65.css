@@ -1,0 +1,23 @@
+/* KodeX 9.8 (v65) */
+/* in the app the screen never zooms (pinch and double-tap belong to the app, not to a web page) */
+html.kx-app,html.kx-app body{touch-action:pan-x pan-y;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+/* the Arena is part of the app: what a browser shows instead */
+.ga-card{display:grid;justify-items:center;gap:12px;text-align:center;padding:6px 4px 2px}
+.ga-card img{width:76px;height:76px;border-radius:18px}
+.ga-card h3{margin:2px 0 0;font-size:1.2rem}
+.ga-card p{margin:0;color:var(--mut);font-size:.92rem;line-height:1.5}
+.ga-card .btn{min-height:48px;padding:0 22px;font-size:1rem;text-decoration:none}
+.ga-card ul{margin:0;padding:0;list-style:none;display:grid;gap:6px;font-size:.86rem;color:var(--tx)}
+.ga-card li::before{content:"◆";color:#f0b429;margin-right:8px;font-size:.7em}
+.ga-strip{display:flex;align-items:center;gap:12px;margin-top:14px;padding:12px 14px;border-radius:16px;border:1px solid #f0b42955;background:linear-gradient(120deg,#1a1f4a,#101430);width:100%;text-align:left;color:var(--tx);cursor:pointer}
+.ga-strip b{display:block;font-size:.95rem}.ga-strip small{display:block;color:var(--mut);font-size:.78rem;margin-top:2px}
+.ga-strip i{flex:none;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:#f0b429;color:#141005;font-style:normal;font-weight:900}
+.ga-strip span{flex:1;min-width:0}
+/* combos: image import, and the note shown after one is read */
+.cb-top{flex-wrap:wrap}
+.cb-top .cb-two{display:flex;gap:8px;flex-wrap:wrap}
+.cb-top .cb-two .btn{flex:1 1 150px;min-height:44px}
+.cb-in h3{margin:0 0 6px}.cb-in .cb-in-l{display:grid;gap:8px;margin:10px 0}
+.cb-in .cb-in-i{display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:12px;background:var(--panel2);border:1px solid var(--line)}
+.cb-in .cb-in-i b{display:block;font-size:.95rem}.cb-in .cb-in-i small{color:var(--mut);font-size:.8rem}
+.cb-in .cb-in-i span{flex:1;min-width:0}

@@ -722,3 +722,88 @@ body.replaying .chain-btn { display: none; }
   body:has(#sheet:not([hidden])) .turnbar .chain-btn { display: none; }
 }
 #table[hidden] .chain-btn { display: none; }
+
+/* ---------- v65: the Synapse Link (chain links), and cards leaving play ----------
+   Everything here moves with transform and opacity only. --ms is how long the link stays (Settings → Chain animation). */
+.chain-fx .cl-stage { position: absolute; inset: 0; display: grid; grid-template-rows: 1fr auto auto 1.15fr; justify-items: center; align-items: end; gap: clamp(8px, 2vh, 18px); opacity: 0; transition: opacity .16s ease; --c: 111,125,255; }
+.chain-fx .cl-stage.op { --c: 255,90,122; }
+.chain-fx .cl-stage.solve { --c: 240,180,41; } .chain-fx .cl-stage.negate { --c: 255,70,90; }
+.chain-fx .cl-stage.in { opacity: 1; } .chain-fx .cl-stage.out { opacity: 0; transition-duration: .2s; }
+.cl-stage::before { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse 80% 46% at 50% 50%, #05060fd9 0%, #05060fb0 55%, transparent 100%); }
+.cl-stage::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 2px; margin-top: -1px; background: linear-gradient(90deg, transparent, rgba(var(--c), .9) 20%, #fff 50%, rgba(var(--c), .9) 80%, transparent); transform: scaleX(0); opacity: .9; }
+.cl-stage.in::after { animation: clLine .34s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes clLine { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.cl-word { grid-row: 1; position: relative; display: flex; align-items: baseline; gap: .04em; font: 900 italic clamp(34px, 11vmin, 92px)/1 "Chakra Petch", system-ui, sans-serif; letter-spacing: .06em; color: #fff; text-shadow: 0 0 18px rgba(var(--c), .95), 0 3px 0 rgba(var(--c), .6), 0 6px 18px #000; }
+.cl-word.small { font-size: clamp(26px, 8vmin, 64px); }
+.cl-word span { display: inline-block; opacity: 0; transform: translateY(40%) scale(1.6) skewX(-12deg); }
+.cl-stage.in .cl-word span { animation: clLetter .3s cubic-bezier(.2,.9,.3,1.3) both; }
+.cl-word span:nth-child(2) { animation-delay: .035s !important; } .cl-word span:nth-child(3) { animation-delay: .07s !important; } .cl-word span:nth-child(4) { animation-delay: .105s !important; }
+.cl-word span:nth-child(5) { animation-delay: .14s !important; } .cl-word span:nth-child(6) { animation-delay: .175s !important; } .cl-word span:nth-child(7) { animation-delay: .21s !important; }
+@keyframes clLetter { to { opacity: 1; transform: none; } }
+.cl-word em { font-style: normal; margin-left: .22em; font-size: 1.35em; color: rgb(var(--c)); -webkit-text-stroke: 2px #fff; text-shadow: 0 0 26px rgba(var(--c), 1), 0 6px 18px #000; opacity: 0; transform: scale(2.4) rotate(-14deg); }
+.cl-stage.in .cl-word em { animation: clNum .34s cubic-bezier(.2,.9,.3,1.4) .2s both; }
+@keyframes clNum { to { opacity: 1; transform: none; } }
+.cl-row { grid-row: 2; position: relative; display: flex; align-items: center; justify-content: center; max-width: 96vw; --w: clamp(84px, 24vmin, 178px); }
+.cl-card { position: relative; flex: none; width: var(--w); aspect-ratio: 59 / 86; border-radius: 8px; background: #0c1022; box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgb(var(--k)), 0 0 34px rgba(var(--k), .85), 0 18px 40px #000c; --k: 111,125,255; }
+.cl-card.op { --k: 255,90,122; }
+.cl-stage.solve .cl-card { --k: 240,180,41; } .cl-stage.negate .cl-card { --k: 255,70,90; }
+.cl-card img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 7px; }
+.cl-card.old { width: calc(var(--w) * .56); opacity: .78; transform: rotate(-4deg); }
+.cl-card.old:nth-of-type(even) { transform: rotate(4deg) translateY(6%); }
+.cl-card.new { z-index: 2; opacity: 0; transform: translateY(-46%) scale(1.9) rotate(9deg); }
+.cl-stage.in .cl-card.new { animation: clSlam .36s cubic-bezier(.3,0,.2,1) .06s both; }
+.cl-stage.me .cl-card.new { transform: translateY(46%) scale(1.9) rotate(-9deg); }
+@keyframes clSlam { 70% { opacity: 1; transform: translateY(0) scale(.94) rotate(-1.5deg); } to { opacity: 1; transform: rotate(-2deg); } }
+/* the number: a synapse node */
+.cl-n { position: absolute; left: -14px; top: -16px; width: 44px; height: 44px; display: grid; place-items: center; clip-path: polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%); background: linear-gradient(160deg, #fff, rgb(var(--k)) 55%); color: #0a0d1c; font: 900 22px/1 "Chakra Petch", system-ui, sans-serif; }
+.cl-card.old .cl-n { width: 30px; height: 30px; left: -10px; top: -11px; font-size: 15px; }
+/* the wire between two links: a line of light with a pulse running to the new link */
+.cl-wire { position: relative; flex: none; width: clamp(14px, 5vmin, 44px); height: 6px; margin: 0 -2px; border-radius: 3px; background: linear-gradient(90deg, rgba(var(--c), .25), rgba(var(--c), .9)); overflow: hidden; z-index: 1; }
+.cl-wire::before, .cl-wire::after { content: ""; position: absolute; top: 50%; width: 10px; height: 10px; margin-top: -5px; border-radius: 50%; background: #fff; }
+.cl-wire::before { left: -5px; } .cl-wire::after { right: -5px; }
+.cl-wire u { position: absolute; inset: 0; width: 60%; background: linear-gradient(90deg, transparent, #fff, transparent); transform: translateX(-120%); }
+.cl-wire.live { transform: scaleX(0); transform-origin: 0 50%; }
+.cl-stage.in .cl-wire.live { animation: clWire .22s ease-out .3s both; }
+.cl-stage.in .cl-wire u { animation: clPulse .5s linear .36s 3 both; }
+@keyframes clWire { to { transform: scaleX(1); } }
+@keyframes clPulse { to { transform: translateX(220%); } }
+.cl-cap { grid-row: 3; position: relative; max-width: min(88vw, 520px); padding: 8px 16px; border-radius: 14px; background: #0a0e22f2; border: 1px solid rgba(var(--c), .6); text-align: center; opacity: 0; transform: translateY(8px); }
+.cl-stage.in .cl-cap { animation: clCap .24s ease-out .26s both; }
+@keyframes clCap { to { opacity: 1; transform: none; } }
+.cl-cap strong { display: block; font: 800 15px/1.25 "Chakra Petch", system-ui, sans-serif; color: #fff; }
+.cl-cap span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-top: 3px; font-size: 12.5px; line-height: 1.35; color: #cfd5f2; }
+/* the shock ring when the link lands */
+.cl-ring { position: absolute; left: 50%; top: 50%; width: 46vmin; height: 46vmin; margin: -23vmin 0 0 -23vmin; border-radius: 50%; border: 3px solid rgba(var(--c), .9); opacity: 0; transform: scale(.3); }
+.cl-stage.in .cl-ring { animation: clRing .5s ease-out .3s both; }
+@keyframes clRing { 0% { opacity: .9; transform: scale(.3); } 100% { opacity: 0; transform: scale(1.5); } }
+/* negated: crossed out */
+.cl-x { position: absolute; inset: -8%; z-index: 3; }
+.cl-x u { position: absolute; left: -12%; right: -12%; top: 50%; height: 12px; margin-top: -6px; border-radius: 6px; background: linear-gradient(90deg, #ff2d4d, #fff 50%, #ff2d4d); box-shadow: 0 0 18px #ff2d4d; transform: rotate(52deg) scaleX(0); }
+.cl-x u + u { transform: rotate(-52deg) scaleX(0); }
+.cl-stage.in .cl-x u { animation: clX1 .2s cubic-bezier(.3,0,.2,1) .34s both; }
+.cl-stage.in .cl-x u + u { animation: clX2 .2s cubic-bezier(.3,0,.2,1) .5s both; }
+@keyframes clX1 { to { transform: rotate(52deg) scaleX(1); } } @keyframes clX2 { to { transform: rotate(-52deg) scaleX(1); } }
+.cl-stage.negate .cl-card img { filter: grayscale(1) brightness(.6); }
+@media (orientation: landscape) and (max-height: 520px) { .cl-row { --w: clamp(64px, 30vmin, 130px); } .cl-word { font-size: clamp(26px, 12vmin, 60px); } .chain-fx .cl-stage { gap: 6px; } .cl-cap span { -webkit-line-clamp: 1; } }
+body.ace-on .cl-stage { visibility: hidden; }
+/* cards leaving play */
+.leave-fx { position: fixed; margin: 0; pointer-events: none; }
+.leave-fx .lf-card { position: absolute; inset: 0; margin: 0; width: 100%; height: 100%; border-radius: 5px; overflow: hidden; will-change: transform, opacity; }
+.leave-fx .lf-card img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.leave-fx .lf-shard { border-radius: 0; opacity: 0; }
+.leave-fx .lf-flash { position: absolute; inset: -30%; border-radius: 50%; background: radial-gradient(closest-side, #fff 0%, #ffd27a 28%, #ff7a3a88 52%, transparent 72%); opacity: 0; }
+.leave-fx .lf-slash { position: absolute; left: -40%; right: -40%; top: 50%; height: 5px; margin-top: -2.5px; border-radius: 3px; background: linear-gradient(90deg, transparent, #fff 30%, #fff 70%, transparent); box-shadow: 0 0 12px #fff; opacity: 0; z-index: 2; }
+.leave-fx .lf-beam { position: absolute; left: 50%; top: -60%; bottom: -10%; width: 14px; margin-left: -7px; border-radius: 7px; background: linear-gradient(180deg, transparent, #e9d5ff 25%, #fff 60%, #b98bff); box-shadow: 0 0 22px #b98bff; opacity: 0; transform-origin: 50% 100%; }
+.leave-fx .lf-ring { position: absolute; inset: -18%; border-radius: 50%; border: 3px solid #c9a6ff; opacity: 0; }
+.leave-fx .lf-mote { position: absolute; width: 9px; height: 9px; border-radius: 50%; background: radial-gradient(closest-side, #fff, #ffd76a 60%, transparent); opacity: 0; }
+/* in the app the page never zooms: pinch and double-tap are for the cards, not the screen */
+html.no-zoom, html.no-zoom body { touch-action: pan-x pan-y; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+/* a browser: the Arena is part of the app */
+.app-only { position: fixed; inset: 0; z-index: 400; display: grid; place-items: center; padding: 20px; background: radial-gradient(120% 80% at 50% 0%, #1a2260 0%, #0c0f1f 60%, #070914 100%); }
+.app-only[hidden] { display: none; }
+.ao-card { max-width: 440px; display: grid; justify-items: center; gap: 12px; padding: 28px 22px; border-radius: 22px; background: #0d1230; border: 1px solid #f0b42955; box-shadow: 0 24px 60px #000a; text-align: center; }
+.ao-card h2 { margin: 4px 0 0; font: 800 22px/1.2 "Chakra Petch", system-ui, sans-serif; color: #fff; }
+.ao-card p { margin: 0; color: #cfd5f2; font-size: 14.5px; line-height: 1.5; }
+.ao-card .btn { min-height: 48px; padding: 0 22px; font-size: 15px; text-decoration: none; display: inline-flex; align-items: center; }
+.ao-card small { color: #9aa3c7; font-size: 11.5px; }
+body.app-only-on > :not(.app-only) { visibility: hidden; }
