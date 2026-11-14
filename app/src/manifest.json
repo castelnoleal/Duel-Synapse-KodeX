@@ -1,7 +1,7 @@
 {
  "about": "KodeX source: files are joined in this order. 'open'/'close' are the <style>/<script> tags around a file. Created by Castel Noleal, creator of MEIOCG. See app/BLUEPRINT.md.",
- "version": 64,
- "build": "9.7",
+ "version": 65,
+ "build": "9.8",
  "files": [
   {
    "file": "0010-head.html",
@@ -341,6 +341,21 @@
   {
    "file": "0720-kx-v64-late.js",
    "open": "<script id=\"kx-v64-late\">",
+   "close": "</script>"
+  },
+  {
+   "file": "0740-kx-v65.css",
+   "open": "<style id=\"kx-v65\">",
+   "close": "</style>"
+  },
+  {
+   "file": "0750-html.html",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0760-kx-v65-late.js",
+   "open": "<script id=\"kx-v65-late\">",
    "close": "</script>"
   },
   {

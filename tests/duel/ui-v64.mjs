@@ -72,7 +72,7 @@ async function menu(f, page, code, re) {
   if (!hit) fail("no menu entry " + re + " for " + code);
   await page.waitForTimeout(500);
 }
-const settle = async (f, page) => { for (let i = 0; i < 8; i++) { const z = await f.$(".zone.free"); if (z) { await z.click({ force: true }); await page.waitForTimeout(350); continue; } const pk = await f.$("#sheetBody .card"); if (pk && await pk.isVisible() && !(await f.$("#sheetBody .picked, #sheetBody .sel, #sheetBody [aria-pressed=true]"))) { await pk.click({ force: true }); await page.waitForTimeout(350); } const go = await f.$("#sheetActions .btn.primary:not([disabled])"); if (go && await go.isVisible()) { await go.click(); await page.waitForTimeout(350); continue; } break; } };
+const settle = async (f, page) => { let idle = 0; for (let i = 0; i < 14; i++) { const z = await f.$(".zone.free"); if (z) { await z.click({ force: true }); await page.waitForTimeout(350); continue; } const pk = await f.$("#sheetBody .card"); if (pk && await pk.isVisible() && !(await f.$("#sheetBody .picked, #sheetBody .sel, #sheetBody [aria-pressed=true]"))) { await pk.click({ force: true }); await page.waitForTimeout(350); } const go = await f.$("#sheetActions .btn.primary:not([disabled])"); if (go && await go.isVisible()) { await go.click(); await page.waitForTimeout(350); continue; } if (++idle > 4) break; await page.waitForTimeout(400); } };   // since 9.8 a question waits for its chain link
 for (const [w, h, tag] of [[412, 915, "p"], [915, 412, "l"]]) {
   const { page, f } = await open(w, h);
   // ----- the opening: coin toss, both players, who goes first; a tap skips it -----

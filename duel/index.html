@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" id="vp">
 <meta name="theme-color" content="#0c0f1f">
 <meta name="description" content="Project: Duel Synapse by MEIOCG. Test your deck with MEIOCG's Bleeding Edge Technology.">
 <title>Project: Duel Synapse — MEIOCG</title>
@@ -239,6 +239,7 @@
     <div class="side-actions">
       <label class="field pref-row"><span>Chain prompts</span><select id="chainMode"><option value="all">Always ask</option><option value="smart">Only when it matters</option><option value="off">Never ask</option></select></label>
       <label class="field pref-row"><span>Reveal &amp; activation time</span><select id="prefFxMs"><option value="500">0.5 s</option><option value="1000">1 s</option><option value="1500">1.5 s</option><option value="2000">2 s</option><option value="3000">3 s</option><option value="5000">5 s</option></select></label>
+      <label class="field pref-row"><span>Chain animation</span><select id="prefChainMs"><option value="0">Off (small banner)</option><option value="550">Quick · 0.55 s a link</option><option value="900">Normal · 0.9 s a link</option><option value="1400">Long · 1.4 s a link</option><option value="2000">Cinematic · 2 s a link</option></select></label>
       <label class="toggle"><input type="checkbox" id="prefStaples"><span>Card animations for staples (Ash Blossom, Maxx "C"…)</span></label>
       <label class="toggle"><input type="checkbox" id="musicOn"><span>Music</span></label>
       <label class="toggle"><input type="checkbox" id="sfxOn"><span>Sounds</span></label>
@@ -322,6 +323,13 @@
   <p class="hint">Saved duels stay here to watch anytime. Open a .yrp file to add one.</p>
   <ul id="rpList" class="rp-list"></ul>
   <div class="dlg-actions"><label class="btn" id="rpOpenFile">Open a replay file<input type="file" id="replayFile2" accept=".yrp,.yrpx,application/octet-stream" hidden></label></div></dialog>
+<dialog id="rpTurn" class="dlg rp-lib"><div class="pile-head"><h3>Turn into a combo</h3><button class="icon" id="rpTurnClose" type="button" aria-label="Close">×</button></div>
+  <p class="hint">Choose the turn to map out. Its plays become a combo: the starting hand, then each play and what it led to. You can edit it and save it as an image in Combos.</p>
+  <ul id="rpTurnList" class="rp-list"></ul></dialog>
+<div id="appOnly" class="app-only" hidden><div class="ao-card"><img src="./assets/meiocg-512.webp" alt="" width="84" height="84"><h2>Synapse Arena is in the app</h2>
+  <p>Duels, playtests, replays and combos run inside <b>Duel Synapse: KodeX</b> for Android. Get it on Google Play, then open <b>Test → Synapse Arena</b>.</p>
+  <a class="btn primary" id="aoStore" href="https://play.google.com/store/search?q=Duel%20Synapse%20KodeX&amp;c=apps" target="_blank" rel="noopener">Get it on Google Play</a>
+  <small>A project of Meta Insider OCG since 2023</small></div></div>
 <dialog id="orderDlg" class="dlg order-dlg"><div class="pile-head"><h3>Arrange your deck</h3><button class="icon" id="orderClose" type="button" aria-label="Close">×</button></div><p class="hint">Top of the deck first. The first cards are your opening hand.</p><ol id="orderList" class="order-list"></ol><div class="dlg-actions"><button class="btn" id="orderReset" type="button">Reset</button><button class="btn primary" id="orderOk" type="button">Done</button></div></dialog>
 <div id="revealFx" class="reveal-fx" aria-live="polite"></div>
 <dialog id="reveal" class="dlg"><div class="pile-head"><h3 id="revealTitle">Revealed</h3><button class="icon" id="revealClose" type="button" aria-label="Close">×</button></div><div id="revealBody" class="pile-body reveal-body"></div><div class="dlg-actions"><button class="btn primary" id="revealOk" type="button">OK</button></div></dialog>

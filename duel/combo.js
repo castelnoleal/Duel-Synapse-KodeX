@@ -170,3 +170,76 @@ export function comboPackets(combo, db, names = ["Duelist", "Opponent"]) {
   if (out.length) out[out.length - 1].combo.last = true;
   return out;
 }
+
+// ----- a replay read back as a combo -----
+// The Arena's engine re-runs the replay without showing it (host-worker "replayScan") and hands back every step.
+// One player's turn is then written as lines: what they played, and what each play added, summoned, sent or banished.
+const isPlayEvent = (e, P) => (e.type === M.CHAINING || e.type === M.SUMMONING || e.type === M.SPSUMMONING || e.type === M.FLIPSUMMONING) && e.controller === P;
+/** The turns of a scanned replay: [{ turn, tp, plays }] (plays = cards the turn player summoned or activated). */
+export function replayTurns(scan) {
+  const out = []; let cur = null;
+  for (const s of scan.steps || []) for (const e of s.events || []) {
+    if (e.type === M.NEW_TURN) { cur = { turn: out.length + 1, tp: e.player === 0 || e.player === 1 ? e.player : s.tp, plays: 0 }; out.push(cur); }
+    else if (cur && isPlayEvent(e, cur.tp)) cur.plays++;
+  }
+  return out;
+}
+/** One turn of a scanned replay as a combo (the same shape KodeX makes). Returns null when the turn has no plays. */
+export function comboFromReplay(scan, turnNo, db) {
+  const T = C.TYPE, R = C.REASON, info = (c) => db.get(c) || { type: 0 };
+  const turns = replayTurns(scan), tinfo = turns[turnNo - 1]; if (!tinfo) return null;
+  const P = tinfo.tp, lines = [], made = new Set(), stUp = new Set();
+  let t = 0, hand = null, prevHands = null, line = null, res = null, mats = [], solving = false, actCard = 0;
+  const begin = (c, a) => {
+    if (!hand) hand = (prevHands && prevHands[P] ? prevHands[P] : []).filter(Boolean).slice(0, 12);
+    const node = { cards: [{ c, a }], note: "" };
+    // a card the line just produced carries the line on; anything else starts a new line
+    if (line && made.has(c) && line.length < 11 && !mats.length) line.push(node);
+    else {
+      if (lines.length >= 16) { line = null; res = null; return; }
+      line = []; lines.push(line);
+      if (mats.length) line.push({ cards: mats.slice(0, 6).map((m) => ({ c: m, a: "gy" })), note: "" });
+      line.push(node);
+    }
+    mats = []; res = null; actCard = c;
+  };
+  const result = (c, a) => {
+    if (!hand) return;
+    if (!line) { if (lines.length >= 16) return; line = []; lines.push(line); }
+    if (!res || res.cards.length >= 6) { if (line.length >= 12) return; res = { cards: [], note: "" }; line.push(res); }
+    res.cards.push({ c, a }); made.add(c);
+  };
+  for (const s of scan.steps || []) {
+    for (const e of s.events || []) {
+      if (e.type === M.NEW_TURN) { t++; continue; }
+      if (t !== turnNo) continue;
+      const c = Number(e.code) || 0;
+      if (e.type === M.CHAIN_SOLVING) solving = true;
+      else if (e.type === M.CHAIN_SOLVED || e.type === M.CHAIN_END) solving = false;
+      else if (e.type === M.CHAINING && e.controller === P && c) {
+        const d = info(c), loc = e.location & ~C.LOCATION_OVERLAY;
+        let a = "eff";
+        if (!(d.type & T.MONSTER)) { if (loc === C.LOCATION_HAND || (loc & C.LOCATION_SZONE && !stUp.has(c))) a = "act"; stUp.add(c); }
+        else if (d.type & T.PENDULUM && loc & C.LOCATION_SZONE && !stUp.has(c)) { a = "scale"; stUp.add(c); }
+        begin(c, a);
+      } else if (e.type === M.SUMMONING && e.controller === P && c) begin(c, "ns");
+      else if (e.type === M.FLIPSUMMONING && e.controller === P && c) begin(c, "eff");
+      else if (e.type === M.SPSUMMONING && e.controller === P && c) { if (solving && hand) result(c, "ss"); else begin(c, "ss"); }
+      else if (e.type === M.DRAW && e.player === P && hand) { for (const d of e.drawn || []) if (d && d.code) result(Number(d.code), "add"); }
+      else if (e.type === M.MOVE && c && e.from && e.to) {
+        const fl = e.from.location & ~C.LOCATION_OVERLAY, tl = e.to.location & ~C.LOCATION_OVERLAY, mine = e.to.controller === P || e.from.controller === P;
+        if (!mine || fl === tl) continue;
+        if (tl === C.LOCATION_MZONE || tl === C.LOCATION_SZONE) { if (fl === C.LOCATION_HAND && e.to.position & C.POS_FACEDOWN) begin(c, "set"); continue; }
+        if (tl === C.LOCATION_GRAVE && e.reason & R.MATERIAL && !solving) { mats.push(c); continue; }
+        // a Spell or Trap going to the GY after it resolved is part of playing it, not a result
+        if (tl === C.LOCATION_GRAVE && c === actCard && fl & C.LOCATION_SZONE && !(info(c).type & T.MONSTER)) continue;
+        if (tl === C.LOCATION_HAND) result(c, "add"); else if (tl === C.LOCATION_GRAVE) result(c, "gy"); else if (tl === C.LOCATION_REMOVED) result(c, "ban");
+      }
+    }
+    prevHands = s.hands;
+  }
+  const clean = lines.filter((l) => l.length);
+  if (!clean.length) return null;
+  const names = scan.names || [], deck = (scan.decks || [])[P] || { main: 40, extra: [] };
+  return cleanCombo({ id: "", title: `${names[P] || "Duelist"} · Turn ${turnNo}`.slice(0, 60), deck: names[P] || "", hand: hand || [], lines: clean, extra: deck.extra || [], deckSize: deck.main || 40, intro: { ms: 3000 } });
+}

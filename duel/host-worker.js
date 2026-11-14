@@ -165,6 +165,30 @@ self.onmessage = async (ev) => {
       post({ t: "replayinfo", names: r.names, kind: r.kind, turns: r.turns || 0, answers: r.responses.length, unknown: unknown.length, time: r.time });
       host = new DuelHost({ core, db, scripts: store, decks: r.decks, names: r.names, options: { replay: r }, emit });
       host.start();
+    } else if (m.cmd === "replayScan") {
+      // run a replay from start to end without showing it and hand back what happened, step by step (the Arena
+      // turns that into a combo). Nothing is running on the table while this happens.
+      if (host && !host.ended && !rp) { post({ t: "replayscan", id: m.id, error: "Finish the duel first." }); return; }
+      if (host) { host.destroy(); host = null; } if (rp) { clearTimeout(rp.timer); rp = null; }
+      let r;
+      try { r = readReplay(new Uint8Array(m.bytes)); } catch (e) { post({ t: "replayscan", id: m.id, error: String(e.message || e) }); return; }
+      r.decks = r.decks.map((d) => ({ main: d.main, extra: d.extra }));
+      const codes = [...r.rules, ...r.decks.flatMap((d) => [...d.main, ...d.extra])];
+      core.missing.clear();
+      await store.preload(codes.filter((c) => db.has(c)), () => {});
+      const steps = [];
+      let h = null, i = 0, guard = 0, bad = 0;
+      try {
+        h = new DuelHost({ core, db, scripts: store, decks: r.decks, names: r.names, options: { replay: r }, emit: (viewer, p) => {
+          if (viewer !== 3 || !p.state) return;
+          if (p.events.some((e) => e.type === 1)) bad++; else bad = 0;
+          steps.push({ turn: p.turn, tp: p.turnPlayer, events: p.events, hands: p.state.teams.map((t) => t.hand.map((c) => c.code || 0)) });
+        } });
+        h.start();
+        while (h.pending && !h.ended && i < r.responses.length && guard++ < 40000 && bad <= 8) h.respondRaw(r.responses[i++]);
+      } catch (e) { /* what was read so far is still useful */ }
+      try { if (h) h.destroy(); } catch { /* already gone */ }
+      post({ t: "replayscan", id: m.id, names: r.names, decks: r.decks.map((d) => ({ main: d.main.length, extra: d.extra })), steps });
     } else if (m.cmd === "replaySeek") {
       // go to a move (an answer number) or the start of a turn: back means re-running the duel from the start, fast
       if (!rp || !host) return;

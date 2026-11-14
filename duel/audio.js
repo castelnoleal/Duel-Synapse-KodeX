@@ -81,11 +81,36 @@ const SFX = {
 // ---- v62: a sound for every moment (shuffles, searches, the graveyard, banishing, negations), every premium
 // entrance, attack and finishing move, and every showdown. All synthesised here.
 const sweep = (t, f1, f2, d, peak = 0.25, q = 1.2, type = "bandpass") => noise(t, { d, peak, f: f1, f2, q, type });
+// ---- v65: chain links (a rising electric link that locks shut), resolutions, and cards leaving play
+Object.assign(SFX, {
+  chain(t, n = 1) {
+    const k = Math.pow(2, Math.min(n - 1, 9) / 12 * 2), f = 330 * k;                  // each link a whole tone higher
+    sweep(t, 500, 5200 * Math.min(k, 1.6), 0.13, 0.2, 2.2);                             // the line of light arriving
+    tone(f, t + 0.02, { type: "sawtooth", d: 0.1, peak: 0.07, glide: 1.5 });
+    noise(t + 0.12, { d: 0.035, peak: 0.34, type: "highpass", f: 4200 });               // the link snaps shut
+    bell(f * 2, t + 0.12, 0.2, 0.55); bell(f * 3.01, t + 0.135, 0.09, 0.4);
+    tone(82, t + 0.12, { d: 0.2, peak: 0.26, glide: 0.6 });
+  },
+  chainsolve(t, n = 1) { const f = 392 * Math.pow(2, Math.min(n - 1, 9) / 12 * 2); bell(f * 2, t, 0.16, 0.5); bell(f * 2.5, t + 0.06, 0.1, 0.45); sweep(t, 3000, 900, 0.16, 0.12, 1.5); },
+  // glass and stone giving way, then the pieces
+  destroy(t) {
+    noise(t, { d: 0.06, peak: 0.5, type: "highpass", f: 2600 }); tone(120, t, { d: 0.26, peak: 0.42, glide: 0.45 });
+    noise(t + 0.03, { d: 0.42, peak: 0.3, type: "lowpass", f: 3400, f2: 160 });
+    for (let i = 0; i < 8; i++) bell(1500 + Math.random() * 3200, t + 0.08 + i * 0.03 + Math.random() * 0.02, 0.05, 0.25);
+  },
+  destroybattle(t) { sweep(t, 7000, 1400, 0.1, 0.36, 2.2, "highpass"); SFX.destroy(t + 0.09); },
+  // drawn out of the world: a rising tear with a hollow tail
+  banish(t) {
+    sweep(t, 400, 7000, 0.36, 0.2, 3.2); tone(196, t, { type: "sine", a: 0.02, d: 0.44, peak: 0.16, glide: 5 });
+    tone(294, t + 0.02, { type: "triangle", a: 0.02, d: 0.4, peak: 0.07, glide: 5 });
+    noise(t + 0.34, { d: 0.3, peak: 0.12, type: "highpass", f: 6000 }); bell(2637, t + 0.36, 0.07, 0.7);
+  },
+  release(t) { [659.3, 880, 1174.7].forEach((f, i) => tone(f, t + i * 0.06, { type: "sine", a: 0.02, d: 0.32, peak: 0.1 })); sweep(t, 1200, 4200, 0.3, 0.07, 1); },
+});
 Object.assign(SFX, {
   shuffle(t) { for (let i = 0; i < 9; i++) noise(t + i * 0.05 + Math.random() * 0.012, { d: 0.045, peak: 0.16 + (i % 3) * 0.04, f: 2200 + Math.random() * 2600, q: 2.2 }); noise(t + 0.5, { d: 0.09, peak: 0.2, type: "lowpass", f: 700 }); tone(150, t + 0.5, { d: 0.08, peak: 0.1 }); },
   search(t) { sweep(t, 700, 5200, 0.2, 0.16, 0.9); bell(1174.7, t + 0.12, 0.12, 0.5); bell(1568, t + 0.2, 0.1, 0.6); },
   tograve(t) { tone(150, t, { d: 0.22, peak: 0.22, glide: 0.5 }); noise(t, { d: 0.18, peak: 0.14, type: "lowpass", f: 900, f2: 200 }); },
-  banish(t) { sweep(t, 6000, 500, 0.4, 0.16, 0.8, "highpass"); tone(420, t, { type: "sine", a: 0.02, d: 0.42, peak: 0.12, glide: 3.6 }); },
   negate(t) { tone(520, t, { type: "square", d: 0.28, peak: 0.1, glide: 0.32 }); tone(262, t + 0.02, { type: "sawtooth", d: 0.3, peak: 0.08, glide: 0.4 }); noise(t, { d: 0.12, peak: 0.22, f: 1800, q: 3 }); },
   flip(t) { sweep(t, 1400, 3800, 0.1, 0.18, 1.5); tone(740, t + 0.05, { type: "triangle", d: 0.1, peak: 0.1 }); },
   heal(t) { [784, 987.8, 1318.5].forEach((f, i) => bell(f, t + i * 0.08, 0.1, 0.8)); },

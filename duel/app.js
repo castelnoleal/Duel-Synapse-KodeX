@@ -16,7 +16,7 @@ import { staple, finale, ace, SHOWS, pickShow, SHOW_MIN, SHOW_MAX } from "./card
 import { cleanProfile, avatarHTML, cardHTML } from "./profile.js";
 import { breakProfile, comeback } from "./ending.js";
 import { Clip, canRecord } from "./video.js";
-import { cleanCombo, comboPackets, lineText } from "./combo.js";
+import { cleanCombo, comboPackets, lineText, replayTurns, comboFromReplay } from "./combo.js";
 
 const M = C.MSG;
 const $ = (s) => document.querySelector(s);
@@ -510,10 +510,62 @@ async function rpOpenLib() {
     const play = el("button", "btn primary", "Watch"); play.type = "button"; play.onclick = () => { $("#rpLib").close(); if (r.combo) watchCombo(r.combo); else watchReplay(r.bytes.slice().buffer); };
     const file = el("button", "btn ghost", "File"); file.type = "button"; file.setAttribute("aria-label", "Save as a .yrp file"); file.onclick = () => saveFile(`${r.title.replace(/[^\w-]+/g, "_").slice(0, 40)}.yrp`, "data:application/octet-stream;base64," + b64(r.bytes));
     const del = el("button", "icon", "🗑"); del.type = "button"; del.setAttribute("aria-label", "Delete " + r.title); del.onclick = async () => { await RPDB.del(r.id); rpOpenLib(); rpBadge(); };
-    const ac = el("div", "rp-ac"); if (r.combo) ac.append(play, del); else ac.append(play, file, del);
+    const cb = el("button", "btn ghost", "Combo"); cb.type = "button"; cb.setAttribute("aria-label", "Turn " + r.title + " into a combo"); cb.onclick = () => rpToCombo(r, cb);
+    const ac = el("div", "rp-ac"); if (r.combo) ac.append(play, del); else ac.append(play, cb, file, del);
     li.append(t, ac); list.append(li);
   }
   if (!$("#rpLib").open) $("#rpLib").showModal();
+}
+// ----- a replay mapped out as a combo: the engine re-runs it out of sight, one turn's plays become the combo -----
+function scanReplay(bytes) {
+  return new Promise((done) => {
+    const id = Math.random().toString(36).slice(2);
+    const on = (ev) => { if (ev.data && ev.data.t === "replayscan" && ev.data.id === id) { S.worker.removeEventListener("message", on); clearTimeout(tm); done(ev.data); } };
+    const tm = setTimeout(() => { S.worker.removeEventListener("message", on); done({ error: "Reading the replay took too long." }); }, 60000);
+    S.worker.addEventListener("message", on);
+    S.worker.postMessage({ cmd: "replayScan", id, bytes }, [bytes]);
+  });
+}
+async function rpToCombo(r, btn) {
+  if (S.active && S.packet && !S.packet.ended) { toast("Finish the duel first."); return; }
+  if (btn) { btn.disabled = true; btn.textContent = "Reading…"; }
+  let scan;
+  try { await startWorker(); scan = await scanReplay(r.bytes.slice().buffer); } catch (e) { scan = { error: String(e.message || e) }; }
+  if (btn) { btn.disabled = false; btn.textContent = "Combo"; }
+  if (!scan || scan.error || !scan.steps) { toast((scan && scan.error) || "That replay could not be read.", 5000); return; }
+  const turns = replayTurns(scan).filter((t) => t.plays > 0);
+  if (!turns.length) { toast("No plays were found in that replay."); return; }
+  const list = $("#rpTurnList"); list.replaceChildren();
+  for (const t of turns.slice(0, 40)) {
+    const li = el("li"), d = el("div", "rp-t"); d.append(el("b", null, `Turn ${t.turn} · ${scan.names[t.tp] || "Duelist"}`), el("small", null, `${t.plays} ${t.plays === 1 ? "play" : "plays"}`));
+    const go = el("button", "btn primary", "Make combo"); go.type = "button";
+    go.onclick = async () => {
+      const c = comboFromReplay(scan, t.turn, S.db);
+      if (!c) { toast("That turn has nothing to map out."); return; }
+      c.id = `rp-${r.id}-t${t.turn}`;
+      await comboKeep(c);
+      $("#rpTurn").close();
+      const steps = c.lines.reduce((n, l) => n + l.length, 0);
+      if (window.parent !== window) { try { window.parent.postMessage({ kx: "comboNew", combo: c }, "*"); } catch { /* not embedded */ } toast(`Combo made: ${steps} steps. It is in Combos, ready to edit or save as an image.`, 5000); }
+      else toast(`Combo made: ${steps} steps. Watch it from this list.`, 5000);
+      rpOpenLib();
+    };
+    const ac = el("div", "rp-ac"); ac.append(go); li.append(d, ac); list.append(li);
+  }
+  if (!$("#rpTurn").open) $("#rpTurn").showModal();
+}
+$("#rpTurnClose").addEventListener("click", () => $("#rpTurn").close());
+// ----- in the app the page never zooms (it is an app screen, not a web page) -----
+const IN_APP = document.body.classList.contains("embed") || /[?&](app|embed)=1/.test(location.search) || /; wv\)/.test(navigator.userAgent) || window.parent !== window;
+if (IN_APP) {
+  document.documentElement.classList.add("no-zoom");
+  const vp = $("#vp"); if (vp) vp.content = "width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover";
+  addEventListener("touchmove", (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+  for (const g of ["gesturestart", "gesturechange"]) addEventListener(g, (e) => e.preventDefault(), { passive: false });
+  addEventListener("wheel", (e) => { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
+} else if (!navigator.webdriver) {
+  // a browser: the Arena is part of the app, so this page points there
+  $("#appOnly").hidden = false; document.body.classList.add("app-only-on");
 }
 $("#replayOpen").addEventListener("click", rpOpenLib);
 $("#rpLibClose").addEventListener("click", () => $("#rpLib").close());
@@ -1332,9 +1384,11 @@ function applyPacket(p) {
   const fly = flyCapture(p);
   render(p, prev);
   if (fly) flyRun(fly);
-  fxEvents(p);
+  const wait = p.seek ? 0 : fxEvents(p);
   bigFx(p);
-  handlePrompt(p);
+  // a chain link plays out before anything else can be activated: the next step and the next question wait for it
+  if (wait > 60) { hold(wait); S.actions = null; closeSheet(); setTimeout(() => { if (S.packet === p) handlePrompt(p); }, wait); }
+  else handlePrompt(p);
   if (p.ended) showResult(p);
 }
 
@@ -2445,19 +2499,35 @@ function ask(title, text, yes = "OK") {
 
 // ----- reveals and chains, shown as they happen -----
 const fxQueue = [];
-let fxBusy = false;
+let fxBusy = false, fxEndAt = 0;
+S.chainLinks = [];            // the chain being built: [{ code, controller }]
+/** How long a chain link stays on screen (Settings → Chain animation). 0 = the small banner only, nothing waits. */
+const chainMs = () => (reduceMotion() || document.hidden ? 0 : Math.max(0, Math.min(3000, PREF.chainMs == null ? 900 : Number(PREF.chainMs) || 0)));
+function fxPush(f, ms) { f.ms = ms; fxQueue.push(f); fxEndAt = Math.max(Date.now(), fxEndAt) + ms; }
+/** Queues what this step shows (reveals, chain links, resolutions). Returns how long the chain animations will take. */
 function fxEvents(p) {
-  const shown = [];
+  const shown = [], base = chainMs(), solve = Math.round(base * 0.7);
   for (const e of p.events) {
     if (e.type === M.CONFIRM_CARDS || e.type === M.CONFIRM_DECKTOP || e.type === M.CONFIRM_EXTRATOP) {
       const cards = (e.cards || []).filter((c) => c && c.code);
       if (cards.length) shown.push({ player: e.player, cards });
-    } else if (e.type === M.CHAINING) fxQueue.push({ kind: "chain", e, name: p.names[e.controller] });
-    else if (e.type === M.CHAIN_SOLVING) fxQueue.push({ kind: "solve", n: e.chain_size });
-    else if (e.type === M.CHAIN_NEGATED || e.type === M.CHAIN_DISABLED) { fxQueue.push({ kind: "negate", n: e.chain_size }); soundOnce("negate"); }
+    } else if (e.type === M.CHAINING) {
+      S.chainLinks.length = Math.max(0, e.chain_size - 1); S.chainLinks[e.chain_size - 1] = { code: e.code, controller: e.controller };
+      fxPush({ kind: "chain", e, name: p.names[e.controller], links: S.chainLinks.slice() }, base);
+    } else if (e.type === M.CHAIN_SOLVING) {
+      // a lone activation resolves without ceremony; in a real chain every link is shown as it resolves
+      const many = S.chainLinks.length > 1;
+      fxPush({ kind: "solve", n: e.chain_size, link: S.chainLinks[e.chain_size - 1], total: S.chainLinks.length }, many ? solve : 0);
+    } else if (e.type === M.CHAIN_NEGATED || e.type === M.CHAIN_DISABLED) {
+      const last = fxQueue[fxQueue.length - 1], ms = base ? Math.max(solve, 520) : 0;
+      if (last && last.kind === "solve" && last.n === e.chain_size) { fxEndAt += ms - last.ms; last.kind = "negate"; last.ms = ms; }
+      else fxPush({ kind: "negate", n: e.chain_size, link: S.chainLinks[e.chain_size - 1], total: S.chainLinks.length }, ms);
+      if (!base) soundOnce("negate");
+    } else if (e.type === M.CHAIN_END) { S.chainLinks = []; fxPush({ kind: "end" }, 0); }
   }
   if (shown.length) { showReveal(shown, p); soundOnce("reveal"); }
   runFx();
+  return base ? Math.max(0, fxEndAt - Date.now()) : 0;
 }
 function showReveal(groups, p) {
   // a small glowing strip that shows the revealed cards for the chosen time, then leaves on its own
@@ -2480,12 +2550,17 @@ function showReveal(groups, p) {
 function runFx() {
   if (fxBusy || !fxQueue.length) return;
   const f = fxQueue.shift();
+  if (f.kind === "end") { chainStage(null); runFx(); return; }
   if (f.kind !== "chain") {
     const li = document.querySelectorAll("#chain li")[f.n - 1];
     if (li) { li.classList.remove("solving", "negated"); void li.offsetWidth; li.classList.add(f.kind === "solve" ? "solving" : "negated"); }
-    runFx(); return;
+    if (!f.ms || !f.link) { runFx(); return; }
+    fxBusy = true; chainSolveShow(f);
+    setTimeout(() => { fxBusy = false; runFx(); }, f.ms);
+    return;
   }
   fxBusy = true;
+  if (f.ms) { chainLinkShow(f); setTimeout(() => { fxBusy = false; runFx(); }, f.ms); return; }
   const e = f.e, box = $("#chainFx");
   const card = el("button", "chain-card"); card.type = "button"; card.setAttribute("aria-label", `Chain ${e.chain_size}: ${name(e.code)}`);
   card.append(cardImg(e.code, name(e.code)), el("b", null, String(e.chain_size)));
@@ -2501,6 +2576,57 @@ function runFx() {
     wrap.classList.add("out");
     setTimeout(() => { wrap.remove(); fxBusy = false; runFx(); }, reduce ? 0 : 240);
   }, reduce ? 500 : PREF.fxMs);
+}
+// ----- the Synapse Link: every chain link arrives on a line of light joined to the one before it, and each link is
+// shown again as it resolves (or is crossed out when it is negated). The duel waits while it plays. -----
+const mineSide = (ctl) => (ctl === (S.team === 2 ? 0 : S.team) ? "me" : "op");
+function chainStage(cls) {
+  const box = $("#chainFx"), old = box.querySelector(".cl-stage");
+  if (old) { old.classList.add("out"); setTimeout(() => old.remove(), 220); }
+  if (!cls) return null;
+  const st = el("div", "cl-stage " + cls); box.replaceChildren(st);
+  return st;
+}
+function clCard(link, n, cls) {
+  const c = el("div", `cl-card ${mineSide(link.controller)} ${cls || ""}`);
+  c.append(cardImg(link.code, name(link.code)));
+  const b = el("b", "cl-n"); b.append(el("span", null, String(n))); c.append(b);
+  return c;
+}
+function chainLinkShow(f) {
+  const e = f.e, n = e.chain_size, st = chainStage("link n" + Math.min(n, 4) + " " + mineSide(e.controller));
+  st.style.setProperty("--ms", f.ms + "ms");
+  // the links so far, the newest last; older ones stand smaller behind the line
+  const row = el("div", "cl-row"), from = Math.max(0, f.links.length - 4);
+  f.links.slice(from).forEach((l, i, a) => {
+    if (!l) return;
+    const last = i === a.length - 1;
+    if (i) { const w = el("i", "cl-wire" + (last ? " live" : "")); w.append(el("u")); row.append(w); }
+    row.append(clCard(l, from + i + 1, last ? "new" : "old"));
+  });
+  const word = el("div", "cl-word"); for (const ch of "CHAIN") word.append(el("span", null, ch)); word.append(el("em", null, String(n)));
+  const cap = el("div", "cl-cap");
+  cap.append(el("strong", null, `${mineSide(e.controller) === "me" && S.mode !== "spec" && S.mode !== "replay" ? "You" : f.name} · ${name(e.code)}`));
+  const ef = effectText(e.code, e.description, e.location); if (ef) cap.append(el("span", null, ef));
+  st.append(word, row, cap, el("i", "cl-ring"));
+  requestAnimationFrame(() => st.classList.add("in"));
+  if (!cardVoice(e.controller, e.code)) Sound.play("chain", n);
+  if (n > 1) Sound.vibrate(30);
+  setTimeout(() => { if (st.isConnected) st.classList.add("out"); }, Math.max(200, f.ms - 200));
+}
+function chainSolveShow(f) {
+  const neg = f.kind === "negate", st = chainStage((neg ? "negate " : "solve ") + mineSide(f.link.controller));
+  st.style.setProperty("--ms", f.ms + "ms");
+  const row = el("div", "cl-row"), card = clCard(f.link, f.n, "new");
+  if (neg) { const x = el("i", "cl-x"); x.append(el("u"), el("u")); card.append(x); }
+  row.append(card);
+  const word = el("div", "cl-word small"); for (const ch of neg ? "NEGATED" : "RESOLVE") word.append(el("span", null, ch)); if (!neg) word.append(el("em", null, String(f.n)));
+  const cap = el("div", "cl-cap"); cap.append(el("strong", null, name(f.link.code)), el("span", null, neg ? `Chain ${f.n} was negated` : `Chain ${f.n} of ${f.total} resolves`));
+  st.append(word, row, cap, el("i", "cl-ring"));
+  requestAnimationFrame(() => st.classList.add("in"));
+  Sound.play(neg ? "negate" : "chainsolve", f.n);
+  if (neg) Sound.vibrate([40, 30, 60]);
+  setTimeout(() => { if (st.isConnected) st.classList.add("out"); }, Math.max(200, f.ms - 200));
 }
 
 // ----- summon glow, boss splash, big damage and OTK (sounds come from audio.js) -----
@@ -2554,6 +2680,10 @@ function flyCapture(p) {
       const r = visRect(placeEl(e.from)); if (!r) continue;
       // face-down on the field, into the Deck, or a card you may not see: it travels face-down
       const hiddenTo = tl === C.LOCATION_DECK || ((tl === C.LOCATION_MZONE || tl === C.LOCATION_SZONE || tl === C.LOCATION_REMOVED) && e.to.position & C.POS_FACEDOWN) || (tl === C.LOCATION_HAND && e.to.controller !== me && !(fl & (C.LOCATION_MZONE | C.LOCATION_SZONE | C.LOCATION_GRAVE)) && S.mode !== "replay");
+      // leaving play: a destroyed card shatters where it stood, a banished one is pulled out of the world, a Tributed one dissolves
+      const R = C.REASON, onField = fl === C.LOCATION_MZONE || fl === C.LOCATION_SZONE;
+      const fx = tl === C.LOCATION_REMOVED ? "banish" : tl === C.LOCATION_GRAVE && e.reason & R.DESTROY ? (e.reason & R.BATTLE ? "battle" : "destroy") : onField && e.reason & R.RELEASE && !(e.reason & R.DESTROY) ? "release" : "";
+      if (fx && (onField || fl === C.LOCATION_HAND || fx === "banish")) { out.push({ r, fx, code: e.code && !hiddenTo ? e.code : 0, op: e.from.controller !== me }); continue; }
       out.push({ r, to: e.to, code: e.code && !hiddenTo ? e.code : 0, op: e.to.controller !== me });
     } else if (e.type === M.DRAW && e.drawn && e.drawn.length) {
       const r = visRect(placeEl({ controller: e.player, location: C.LOCATION_DECK, sequence: 0 })); if (!r) continue;
@@ -2566,6 +2696,7 @@ function flyRun(list) {
   let L = $("#flyFx"); if (!L) { L = el("div", "fly-fx"); L.id = "flyFx"; L.setAttribute("aria-hidden", "true"); document.body.append(L); }
   const me = S.team === 2 ? 0 : S.team;
   list.forEach((it, i) => {
+    if (it.fx) { leaveFx(L, it, i); return; }
     let dest;
     if (it.draw != null) { const h = it.draw === me ? $("#myHand") : $("#opHand"); dest = h.children[h.children.length - 1 - it.back]; }
     else { const z = placeEl(it.to); dest = z && (z.classList.contains("zone") ? z.querySelector(":scope > .card") || z : z); }
@@ -2590,6 +2721,48 @@ function flyRun(list) {
     const end = () => { if (done) return; done = true; g.remove(); if (real) real.style.visibility = ""; };
     a.onfinish = end; a.oncancel = end; setTimeout(end, T + delay + 120);
   });
+}
+/** A card leaving play, shown where it stood. destroy/battle: it cracks and bursts into shards; banish: it is
+ *  squeezed into a line of light and drawn upward; release: it fades into rising motes. */
+const SHARDS = ["0% 0%, 58% 0%, 40% 44%, 0% 30%", "58% 0%, 100% 0%, 100% 36%, 40% 44%", "0% 30%, 40% 44%, 28% 100%, 0% 100%", "40% 44%, 100% 36%, 100% 70%, 62% 78%", "40% 44%, 62% 78%, 52% 100%, 28% 100%", "62% 78%, 100% 70%, 100% 100%, 52% 100%"];
+const SHARD_TO = [[-.9, -.8, -38], [.9, -.9, 44], [-1, .5, -62], [1.1, .15, 30], [-.2, 1.1, 24], [.8, 1, 70]];
+function leaveFx(L, it, i) {
+  const r = it.r, delay = Math.min(i, 6) * 80;
+  const box = el("div", "leave-fx " + it.fx + (it.op ? " op" : ""));
+  Object.assign(box.style, { left: r.left + "px", top: r.top + "px", width: r.width + "px", height: r.height + "px" });
+  const face = () => { const c = el("div", "lf-card card" + (it.code ? "" : " back" + (it.op ? " op-back" : ""))); if (it.op) c.dataset.side = "op"; if (it.code) c.append(cardImg(it.code, "")); return c; };
+  L.append(box);
+  const opt = (d, e = "cubic-bezier(.2,.7,.3,1)") => ({ duration: d, delay, easing: e, fill: "both" });
+  let total = 620;
+  if (it.fx === "destroy" || it.fx === "battle") {
+    const whole = face(); box.append(whole);
+    whole.animate([{ transform: "scale(1)", opacity: 1 }, { transform: "scale(1.08)", opacity: 1, offset: .7 }, { transform: "scale(1.08)", opacity: 0 }], opt(170, "ease-out"));
+    if (it.fx === "battle") { const sl = el("i", "lf-slash"); box.append(sl); sl.animate([{ transform: "rotate(-34deg) scaleX(0)", opacity: 1 }, { transform: "rotate(-34deg) scaleX(1)", opacity: 1, offset: .5 }, { transform: "rotate(-34deg) scaleX(1)", opacity: 0 }], opt(260, "ease-out")); }
+    const crack = el("i", "lf-flash"); box.append(crack);
+    crack.animate([{ opacity: 0, transform: "scale(.6)" }, { opacity: .95, transform: "scale(1.15)", offset: .35 }, { opacity: 0, transform: "scale(1.9)" }], { ...opt(420, "ease-out"), delay: delay + 110 });
+    SHARDS.forEach((poly, k) => {
+      const sh = face(); sh.classList.add("lf-shard"); sh.style.clipPath = `polygon(${poly})`; box.append(sh);
+      const [dx, dy, rot] = SHARD_TO[k], d = Math.max(r.width, 40);
+      sh.animate([{ transform: "translate(0,0) rotate(0)", opacity: 0, offset: 0 }, { transform: "translate(0,0) rotate(0)", opacity: 1, offset: .02 },
+        { transform: `translate(${dx * d * .9}px, ${dy * d * .9 + d * .25}px) rotate(${rot}deg) scale(.7)`, opacity: 0, offset: 1 }], { ...opt(520, "cubic-bezier(.15,.6,.4,1)"), delay: delay + 150 });
+    });
+    total = 700;
+  } else if (it.fx === "banish") {
+    const c = face(); box.append(c);
+    const beam = el("i", "lf-beam"), ring = el("i", "lf-ring"); box.append(ring, beam);
+    c.animate([{ transform: "scale(1,1)", opacity: 1 }, { transform: "scale(1.06,1.02)", opacity: 1, offset: .25 }, { transform: "scale(.04,1.25)", opacity: .9, offset: .7 }, { transform: "translateY(-70%) scale(.02,1.6)", opacity: 0 }], opt(560, "cubic-bezier(.5,0,.6,1)"));
+    beam.animate([{ transform: "scaleY(.2)", opacity: 0 }, { transform: "scaleY(1)", opacity: 1, offset: .6 }, { transform: "translateY(-60%) scaleY(1.7)", opacity: 0 }], opt(620, "ease-in"));
+    ring.animate([{ transform: "scale(.3)", opacity: 0 }, { transform: "scale(1)", opacity: .9, offset: .4 }, { transform: "scale(1.7)", opacity: 0 }], opt(600, "ease-out"));
+    total = 680;
+  } else {
+    const c = face(); box.append(c);
+    c.animate([{ transform: "scale(1)", opacity: 1 }, { transform: "translateY(-12%) scale(.86)", opacity: 0 }], opt(480, "ease-in"));
+    for (let k = 0; k < 7; k++) {
+      const m = el("i", "lf-mote"); m.style.left = 12 + k * 12.5 + "%"; m.style.top = 30 + (k * 37) % 50 + "%"; box.append(m);
+      m.animate([{ transform: "translateY(0) scale(.4)", opacity: 0 }, { transform: "translateY(-40%) scale(1)", opacity: 1, offset: .35 }, { transform: `translateY(-${130 + k * 14}%) scale(.3)`, opacity: 0 }], { ...opt(560, "ease-out"), delay: delay + k * 28 });
+    }
+  }
+  setTimeout(() => box.remove(), total + delay + 80);
 }
 // the same sound isn't stacked when one effect moves many cards at once
 const sndAt = {};
@@ -2650,7 +2823,8 @@ function bigFx(p) {
       {
         S.lastBlow = Number(e.code); S.lastBlowBy[e.controller] = Number(e.code);
         const fx = fxOf(sideOf(e.controller)), sig = fx.signature.has(cc(e.code));
-        if (!cardVoice(e.controller, e.code)) Sound.play(sig ? "boss" : e.chain_size > 1 ? "chain" : "activate", e.chain_size);
+        if (chainMs() && !p.seek) { if (sig) Sound.play("boss"); }      // the chain link animation plays its own sound, in turn
+        else if (!cardVoice(e.controller, e.code)) Sound.play(sig ? "boss" : e.chain_size > 1 ? "chain" : "activate", e.chain_size);
         if (fx.aces.has(cc(e.code))) showAce(e.code, e.controller, fx);
         else if (sig) splash(e.code, name(e.code), viewerFree ? "Signature card · KodeX Premium" : "Signature card", "boss sig");
         if (!fx.aces.has(cc(e.code)) && PREF.staples) staple(name(e.code), e.code, artUrl(e.code), document.getElementById(zoneId(e.controller, e.location, e.sequence)) || document.querySelector(`.duelist.${sideOf(e.controller)}`));
@@ -2682,7 +2856,8 @@ function bigFx(p) {
         break;
       }
       case M.MOVE: {
-        if (e.to && e.to.location === C.LOCATION_GRAVE && e.reason & C.REASON.DESTROY) Sound.play("destroy");
+        if (e.to && e.to.location === C.LOCATION_GRAVE && e.reason & C.REASON.DESTROY) { soundOnce(e.reason & C.REASON.BATTLE ? "destroybattle" : "destroy"); if (e.from && e.from.location & (C.LOCATION_MZONE | C.LOCATION_SZONE)) Sound.vibrate(35); }
+        else if (e.to && e.to.location !== C.LOCATION_REMOVED && e.reason & C.REASON.RELEASE && e.from && e.from.location & (C.LOCATION_MZONE | C.LOCATION_SZONE)) soundOnce("release");
         else if (e.to && e.to.location === C.LOCATION_GRAVE && !(e.from && e.from.location === C.LOCATION_GRAVE)) soundOnce("tograve");
         else if (e.to && e.to.location === C.LOCATION_REMOVED) soundOnce("banish");
         else if (e.to && e.to.location === C.LOCATION_HAND && e.from && (C.LOCATION_DECK | C.LOCATION_GRAVE | C.LOCATION_REMOVED) & e.from.location) soundOnce("search");
@@ -2766,6 +2941,7 @@ if (window.parent === window) addEventListener("beforeunload", (e) => { if (S.ac
 window.__duel = S; // for automated tests and debugging
 window.__arena = { fxEvents, showReveal, toggleSide, watchCombo, restartDuel, tossShow };
 window.__arenaFx = (p) => bigFx(p);
+window.__arenaLeave = (fx, id, code) => { const z = document.getElementById(id), r = z && visRect(z.querySelector(".card") || z); if (r) flyRun([{ r, fx, code: code || 0, op: /^op/.test(id) }]); return !!r; };
 window.__arenaFin = (side, style) => runFinisher({ side, style, mat: $("#field"), art: style === "meteor" ? artUrl(27204311) : "" });
 window.__arenaDmg = (side, lvl) => matDamage(side, lvl);
 boot();
@@ -2929,6 +3105,8 @@ window.addEventListener("message", (e) => {
   if (d && d.kx === "audio" && d.premium === true) Sound.setCustom(d);
   // a combo made in KodeX: play it (and keep it with the replays)
   if (d && d.kx === "combo" && d.combo) watchCombo(d.combo, { keep: d.keep !== false });
+  // a combo KodeX read from a MEIOCG combo image: kept in the Replays list without opening it
+  if (d && d.kx === "comboKeep" && d.combo) { const c = cleanCombo(d.combo); if (c) comboKeep(c); }
   // practise a combo for real: its starting hand becomes the opening hand of the playtest
   if (d && d.kx === "practice" && Array.isArray(d.hand) && S.deck) {
     const left = S.deck.main.slice(); S.testHand.clear();
@@ -3139,6 +3317,8 @@ function bindPrefs() {
   const t = $("#prefFxMs"), st = $("#prefStaples");
   if (t) { t.value = String(PREF.fxMs); t.addEventListener("change", () => { PREF.fxMs = Math.max(300, Math.min(5000, Number(t.value) || 1000)); save("duel:pref", PREF); }); }
   if (st) { st.checked = PREF.staples; st.addEventListener("change", () => { PREF.staples = st.checked; save("duel:pref", PREF); }); }
+  const cm = $("#prefChainMs");
+  if (cm) { cm.value = String(PREF.chainMs == null ? 900 : PREF.chainMs); if (!cm.value) cm.value = "900"; cm.addEventListener("change", () => { PREF.chainMs = Math.max(0, Math.min(3000, Number(cm.value) || 0)); save("duel:pref", PREF); }); }
   const po = $("#prefOpening"); po.checked = PREF.opening !== false; po.addEventListener("change", () => { PREF.opening = po.checked; save("duel:pref", PREF); });
   const to = $("#prefTapOut"), vb = $("#vibeOn");
   if (to) { to.checked = PREF.tapOut !== false; to.addEventListener("change", () => { PREF.tapOut = to.checked; save("duel:pref", PREF); }); }
