@@ -212,7 +212,7 @@ async function cbPayload(c){const d=c.deckId?deckById(c.deckId):null,pc=id=>Numb
  const key=c.intro.key||used[used.length-1]||'',bg=c.intro.bg?((await kv('get','cb_bg_'+c.id))||{}).d||'':'';
  return{id:c.id,title:cbTitle(c),deck:d?d.name:'',by:(typeof kxpRaw==='function'&&kxpRaw().name)||'',hand:c.hand.map(pc).filter(Boolean),
   extra:d?copies(d,'extra').map(x=>Number(pcOf(x))||0).filter(Boolean).slice(0,15):[],deckSize:d?Math.max(c.hand.length,copies(d,'main').length):40,
-  lines:c.lines.map(l=>l.map(n=>({cards:n.cards.map(x=>({c:pc(x.c),a:x.a})).filter(x=>x.c),note:n.note||''})).filter(n=>n.cards.length)).filter(l=>l.length),
+  lines:c.lines.map(l=>l.map(n=>({cards:n.cards.map(x=>({c:pc(x.c),a:x.a,z:x.z,p:x.p,f:x.f,s:x.s})).filter(x=>x.c),note:n.note||''})).filter(n=>n.cards.length)).filter(l=>l.length),
   intro:{ms:Math.round((+c.intro.s||0)*1000),art:pc(c.intro.art||key),key:pc(key),bg}}}
 /** Opens the Arena and hands it a message once it is ready. */
 function cbSend(msg,hash){const f=$('arenaFrame'),was=L.includes('arena')&&f.dataset.ready;

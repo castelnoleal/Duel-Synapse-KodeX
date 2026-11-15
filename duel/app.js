@@ -575,6 +575,11 @@ function comboAd() {
   const d = $("#comboAd"); if (!d.open) d.showModal();
 }
 $("#comboAdClose").addEventListener("click", () => $("#comboAd").close());
+// the Combo Generator, one tap from the lobby: in the app it opens Combos in KodeX; in a browser it shows what Combos do
+$("#comboGen").addEventListener("click", () => {
+  if (hostApp && window.parent !== window) { try { window.parent.postMessage({ kx: "combos" }, "*"); return; } catch { /* shown below instead */ } }
+  comboAd();
+});
 $("#replayOpen").addEventListener("click", rpOpenLib);
 $("#rpLibClose").addEventListener("click", () => $("#rpLib").close());
 $("#replayFile2").addEventListener("change", async (e) => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (!f) return; if (f.size > 8e6) { toast("That file is too large to be a replay."); return; } const b = new Uint8Array(await f.arrayBuffer()); await rpKeep(b, [f.name.replace(/\.yrpx?$/i, "").replace(/_/g, " ")], "file"); $("#rpLib").close(); watchReplay(b.slice().buffer); });
@@ -1491,6 +1496,7 @@ function render(p) {
   $("#quickBtn").hidden = S.mode === "replay" || S.mode === "spec" || !!p.ended;
   const st2 = $("#status");
   st2.classList.toggle("mine", mine);
+  { const cap = $("#rbCap"); if (cap) { const on = S.mode === "replay" && !!p.combo; cap.hidden = !on; if (on) cap.textContent = `${p.combo.what || p.combo.caption || ""}${p.combo.note ? " · " + p.combo.note : ""}`; } }
   if (S.mode === "replay" && p.combo) setStatus(`${p.combo.step ? `Step ${p.combo.step}/${p.combo.steps} · ` : ""}${p.combo.caption}${p.combo.note ? " · " + p.combo.note : ""}`);
   else if (S.mode === "replay" && !p.ended) setStatus(`Replay · ${p.names.join(" vs ")}${p.waitingFor >= 0 ? ` · ${p.names[p.waitingFor]} is deciding` : ""}`);
   else if (p.ended) setStatus("Duel over.");

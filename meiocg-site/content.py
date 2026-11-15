@@ -3,7 +3,7 @@
 Card names in [[double brackets]] must match KodeX card names exactly; build.py checks every one.
 Every combo step was checked against the card text in the KodeX database (Nov 2026)."""
 
-UPDATED = "2026-11-07"
+UPDATED = "2026-11-15"
 BANLIST = "OCG list of Oct 1, 2026"
 PERIOD = "Oct 7 – Nov 6, 2026"
 META_SRC = ("Share of top-placing decks at Japanese OCG events, Oct 7 – Nov 6, 2026 (467 decks), from "
@@ -354,6 +354,16 @@ WHY = dict(
         dict(i="💴", t="Live prices", d="Yuyu-tei standard prices with history, in yen, pesos and dollars. Every deck page on meiocg.org shows its build price.", tag="On meiocg.org"),
         dict(i="🏅", t="Player profile", d="Your name, title, icon and a frame that levels up as you use KodeX, shown to opponents in the Arena. Opt in to appear on MEIOCG Players."),
         dict(i="⚔️", t="Duel Synapse Arena", d="Play your decks in the browser or the app: against Synapse AI, a practice dummy, or a friend online."),
+        dict(i="🧬", t="Combo Generator", d="Map a line from any starting hand. KodeX reads each card and offers what it can do. Play the combo as a replay, or save it as a combo sheet.", tag="App only"),
+    ],
+    fresh=[
+        dict(k="chain", t="Chain links", d="Every activation in a chain arrives as its own link and the duel waits for it. Negated links are crossed out. You set the pace."),
+        dict(k="combo", t="Combo sheets", d="Each play is a step: what it used, the card, what it led to. Long combos get a taller sheet, and the sheet carries the combo so KodeX can load it back.", tag="App only"),
+        dict(k="replay", t="Replay to combo", d="Pick a turn from any saved replay and KodeX maps it out, with every card in the zone and position it had in the duel.", tag="App only"),
+        dict(k="field", t="Field themes", d="Eight fields to play on, from Card Table to Neon Grid. Your recorded clips use the same theme."),
+        dict(k="status", t="Status effects", d="Tap a card on the field to see what is affecting it right now, and which card is responsible."),
+        dict(k="clip", t="Video clips", d="Record a replay or a combo as a video with play-by-play, the card in play, and game sound.", tag="Premium"),
+        dict(k="turn", t="Any way you hold it", d="The Arena and KodeX rearrange themselves when you turn your phone, and use the room on tablets and desktops."),
     ],
     arena=dict(
         intro=["Duel Synapse Arena runs a full rules engine in your browser, so every duel follows the real card rulings. Open any KodeX deck in it with one tap."],
@@ -362,7 +372,10 @@ WHY = dict(
             "**Goldfish testing** against a dummy that never responds, and you can **choose your opening hand**.",
             "Synapse AI can play **any of your saved decks**, so you can practise against the meta decks on meiocg.org.",
             "**Online rooms** with an invite link, spectators, chat and rematch.",
-            "Replays you can save (Premium) and watch at ½× to 4×.",
+            "Replays you can save (Premium) and watch at ½× to 4×, rewind, and view from either side.",
+            "**Chain links** play one at a time, and destroyed, banished and Tributed cards each leave play their own way.",
+            "**Status effects** on any card on the field: what affects it, and why.",
+            "A coin toss and player showcase before each duel, and an always-on button for chain prompts: All, Less or Off.",
             "Every card in the duel links to its KodeX rulings page.",
         ],
     ),
@@ -372,6 +385,8 @@ WHY = dict(
         ("Card scanner", "4 scans per day", "Unlimited"), ("Ads", "Yes", "No ads"),
         ("Player profile and icon frames earned by use", True, True), ("Own profile picture, animated banners, Premium frame", False, True),
         ("Premium Studio: skins, showdowns, Ace cards, emotes", False, True), ("Save duel replays", False, True),
+        ("Field themes", "4 themes", "All 8"), ("Record replays and combos as video", False, True),
+        ("Combo Generator, combo sheets, replay to combo", "In the app", "In the app"),
     ],
     not_=[
         "Not an official Konami product. KodeX is an independent fan project.",
@@ -385,6 +400,8 @@ WHY = dict(
         ("Can I import my existing decks?", "Yes: .ydk files, ydke:// links and plain text lists like \"3 Ash Blossom & Joyous Spring\" all work."),
         ("Where do rulings come from?", "The official Q&A database, mirrored and kept up to date by KodeX, with translations."),
         ("What is MEIOCG Players?", "A page on meiocg.org that lists KodeX players who opt in from their profile, ranked by how active they are."),
+        ("What is a combo sheet?", "An image of a combo made in the KodeX app: the starting hand, each step, and the final board. It carries a combo code, so opening the image in KodeX loads the combo and its replay."),
+        ("Can I use Combos in the browser?", "Duels in the Arena are free in the browser. The Combo Generator is part of the Android app."),
         ("Who makes KodeX?", "Meta Insider OCG (MEIOCG), a Philippine OCG publication. Contact: metainsiderocg@gmail.com."),
     ],
 )
