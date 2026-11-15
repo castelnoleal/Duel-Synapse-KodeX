@@ -1,11 +1,50 @@
 /* KodeX 9.8 (v65) */
 /* in the app the screen never zooms (pinch and double-tap belong to the app, not to a web page) */
-html.kx-app,html.kx-app body{touch-action:pan-x pan-y;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+html.kx-app,
+html.kx-app body {
+  touch-action: pan-x pan-y;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
 /* combos: image import, and the note shown after one is read */
-.cb-top{flex-wrap:wrap}
-.cb-top .cb-two{display:flex;gap:8px;flex-wrap:wrap}
-.cb-top .cb-two .btn{flex:1 1 150px;min-height:44px}
-.cb-in h3{margin:0 0 6px}.cb-in .cb-in-l{display:grid;gap:8px;margin:10px 0}
-.cb-in .cb-in-i{display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:12px;background:var(--panel2);border:1px solid var(--line)}
-.cb-in .cb-in-i b{display:block;font-size:.95rem}.cb-in .cb-in-i small{color:var(--mut);font-size:.8rem}
-.cb-in .cb-in-i span{flex:1;min-width:0}
+.cb-top {
+  flex-wrap: wrap;
+}
+.cb-top .cb-two {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.cb-top .cb-two .btn {
+  flex: 1 1 150px;
+  min-height: 44px;
+}
+.cb-in h3 {
+  margin: 0 0 6px;
+}
+.cb-in .cb-in-l {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0;
+}
+.cb-in .cb-in-i {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--panel2);
+  border: 1px solid var(--line);
+}
+.cb-in .cb-in-i b {
+  display: block;
+  font-size: 0.95rem;
+}
+.cb-in .cb-in-i small {
+  color: var(--mut);
+  font-size: 0.8rem;
+}
+.cb-in .cb-in-i span {
+  flex: 1;
+  min-width: 0;
+}

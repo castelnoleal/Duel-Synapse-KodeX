@@ -1,0 +1,106 @@
+  <!-- ===== Master Editor: Code, Diagnose, Config (scripts/editor.master.*) ===== -->
+  <section class="pane me-pane" data-pane="code" hidden>
+   <div class="me-head">
+    <div><h1>Code</h1><p class="lead">Every part of KodeX, one module at a time. Edits show in the live view as you type: style changes at once, everything else after a short pause. Your edits are kept on this device until you reset them.</p></div>
+    <div class="me-seg me-only-narrow" role="tablist" aria-label="Show"><button class="on" data-split="code">Code</button><button data-split="live">Live view</button></div>
+   </div>
+   <div class="me-split">
+    <div class="me-left">
+     <div class="ce">
+      <div class="ce-files">
+       <input id="ceFilter" type="search" placeholder="Find a module or text in all modules" autocomplete="off">
+       <div class="ce-list" id="ceList"></div>
+      </div>
+      <div class="ce-main">
+       <div class="ce-bar">
+        <b id="ceName">–</b><span id="ceMod" class="ce-mod" hidden>edited</span>
+        <span class="ce-grow"></span>
+        <select id="ceOutline" aria-label="Jump to"><option value="">Jump to…</option></select>
+       </div>
+       <div class="ce-tools">
+        <input id="ceFind" type="search" placeholder="Find in this module (Ctrl+F)" autocomplete="off">
+        <button class="btn sm" id="ceFindPrev" aria-label="Previous match">↑</button><button class="btn sm" id="ceFindNext" aria-label="Next match">↓</button>
+        <input id="ceRep" type="text" placeholder="Replace with" autocomplete="off">
+        <button class="btn sm" id="ceRepOne">Replace</button><button class="btn sm" id="ceRepAll">All</button>
+        <input id="ceLine" type="number" min="1" placeholder="Line" aria-label="Go to line (Ctrl+G)">
+       </div>
+       <div class="ce-body" id="ceBody">
+        <div class="ce-cur" id="ceCur"></div>
+        <pre class="ce-gut" id="ceGut" aria-hidden="true"></pre>
+        <textarea id="ceTa" spellcheck="false" wrap="off" autocapitalize="off" autocomplete="off" aria-label="Module source"></textarea>
+       </div>
+       <div class="ce-foot"><span id="cePos">Ln 1, Col 1</span><span id="ceChg"></span><span class="ce-grow"></span>
+        <button class="btn sm" id="ceRevert">Undo all edits to this module</button></div>
+      </div>
+     </div>
+     <div class="card me-changes"><h2>Lines you changed <em id="chCount"></em></h2><div id="chList" class="ch-list"><p class="sub">Nothing changed yet.</p></div></div>
+     <div class="card"><h2>Save your work</h2>
+      <div class="row me-row">
+       <button class="btn p" id="meDlChanged">Download changed modules</button>
+       <button class="btn" id="meDlAll">Download all modules (ZIP)</button>
+       <button class="btn" id="meDlFree">Free page</button><button class="btn" id="meDlPrem">Premium page</button>
+       <button class="btn" id="meReset">Reset all edits</button>
+      </div>
+      <p class="sub">To keep an edit in the project, put the downloaded module files in <code>app/src</code> and run <code>python3 scripts/build_kodex.py build</code>. The Build step here also uses your edited code.</p>
+      <div class="status" id="stCode">Ready.</div>
+     </div>
+    </div>
+    <div class="me-right" id="lvDock"></div>
+   </div>
+  </section>
+
+  <section class="pane me-pane" data-pane="diag" hidden>
+   <div class="me-head"><div><h1>Diagnose</h1><p class="lead">Finds problems in the code and on screen. Open any screen in the live view and check it, or let the editor go through every screen at the size you picked. Tap a problem to see it in the live view or jump to the line.</p></div>
+    <div class="me-seg me-only-narrow" role="tablist" aria-label="Show"><button class="on" data-split="code">Problems</button><button data-split="live">Live view</button></div></div>
+   <div class="me-split">
+    <div class="me-left">
+     <div class="row me-row">
+      <button class="btn p" id="dgCode">Check the code</button>
+      <button class="btn p" id="dgScreen">Check this screen</button>
+      <button class="btn g" id="dgTour">Check every screen</button>
+      <button class="btn" id="dgInspect" aria-pressed="false">Inspect: tap something in the live view</button>
+      <button class="btn" id="dgClear">Clear</button>
+     </div>
+     <div class="dg-sum" id="dgSum"></div>
+     <div class="card"><h2>Errors while the app runs <em id="dgErrN"></em></h2><div id="dgErr" class="dg-list"><p class="sub">No errors so far.</p></div></div>
+     <div class="card"><h2>Problems found</h2><div id="dgOut" class="dg-list"><p class="sub">Run a check.</p></div></div>
+     <div class="card" id="dgInsCard" hidden><h2>What you tapped</h2><div id="dgIns"></div></div>
+    </div>
+    <div class="me-right" id="lvDock2"></div>
+   </div>
+  </section>
+
+  <section class="pane me-pane" data-pane="cfg" hidden>
+   <h1>Config</h1><p class="lead">Version, links used in the app, the modules and their order, and the differences between the free and Premium editions.</p>
+   <div class="card"><h2>Version</h2>
+    <div class="g4"><label class="f">Version number<input type="number" id="cfVer" min="1"></label><label class="f">Build shown in the app<input id="cfBuild"></label></div>
+    <p class="sub">KodeX shows "KODEX-<i>build</i>" (Premium adds ".1"). Built files are named Kodex_Mei_Production_v<i>version</i>.html and Kodex_Mei_Premium_v<i>version</i>.html.</p></div>
+   <div class="card"><h2>Links in the app</h2><p class="sub">Every web address in the code. Changing one here changes it everywhere it is used.</p>
+    <input id="cfLinkFilter" type="search" placeholder="Filter links" autocomplete="off"><div id="cfLinks" class="cf-links"></div></div>
+   <div class="card"><h2>Modules</h2><p class="sub">KodeX is put together from these files in this order. New modules go in before <code>0570-html.html</code>.</p>
+    <div class="row me-row"><input id="cfNewName" placeholder="e.g. 0900-my-fix.css"><button class="btn" id="cfNew">Add module</button></div>
+    <div id="cfMods" class="cf-mods"></div></div>
+   <div class="card"><h2>Free and Premium</h2><p class="sub">Premium is the free page with these replacements. Each "find" must appear exactly once.</p><div id="cfEd" class="cf-ed"></div></div>
+  </section>
+
+  <!-- the live view: one device frame, moved into whichever pane is open -->
+  <div class="lv" id="lv">
+   <div class="lv-bar">
+    <select id="lvDev" aria-label="Device">
+     <option value="412x915">Phone · 412×915</option>
+     <option value="360x640">Small phone · 360×640</option>
+     <option value="390x844">iPhone · 390×844</option>
+     <option value="820x1180">Tablet · 820×1180</option>
+     <option value="1280x800">Laptop · 1280×800</option>
+     <option value="1920x1080">Desktop · 1920×1080</option>
+     <option value="fill">Browser · fill this space</option>
+    </select>
+    <button class="btn sm" id="lvRot" aria-label="Turn the device">⟳ Turn</button>
+    <select id="lvEd" aria-label="Edition"><option value="free">Free</option><option value="prem">Premium</option></select>
+    <button class="btn sm" id="lvReload">Reload</button>
+    <label class="lv-live"><input type="checkbox" id="lvLive" checked> Live</label>
+    <span class="lv-size" id="lvSize"></span>
+   </div>
+   <div class="lv-stage" id="lvStage"><div class="lv-dev" id="lvDevBox"><div class="lv-notch"></div><iframe id="lvF" title="KodeX live view"></iframe></div></div>
+   <div class="lv-note" id="lvNote">Builds the app from your code.</div>
+  </div>

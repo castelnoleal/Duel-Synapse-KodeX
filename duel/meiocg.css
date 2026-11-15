@@ -864,3 +864,64 @@ html.no-zoom, html.no-zoom body { touch-action: pan-x pan-y; -webkit-text-size-a
 .replay-bar .rb-cap { font: 700 12.5px/1.3 system-ui, sans-serif; color: #eef0ff; text-align: center; padding: 2px 6px 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .replay-bar .rb-cap[hidden] { display: none; }
 @media (orientation: portrait), (max-width: 639px) { body.replaying.combo-play #status { visibility: hidden; } }
+
+/* ---------- v68: dialogs keep their padding and never squash their parts ---------- */
+.dlg[open] > * { flex-shrink: 0; }
+.dlg[open] > .pile-body, .dlg[open] > .rp-list, .dlg[open] > .order-list { flex-shrink: 1; }
+.dlg.rec-dlg, .dlg.rp-lib, .dlg.order-dlg, #ask { padding-bottom: 14px; }
+.dlg.rec-dlg > :not(.pile-head), .dlg.rp-lib > :not(.pile-head), .dlg.order-dlg > :not(.pile-head), #ask > * { margin-left: 16px; margin-right: 16px; }
+.dlg.rec-dlg > p.hint:first-of-type, .dlg.rp-lib > p.hint:first-of-type, .dlg.order-dlg > p.hint:first-of-type { margin-top: 12px; margin-bottom: 10px; }
+/* the record dialog scrolls as a whole; its heading stays */
+.dlg.rec-dlg[open] { overflow-y: auto; overscroll-behavior: contain; max-height: min(88vh, calc(100dvh - 24px)); }
+.dlg.rec-dlg > .pile-head { position: sticky; top: 0; z-index: 2; background: #121734; }
+.rec-fmt { margin-top: 4px; margin-bottom: 6px; }
+.dlg .dlg-actions { flex-wrap: wrap; align-items: center; }
+.dlg .dlg-actions .btn { min-height: 42px; height: auto; padding: 0 18px; display: inline-flex; align-items: center; justify-content: center; line-height: 1.2; white-space: nowrap; border-radius: 12px; }
+/* replays: the name gives way, the buttons keep their shape */
+.rp-list li { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 12px; }
+.rp-list .rp-t { flex: 1 1 140px; min-width: 0; }
+.rp-list .rp-t b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rp-list .rp-ac { display: flex; gap: 6px; flex: none; flex-wrap: wrap; justify-content: flex-end; }
+.rp-list .rp-ac .btn { min-height: 38px; height: 38px; padding: 0 14px; display: inline-flex; align-items: center; border-radius: 12px; }
+.rp-list .rp-ac .btn.icon, .rp-list .rp-ac .icon { width: 38px; padding: 0; justify-content: center; }
+.pile-head .icon, .dlg .pile-head button.icon { width: 36px; height: 36px; min-width: 36px; flex: none; border-radius: 50%; display: grid; place-items: center; padding: 0; }
+/* the chain so far: one row of links above the choices, each with its name and effect in two short lines */
+.sheet > .chain-list { display: flex; gap: 8px; margin: 0 14px 8px; padding: 0 0 4px; overflow-x: auto; overscroll-behavior: contain; scrollbar-width: thin; flex: none; }
+.sheet > .chain-list li { flex: 0 0 auto; width: min(300px, 78vw); grid-template-columns: 24px 30px minmax(0, 1fr); padding: 6px 8px; }
+.sheet > .chain-list li strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px; line-height: 1.25; }
+.sheet > .chain-list li em { font-size: 11.5px; line-height: 1.3; font-weight: 600; color: #b9c4ff; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.sheet > .chain-list li .th { width: 30px; }
+/* the cards to choose from: the label under a card stays two short lines */
+.sheet .opt { min-width: 0; }
+.sheet .opt .opt-l, .sheet .opt > span, .sheet .opt > small { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; line-height: 1.25; }
+/* landscape: the prompt is wide enough for the chain and the cards side by side, and the cards scroll sideways */
+@media (orientation: landscape) and (min-width: 640px) {
+  .sheet { width: min(620px, calc(100vw - var(--R) - 30px)); max-height: calc(100dvh - 70px); bottom: 62px; }
+  .sheet .sheet-body { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; justify-content: flex-start; padding-bottom: 6px; }
+  .sheet > .chain-list li { width: 250px; }
+}
+/* folded (choosing a zone on the field): back to the left column, so the field's own zones can be tapped */
+@media (orientation: landscape) and (min-width: 640px) {
+  .sheet.min { width: var(--L, 240px); max-width: calc(100vw - 16px); }
+}
+@media (orientation: landscape) and (min-width: 640px) and (max-height: 460px) {
+  .sheet { bottom: 54px; max-height: calc(100dvh - 62px); }
+  .sheet .sheet-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+}
+/* landscape replays and combos: the controls sit in the right-hand column instead of under the field, so the field
+   keeps its full height (the bar used to push the top row of zones off the screen) */
+@media (orientation: landscape) and (min-width: 640px) {
+  body.replaying #table { padding-bottom: 8px; }
+  .replay-bar { left: auto; right: 8px; transform: none; width: calc(var(--R) - 14px); bottom: calc(8px + env(safe-area-inset-bottom, 0px)); padding: 6px; border-radius: 16px; }
+  .replay-bar.dim { transform: translateY(12px); }
+  .replay-bar .rb-row { flex-wrap: wrap; justify-content: center; gap: 4px; }
+  .replay-bar .rb-b { min-width: 34px; height: 34px; padding: 0 6px; }
+  .replay-bar .rb-pos { flex: 1 1 100%; order: -1; font-size: 11px; }
+  .replay-bar .rb-cap { font-size: 11.5px; -webkit-line-clamp: 3; }
+  body.replaying .arena .turnbar .phases, body.replaying #table > .emote-fab { display: none; }
+}
+@media (orientation: landscape) and (min-width: 640px) and (max-height: 460px) {
+  .replay-bar .rb-b { min-width: 30px; height: 30px; padding: 0 4px; font-size: 12px; }
+  .rb-seek { height: 14px; }
+  body.replaying .arena .turnbar { display: none; }
+}

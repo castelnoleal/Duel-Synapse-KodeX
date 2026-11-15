@@ -1,21 +1,186 @@
 /* KodeX 9.9 (v66): Combos are part of the app; a browser sees how the feature works and where to get it */
-.cad{display:grid;gap:12px}
-.cad h3{margin:0;font-size:1.2rem}
-.cad>p{margin:0;color:var(--mut);font-size:.9rem;line-height:1.5}
-.cad .btn.p{min-height:48px;text-decoration:none;justify-content:center}
-.cad-list{margin:0;padding:0;list-style:none;display:grid;gap:7px;font-size:.88rem;line-height:1.4}
-.cad-list li{padding-left:16px;position:relative}.cad-list li::before{content:"◆";position:absolute;left:0;top:3px;font-size:.6rem;color:#f0b429}
-.cad-scene{display:grid;gap:10px;padding:14px;border-radius:16px;background:linear-gradient(160deg,#141a44,#0a0d1f);border:1px solid #f0b42944;overflow:hidden}
-.cad-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;opacity:0;animation:cadRow 9s ease-in-out infinite}
-.cad-row span{flex:1 1 100%;font-size:.66rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#9aa3c7}
-.cad-row i{width:30px;aspect-ratio:59/86;border-radius:4px;background:linear-gradient(160deg,#6f7dff,#2a3170);border:1px solid #ffffff55;opacity:0;animation:cadPop 9s ease-out infinite}
-.cad-row i:nth-of-type(2n){background:linear-gradient(160deg,#38c9a6,#14463c)}.cad-row i:nth-of-type(3n){background:linear-gradient(160deg,#f0b429,#6b4a08)}
-.cad-row b{color:#f0b429;font-size:15px;opacity:0;animation:cadPop 9s ease-out infinite}
-.cad-row em{font-style:normal;font-weight:800;font-size:.72rem;padding:8px 10px;border-radius:999px;background:#f0b429;color:#141005;opacity:0;animation:cadPop 9s ease-out infinite}
-.cad-line{animation-delay:1.6s}.cad-out{animation-delay:4s}
-.cad-hand>:nth-child(1){animation-delay:.1s}.cad-hand>:nth-child(2){animation-delay:.25s}.cad-hand>:nth-child(3){animation-delay:.4s}.cad-hand>:nth-child(4){animation-delay:.55s}.cad-hand>:nth-child(5){animation-delay:.7s}
-.cad-line>:nth-child(1){animation-delay:1.7s}.cad-line>:nth-child(2){animation-delay:2s}.cad-line>:nth-child(3){animation-delay:2.3s}.cad-line>:nth-child(4){animation-delay:2.6s}.cad-line>:nth-child(5){animation-delay:2.9s}.cad-line>:nth-child(6){animation-delay:3.2s}.cad-line>:nth-child(7){animation-delay:3.5s}
-.cad-out>:nth-child(1){animation-delay:4.1s}.cad-out>:nth-child(2){animation-delay:4.5s}.cad-out>:nth-child(3){animation-delay:4.9s}
-@keyframes cadRow{0%{opacity:0}4%,92%{opacity:1}100%{opacity:0}}
-@keyframes cadPop{0%{opacity:0;transform:translateY(8px) scale(.7)}5%,80%{opacity:1;transform:none}90%,100%{opacity:0;transform:none}}
-@media (prefers-reduced-motion:reduce){.cad-row,.cad-row i,.cad-row b,.cad-row em{animation:none;opacity:1}}
+.cad {
+  display: grid;
+  gap: 12px;
+}
+.cad h3 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+.cad > p {
+  margin: 0;
+  color: var(--mut);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+.cad .btn.p {
+  min-height: 48px;
+  text-decoration: none;
+  justify-content: center;
+}
+.cad-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 7px;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+.cad-list li {
+  padding-left: 16px;
+  position: relative;
+}
+.cad-list li::before {
+  content: '◆';
+  position: absolute;
+  left: 0;
+  top: 3px;
+  font-size: 0.6rem;
+  color: #f0b429;
+}
+.cad-scene {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 16px;
+  background: linear-gradient(160deg, #141a44, #0a0d1f);
+  border: 1px solid #f0b42944;
+  overflow: hidden;
+}
+.cad-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  opacity: 0;
+  animation: cadRow 9s ease-in-out infinite;
+}
+.cad-row span {
+  flex: 1 1 100%;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9aa3c7;
+}
+.cad-row i {
+  width: 30px;
+  aspect-ratio: 59/86;
+  border-radius: 4px;
+  background: linear-gradient(160deg, #6f7dff, #2a3170);
+  border: 1px solid #ffffff55;
+  opacity: 0;
+  animation: cadPop 9s ease-out infinite;
+}
+.cad-row i:nth-of-type(2n) {
+  background: linear-gradient(160deg, #38c9a6, #14463c);
+}
+.cad-row i:nth-of-type(3n) {
+  background: linear-gradient(160deg, #f0b429, #6b4a08);
+}
+.cad-row b {
+  color: #f0b429;
+  font-size: 15px;
+  opacity: 0;
+  animation: cadPop 9s ease-out infinite;
+}
+.cad-row em {
+  font-style: normal;
+  font-weight: 800;
+  font-size: 0.72rem;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: #f0b429;
+  color: #141005;
+  opacity: 0;
+  animation: cadPop 9s ease-out infinite;
+}
+.cad-line {
+  animation-delay: 1.6s;
+}
+.cad-out {
+  animation-delay: 4s;
+}
+.cad-hand > :nth-child(1) {
+  animation-delay: 0.1s;
+}
+.cad-hand > :nth-child(2) {
+  animation-delay: 0.25s;
+}
+.cad-hand > :nth-child(3) {
+  animation-delay: 0.4s;
+}
+.cad-hand > :nth-child(4) {
+  animation-delay: 0.55s;
+}
+.cad-hand > :nth-child(5) {
+  animation-delay: 0.7s;
+}
+.cad-line > :nth-child(1) {
+  animation-delay: 1.7s;
+}
+.cad-line > :nth-child(2) {
+  animation-delay: 2s;
+}
+.cad-line > :nth-child(3) {
+  animation-delay: 2.3s;
+}
+.cad-line > :nth-child(4) {
+  animation-delay: 2.6s;
+}
+.cad-line > :nth-child(5) {
+  animation-delay: 2.9s;
+}
+.cad-line > :nth-child(6) {
+  animation-delay: 3.2s;
+}
+.cad-line > :nth-child(7) {
+  animation-delay: 3.5s;
+}
+.cad-out > :nth-child(1) {
+  animation-delay: 4.1s;
+}
+.cad-out > :nth-child(2) {
+  animation-delay: 4.5s;
+}
+.cad-out > :nth-child(3) {
+  animation-delay: 4.9s;
+}
+@keyframes cadRow {
+  0% {
+    opacity: 0;
+  }
+  4%,
+  92% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes cadPop {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.7);
+  }
+  5%,
+  80% {
+    opacity: 1;
+    transform: none;
+  }
+  90%,
+  100% {
+    opacity: 0;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cad-row,
+  .cad-row i,
+  .cad-row b,
+  .cad-row em {
+    animation: none;
+    opacity: 1;
+  }
+}

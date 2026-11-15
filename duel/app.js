@@ -12,7 +12,7 @@ import * as Sound from "./audio.js";
 import { rulingsFor } from "./rulings.js";
 import { runFinisher, zoneStrike, STYLES } from "./finisher.js";
 import { entrance, attack, ENTRANCES, ATTACKS } from "./moves.js";
-import { staple, finale, ace, SHOWS, pickShow, SHOW_MIN, SHOW_MAX } from "./cardfx.js";
+import { staple, isStaple, stapleMs, setStaplePace, finale, ace, SHOWS, pickShow, SHOW_MIN, SHOW_MAX } from "./cardfx.js";
 import { cleanProfile, avatarHTML, cardHTML } from "./profile.js";
 import { breakProfile, comeback } from "./ending.js";
 import { Clip, canRecord } from "./video.js";
@@ -34,8 +34,10 @@ const S = {
 
 // ---------------------------------------------------------------------------
 // Utilities
+function fxLeftSafe() { try { return fxLeft(); } catch { return 0; } }
 function toast(text, ms = 2600) {
-  if (document.body.classList.contains("ace-on")) { setTimeout(() => toast(text, ms), 400); return; }
+  // a notice waits until the screen is free (an Ace showdown, a chain link, a staple moment…), then shows
+  if (document.body.classList.contains("ace-on") || fxLeftSafe() > 80) { const w = fxLeftSafe(); clearTimeout(toast.later); toast.later = setTimeout(() => toast(text, ms), Math.max(300, Math.min(w + 60, 15000))); return; }
   const t = $("#toast");
   t.textContent = text; t.classList.add("on");
   clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("on"), ms);
@@ -568,6 +570,44 @@ function lockZoom() {
   addEventListener("wheel", (e) => { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
 }
 if (hostApp) lockZoom();
+// KodeX floats its own buttons (help, minimise, close) over the top-right corner of the Arena. It says where they are;
+// until it does, the usual place is assumed. Anything of ours that lands under them is moved clear.
+let kxBox = document.documentElement.classList.contains("embed") ? { w: 150, h: 50 } : null;
+addEventListener("message", (e) => { const d = e.data; if (d && d.kx === "chrome" && e.source === window.parent) { kxBox = d.w > 0 && d.h > 0 ? { w: Math.min(260, d.w), h: Math.min(90, d.h) } : null; kxClear(); } });
+function kxClear() {
+  const items = [".duelist.op", "#comboGen", ".rb-cap", "#status"];
+  for (const sel of items) { const e = document.querySelector(sel); if (e) { e.style.removeProperty("margin-top"); e.style.removeProperty("max-width"); } }
+  if (!kxBox) return;
+  const W = innerWidth, box = { l: W - kxBox.w, b: kxBox.h + 4 };
+  for (const sel of items) {
+    const e = document.querySelector(sel); if (!e || !e.offsetParent) continue;
+    const r = e.getBoundingClientRect();
+    if (!r.width || r.top >= box.b || r.right <= box.l) continue;
+    // a wide element (a plate across the screen) gives way at its right end; a narrow one moves down
+    const cs = getComputedStyle(e);
+    if (r.width > W * 0.6) e.style.maxWidth = Math.floor(r.width - (r.right - box.l) - 6) + "px";
+    else e.style.marginTop = Math.ceil(parseFloat(cs.marginTop) + box.b - r.top + 6) + "px";
+  }
+}
+// replays and combos in landscape: the controls sit in the right-hand column; when the tilted field reaches into
+// that column they narrow, and if that is not enough they move to the top of the column
+function fitReplayBar() {
+  const bar = $("#replayBar");
+  if (!bar || bar.hidden) return;
+  bar.style.removeProperty("max-width"); bar.style.removeProperty("top"); bar.style.removeProperty("bottom");
+  if (!matchMedia("(orientation: landscape) and (min-width: 640px)").matches) return;
+  const b = bar.getBoundingClientRect();
+  const zones = [...document.querySelectorAll(".mat .zone")].map((z) => z.getBoundingClientRect()).filter((r) => r.bottom > b.top && r.top < b.bottom);
+  const reach = zones.length ? Math.max(...zones.map((r) => r.right)) : 0;
+  if (reach <= b.left - 4) return;
+  const room = innerWidth - 8 - reach - 10;
+  if (room >= 150) { bar.style.maxWidth = room + "px"; return; }
+  bar.style.top = "calc(8px + env(safe-area-inset-top, 0px))"; bar.style.bottom = "auto";
+}
+let kxClearT = 0;
+const kxClearSoon = () => { clearTimeout(kxClearT); kxClearT = setTimeout(() => { kxClear(); fitReplayBar(); }, 120); };
+addEventListener("resize", kxClearSoon);
+addEventListener("orientationchange", kxClearSoon);
 addEventListener("message", (e) => { const d = e.data; if (d && d.kx === "host" && e.source === window.parent && window.parent !== window) { hostApp = d.app === true; if (hostApp) lockZoom(); } });
 /** Combos are part of the app: in a browser, what the feature does is shown instead. */
 function comboAd() {
@@ -1394,11 +1434,14 @@ function applyPacket(p) {
   if (p.log && p.log.length) for (const l of p.log) addLog("Script: " + l, "sys");
   trackEvents(p);
   for (const e of p.events) logEvent(e, p);
+  kxClearSoon();
   const fly = flyCapture(p);
   render(p, prev);
   if (fly) flyRun(fly);
-  const wait = p.seek ? 0 : fxEvents(p);
+  if (p.seek) { fxQueue.length = 0; fxEndAt = 0; }
+  fxEvents(p);
   bigFx(p);
+  const wait = p.seek ? 0 : fxStart();
   // a chain link plays out before anything else can be activated: the next step and the next question wait for it
   if (wait > 60) { hold(wait); S.actions = null; closeSheet(); setTimeout(() => { if (S.packet === p) handlePrompt(p); }, wait); }
   else handlePrompt(p);
@@ -2003,7 +2046,8 @@ function chainPrompt(msg) {
   if (!msg.forced && (S.chainMode === "off" || (S.chainMode === "smart" && !msg.spe_count))) { send({ t: msg.type, index: null }); return; }
   const chain = S.packet.state.chain;
   const last = chain.length ? chain[chain.length - 1] : null;
-  openSheet(msg.forced ? "Activate an effect" : "Chain a card or effect?", last ? `Chain ${chain.length}: ${name(last.code)}${effectText(last.code, last.description, last.location) ? " · " + effectText(last.code, last.description, last.location) : ""}` : "");
+  // the chain so far is its own row above the choices (it was squeezed into a narrow column beside them)
+  openSheet(msg.forced ? "Activate an effect" : "Chain a card or effect?", chain.length || msg.forced ? "" : "Nothing is chained yet");
   const body = $("#sheetBody");
   if (chain.length) {
     const ol = el("ol", "chain-list"); ol.setAttribute("aria-label", "The chain so far");
@@ -2013,7 +2057,8 @@ function chainPrompt(msg) {
       li.append(el("b", null, String(i + 1)), th, tx); li.addEventListener("click", () => showInfo({ code: c.code }, c.controller, c.location, true));
       ol.append(li);
     });
-    body.append(ol);
+    body.before(ol);
+    requestAnimationFrame(() => { ol.scrollLeft = ol.scrollWidth; });
   }
   msg.selects.forEach((c, i) => {
     const o = optCard(c, activateLabel(c).replace(/^Activate: /, ""));
@@ -2304,6 +2349,7 @@ function openSheet(title, text) {
   $("#sheetText").hidden = !text;
   $("#sheetBody").replaceChildren();
   $("#sheetActions").replaceChildren();
+  s.querySelectorAll(":scope > .chain-list").forEach((x) => x.remove());
 }
 function closeSheet() {
   $("#sheet").hidden = true;
@@ -2517,11 +2563,22 @@ let fxBusy = false, fxEndAt = 0;
 S.chainLinks = [];            // the chain being built: [{ code, controller }]
 /** How long a chain link stays on screen (Settings → Chain animation). 0 = the small banner only, nothing waits. */
 const chainMs = () => (reduceMotion() || document.hidden ? 0 : Math.max(0, Math.min(3000, PREF.chainMs == null ? 900 : Number(PREF.chainMs) || 0)));
-function fxPush(f, ms) { f.ms = ms; fxQueue.push(f); fxEndAt = Math.max(Date.now(), fxEndAt) + ms; }
+// One queue for everything that takes the screen: chain links, resolutions and cross-outs, boss and signature
+// splashes, staple moments, reveals. Each waits for the one before it; the next step and any question wait for all.
+// Within a step they play in the order of the events (fxEv is the event being read).
+let fxEv = 0, fxStep = 0;
+function fxPush(f, ms) { f.ms = ms; f.ev = fxEv; f.step = fxStep; f.qn = fxQueue.length; fxQueue.push(f); fxEndAt = Math.max(Date.now(), fxEndAt) + ms; }
+/** Something on screen for `ms`, in turn. */
+function beat(ms, run) { fxPush({ kind: "beat", run }, ms); }
+/** How long until everything queued has played. */
+function fxLeft() { return fxBusy || fxQueue.length ? Math.max(0, fxEndAt - Date.now()) : 0; }
+/** Puts what this step queued in the order of its events (chain link 1, its staple moment, chain link 2, …). */
+function fxOrder() { const mine = fxQueue.filter((f) => f.step === fxStep); if (mine.length < 2) return; const rest = fxQueue.filter((f) => f.step !== fxStep); mine.sort((a, b) => a.ev - b.ev || a.qn - b.qn); fxQueue.length = 0; fxQueue.push(...rest, ...mine); }
 /** Queues what this step shows (reveals, chain links, resolutions). Returns how long the chain animations will take. */
 function fxEvents(p) {
   const shown = [], base = chainMs(), solve = Math.round(base * 0.7);
-  for (const e of p.events) {
+  fxStep++;
+  p.events.forEach((e, i) => { fxEv = i;
     if (e.type === M.CONFIRM_CARDS || e.type === M.CONFIRM_DECKTOP || e.type === M.CONFIRM_EXTRATOP) {
       const cards = (e.cards || []).filter((c) => c && c.code);
       if (cards.length) shown.push({ player: e.player, cards });
@@ -2538,11 +2595,13 @@ function fxEvents(p) {
       else fxPush({ kind: "negate", n: e.chain_size, link: S.chainLinks[e.chain_size - 1], total: S.chainLinks.length }, ms);
       if (!base) soundOnce("negate");
     } else if (e.type === M.CHAIN_END) { S.chainLinks = []; fxPush({ kind: "end" }, 0); }
-  }
-  if (shown.length) { showReveal(shown, p); soundOnce("reveal"); }
-  runFx();
-  return base ? Math.max(0, fxEndAt - Date.now()) : 0;
+  });
+  fxEv = p.events.length;
+  if (shown.length) beat(base ? Math.min(1400, PREF.fxMs + 200) : 0, () => { showReveal(shown, p); soundOnce("reveal"); });
+  return 0;
 }
+/** After fxEvents and bigFx have queued this step: order it, start it, and say how long it takes. */
+function fxStart() { fxOrder(); runFx(); return fxLeft(); }
 function showReveal(groups, p) {
   // a small glowing strip that shows the revealed cards for the chosen time, then leaves on its own
   const box = $("#revealFx");
@@ -2565,6 +2624,12 @@ function runFx() {
   if (fxBusy || !fxQueue.length) return;
   const f = fxQueue.shift();
   if (f.kind === "end") { chainStage(null); runFx(); return; }
+  if (f.kind === "beat") {
+    try { f.run(); } catch (e) { console.warn(e); }
+    if (!f.ms) { runFx(); return; }
+    fxBusy = true; setTimeout(() => { fxBusy = false; runFx(); }, f.ms);
+    return;
+  }
   if (f.kind !== "chain") {
     const li = document.querySelectorAll("#chain li")[f.n - 1];
     if (li) { li.classList.remove("solving", "negated"); void li.offsetWidth; li.classList.add(f.kind === "solve" ? "solving" : "negated"); }
@@ -2661,6 +2726,8 @@ function glowZone(t, seq, cls) {
   z.classList.remove("summon-glow", "boss-glow"); void z.offsetWidth; z.classList.add(cls);
   setTimeout(() => z.classList.remove(cls), 1600);
 }
+/** How long a splash stays: a signature card's (KodeX Premium) follows the special animation length setting. */
+function splashMs(kind) { return reduceMotion() ? 900 : kind === "otk" ? 2600 : /sig/.test(kind) ? Math.round(1700 * spPace() / 2 * 1.5) : 1700; }
 function splash(code, title, sub, kind = "boss") {
   const box = $("#bigFx");
   const w = el("div", "splash " + kind);
@@ -2669,7 +2736,7 @@ function splash(code, title, sub, kind = "boss") {
   box.replaceChildren(w);
   if (!reduceMotion() && kind !== "small") { document.body.classList.remove("shake"); void document.body.offsetWidth; document.body.classList.add("shake"); }
   requestAnimationFrame(() => w.classList.add("in"));
-  setTimeout(() => { w.classList.add("out"); setTimeout(() => w.remove(), 400); }, reduceMotion() ? 900 : kind === "otk" ? 2600 : 1700);
+  setTimeout(() => { w.classList.add("out"); setTimeout(() => w.remove(), 400); }, splashMs(kind) - 300);
 }
 // ----- cards travel: a card that changes place flies from where it was (hand, Deck, Extra Deck, Graveyard, a zone)
 // to where it lands, so you can see where it came from. Positions are read before the table is updated and the
@@ -2805,7 +2872,7 @@ function bigFx(p) {
   const sideOf = (t) => (t === me ? "me" : "op");
   const viewerFree = !S.premium;
   S.lastBlowBy = S.lastBlowBy || [0, 0];
-  for (const e of p.events) {
+  p.events.forEach((e, i) => {
     switch (e.type) {
       case M.NEW_TURN: S.turnStartLP = p.state ? p.state.teams.map((t) => t.lp) : null; Sound.play("turn"); timerReset(); break;
       case M.NEW_PHASE: Sound.play("phase"); break;
@@ -2827,8 +2894,8 @@ function bigFx(p) {
         if (sig) zoneStrike(fx.sigFx[cc(e.code)] || fx.finisher || "shatter", document.getElementById(zoneId(e.controller, C.LOCATION_MZONE, e.sequence)));
         if (fx.aces.has(cc(e.code))) showAce(e.code, e.controller, fx);
         else if (boss) {
-          Sound.play("boss");
-          splash(e.code, name(e.code), sig ? (viewerFree ? "Signature summon · KodeX Premium" : "Signature summon") : e.type === M.SPSUMMONING ? "Special Summon" : "Summon", sig ? "boss sig" : "boss");
+          const sub = sig ? (viewerFree ? "Signature summon · KodeX Premium" : "Signature summon") : e.type === M.SPSUMMONING ? "Special Summon" : "Summon";
+          fxEv = i; beat(p.seek ? 0 : splashMs(sig ? "boss sig" : "boss"), () => { Sound.play("boss"); splash(e.code, name(e.code), sub, sig ? "boss sig" : "boss"); });
         } else if (!cardVoice(e.controller, e.code)) Sound.play(e.type === M.SPSUMMONING ? "spsummon" : "summon");
         if (boss) cardVoice(e.controller, e.code);
         break;
@@ -2839,9 +2906,11 @@ function bigFx(p) {
         const fx = fxOf(sideOf(e.controller)), sig = fx.signature.has(cc(e.code));
         if (chainMs() && !p.seek) { if (sig) Sound.play("boss"); }      // the chain link animation plays its own sound, in turn
         else if (!cardVoice(e.controller, e.code)) Sound.play(sig ? "boss" : e.chain_size > 1 ? "chain" : "activate", e.chain_size);
+        fxEv = i;
         if (fx.aces.has(cc(e.code))) showAce(e.code, e.controller, fx);
-        else if (sig) splash(e.code, name(e.code), viewerFree ? "Signature card · KodeX Premium" : "Signature card", "boss sig");
-        if (!fx.aces.has(cc(e.code)) && PREF.staples) staple(name(e.code), e.code, artUrl(e.code), document.getElementById(zoneId(e.controller, e.location, e.sequence)) || document.querySelector(`.duelist.${sideOf(e.controller)}`));
+        else if (sig) beat(p.seek ? 0 : splashMs("boss sig"), () => splash(e.code, name(e.code), viewerFree ? "Signature card · KodeX Premium" : "Signature card", "boss sig"));
+        if (!fx.aces.has(cc(e.code)) && PREF.staples && isStaple(name(e.code)) && !p.seek)
+          beat(reduceMotion() ? 0 : stapleMs(), () => staple(name(e.code), e.code, artUrl(e.code), document.getElementById(zoneId(e.controller, e.location, e.sequence)) || document.querySelector(`.duelist.${sideOf(e.controller)}`)));
         break;
       }
       case M.ATTACK: {
@@ -2883,7 +2952,7 @@ function bigFx(p) {
         break;
       }
     }
-  }
+  });
   // comeback watch: a player who fell to a quarter of their Life Points while far behind
   if (p.state && !p.ended) {
     const lp = p.state.teams.map((t) => t.lp), full = options().lp;
@@ -2953,7 +3022,7 @@ function saveFile(fileName, dataUrl) {
 if (window.parent === window) addEventListener("beforeunload", (e) => { if (S.active && S.packet && !S.packet.ended) { e.preventDefault(); e.returnValue = ""; } });
 
 window.__duel = S; // for automated tests and debugging
-window.__arena = { fxEvents, showReveal, toggleSide, watchCombo, restartDuel, tossShow };
+window.__arena = { chainPrompt, toast, kxClear, kxBoxGet: () => kxBox, fxEvents: (p) => { fxEvents(p); try { bigFx(p); } catch (e) { console.warn(e); } return fxStart(); }, showReveal, toggleSide, watchCombo, restartDuel, tossShow };
 window.__arenaFx = (p) => bigFx(p);
 window.__arenaCombo = (r) => rpToCombo(r || {});
 window.__arenaLeave = (fx, id, code) => { const z = document.getElementById(id), r = z && visRect(z.querySelector(".card") || z); if (r) flyRun([{ r, fx, code: code || 0, op: /^op/.test(id) }]); return !!r; };
@@ -3327,11 +3396,16 @@ const sentMedia = new Set();
 // mute: per device
 const MUTE = Object.assign({ opp: false, chat: false, emotes: false, voices: false }, load("duel:mute", {}));
 // v60: how long a revealed card or an activated effect stays on screen, and the staple card animations
-const PREF = Object.assign({ fxMs: 1000, staples: true, tapOut: true }, load("duel:pref", {}));
+const PREF = Object.assign({ fxMs: 1000, staples: true, tapOut: true, spPace: 2 }, load("duel:pref", {}));
+/** Special card animations (staples such as Maxx "C", signature cards): 1 = their original length, 2 = twice (default). */
+function spPace() { const v = Number(PREF.spPace); return v >= .5 && v <= 4 ? v : 2; }
+setStaplePace(spPace());
 function bindPrefs() {
   const t = $("#prefFxMs"), st = $("#prefStaples");
   if (t) { t.value = String(PREF.fxMs); t.addEventListener("change", () => { PREF.fxMs = Math.max(300, Math.min(5000, Number(t.value) || 1000)); save("duel:pref", PREF); }); }
   if (st) { st.checked = PREF.staples; st.addEventListener("change", () => { PREF.staples = st.checked; save("duel:pref", PREF); }); }
+  const sp = $("#prefSpPace");
+  if (sp) { sp.value = String(spPace()); if (!sp.value) sp.value = "2"; sp.addEventListener("change", () => { PREF.spPace = Number(sp.value) || 2; setStaplePace(spPace()); save("duel:pref", PREF); }); }
   const cm = $("#prefChainMs");
   if (cm) { cm.value = String(PREF.chainMs == null ? 900 : PREF.chainMs); if (!cm.value) cm.value = "900"; cm.addEventListener("change", () => { PREF.chainMs = Math.max(0, Math.min(3000, Number(cm.value) || 0)); save("duel:pref", PREF); }); }
   const po = $("#prefOpening"); po.checked = PREF.opening !== false; po.addEventListener("change", () => { PREF.opening = po.checked; save("duel:pref", PREF); });
