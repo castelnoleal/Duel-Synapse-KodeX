@@ -293,3 +293,72 @@
 #mdk .ds-demo figcaption b.free{background:#61a8ff;color:#04122a}
 #mdk .ds-feat{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))!important}
 @media(max-width:860px){#mdk .ds-demo .ds-afr{aspect-ratio:auto;height:min(600px,125vw)}}
+
+/* ---------- Why KodeX: "New in KodeX", each card with a small looping picture (transform and opacity only) ---------- */
+#mdk .nw{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;margin:10px 0 8px}
+#mdk .nw-c{position:relative;display:flex;flex-direction:column;gap:6px;padding:12px 14px 14px;border-radius:16px;border:1px solid #2a3270;background:linear-gradient(160deg,#141a44,#0b0e22);color:#e8ebff;overflow:hidden}
+#mdk .nw-c>b{font-size:1.02rem;color:#fff}
+#mdk .nw-c>p{margin:0;font-size:.9rem;line-height:1.5;color:#c3c9ea}
+#mdk .nw-c>em{align-self:flex-start;margin-top:2px;font-style:normal;font-size:.68rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;padding:4px 9px;border-radius:99px;background:#f0b429;color:#141005}
+#mdk .nw-d{position:relative;height:128px;margin:0 0 6px;border-radius:12px;background:radial-gradient(120% 90% at 50% 0,#1b2358,#0a0d1f 70%);border:1px solid #ffffff14;overflow:hidden;display:flex;align-items:center;justify-content:center;gap:8px}
+#mdk .nw-d i{display:block;font-style:normal}
+/* chain links */
+#mdk .nw-chain{flex-direction:column;gap:6px}
+#mdk .nw-chain>b{font:900 italic 20px/1 system-ui,sans-serif;letter-spacing:.14em;color:#fff;text-shadow:0 0 12px #6f7dff;animation:nwPop 6s ease-out infinite}
+#mdk .nw-chain span{display:flex;align-items:center}
+#mdk .nw-chain span i{position:relative;width:38px;height:55px;border-radius:5px;background:linear-gradient(160deg,#6f7dff,#232a66);border:2px solid #fff;opacity:0;animation:nwSlam 6s cubic-bezier(.3,0,.2,1) infinite}
+#mdk .nw-chain span i:nth-of-type(2){background:linear-gradient(160deg,#ff5a7a,#5e1830);animation-delay:1.1s}
+#mdk .nw-chain span i:nth-of-type(3){animation-delay:2.2s}
+#mdk .nw-chain span i u{position:absolute;left:-9px;top:-9px;width:20px;height:20px;border-radius:50%;background:#f0b429;color:#141005;font:900 11px/20px system-ui,sans-serif;text-align:center;text-decoration:none}
+#mdk .nw-chain span s{width:26px;height:4px;background:linear-gradient(90deg,#6f7dff,#fff);transform:scaleX(0);transform-origin:0 50%;animation:nwWire 6s ease-out infinite;animation-delay:1s}
+#mdk .nw-chain span s:nth-of-type(2){animation-delay:2.1s}
+@keyframes nwSlam{0%{opacity:0;transform:translateY(-26px) scale(1.7) rotate(8deg)}6%,82%{opacity:1;transform:none}92%,100%{opacity:0;transform:none}}
+@keyframes nwWire{0%{transform:scaleX(0)}5%,82%{transform:scaleX(1)}92%,100%{transform:scaleX(0)}}
+@keyframes nwPop{0%,4%{opacity:0;transform:scale(1.5)}10%,82%{opacity:1;transform:none}92%,100%{opacity:0}}
+/* combo sheet */
+#mdk .nw-combo{gap:8px;padding-bottom:16px}
+#mdk .nw-combo span{display:grid;justify-items:center;gap:4px;padding:6px 8px;border-radius:8px;background:#121734;border:1px solid #2a3270;opacity:0;animation:nwSlam 7s ease-out infinite}
+#mdk .nw-combo span:nth-of-type(2){animation-delay:.7s}#mdk .nw-combo span:nth-of-type(3){animation-delay:1.4s}
+#mdk .nw-combo span i{width:30px;height:44px;border-radius:4px;background:linear-gradient(160deg,#38c9a6,#14463c)}
+#mdk .nw-combo span:nth-of-type(2) i{background:linear-gradient(160deg,#f0b429,#6b4a08)}#mdk .nw-combo span:nth-of-type(3) i{background:linear-gradient(160deg,#6f7dff,#232a66)}
+#mdk .nw-combo span em{font:800 8px/1 system-ui,sans-serif;font-style:normal;letter-spacing:.08em;color:#f0b429}
+#mdk .nw-combo>s{position:absolute;left:12px;right:12px;bottom:8px;height:8px;border-radius:2px;background:repeating-linear-gradient(90deg,#fff 0 3px,transparent 3px 5px,#fff 5px 6px,transparent 6px 10px);opacity:0;animation:nwPop 7s ease-out infinite;animation-delay:2.2s}
+/* a small field */
+#mdk .nw-mat{display:grid;grid-template-columns:repeat(5,1fr);gap:3px;width:118px;padding:5px;border-radius:7px;border:1.5px solid #4654c4;background:#101538}
+#mdk .nw-mat i{aspect-ratio:1;border-radius:2px;background:#ff708633;border:1px solid #ff708688}
+#mdk .nw-mat i:nth-child(n+6){background:#6c96ff33;border-color:#6c96ff99}
+/* replay to combo */
+#mdk .nw-replay>b{color:#f0b429;font-size:20px;animation:nwPop 6s ease-out infinite;animation-delay:.8s}
+#mdk .nw-replay .nw-mat i:nth-child(7),#mdk .nw-replay .nw-mat i:nth-child(8),#mdk .nw-replay .nw-mat i:nth-child(4){background:#f0b429;border-color:#fff}
+#mdk .nw-steps{display:grid;gap:5px}
+#mdk .nw-steps i{width:64px;height:22px;border-radius:5px;background:#121734;border:1px solid #f0b42988;opacity:0;animation:nwSlam 6s ease-out infinite;animation-delay:1.4s}
+#mdk .nw-steps i:nth-child(2){animation-delay:2s}#mdk .nw-steps i:nth-child(3){animation-delay:2.6s}
+/* field themes: four fields fade through */
+#mdk .nw-field .nw-mat{position:absolute;opacity:0;animation:nwFade 10s linear infinite;width:150px}
+#mdk .nw-field .nw-mat.b{animation-delay:2.5s;border-color:#b98b4a;background:#14422f}
+#mdk .nw-field .nw-mat.b i{background:#f0c89633;border-color:#f0c896aa}#mdk .nw-field .nw-mat.b i:nth-child(n+6){background:#96dcaa33;border-color:#96dcaaaa}
+#mdk .nw-field .nw-mat.c{animation-delay:5s;border-color:#ff3cc8;background:#12072a}
+#mdk .nw-field .nw-mat.c i{background:#ff3cc833;border-color:#ff3cc8aa}#mdk .nw-field .nw-mat.c i:nth-child(n+6){background:#00f0ff2e;border-color:#00f0ffaa}
+#mdk .nw-field .nw-mat.d{animation-delay:7.5s;border-color:#e6b94a;background:#27103a}
+#mdk .nw-field .nw-mat.d i{background:#c882ff33;border-color:#c882ffaa}#mdk .nw-field .nw-mat.d i:nth-child(n+6){background:#ffd66e33;border-color:#ffd66eaa}
+@keyframes nwFade{0%{opacity:0;transform:scale(.94)}4%,25%{opacity:1;transform:none}29%,100%{opacity:0;transform:scale(1.04)}}
+/* status effects */
+#mdk .nw-status{gap:12px}
+#mdk .nw-status>i{width:50px;height:73px;border-radius:5px;background:linear-gradient(160deg,#ff8a5c,#5e2a14);border:2px solid #fff}
+#mdk .nw-status span{display:grid;gap:5px}
+#mdk .nw-status em{font-style:normal;font:700 10px/1 system-ui,sans-serif;padding:6px 8px;border-radius:99px;background:#121734;border:1px solid #38c9a6aa;color:#7be6cb;opacity:0;animation:nwSlam 6s ease-out infinite}
+#mdk .nw-status em:nth-child(2){animation-delay:.8s;border-color:#f0b429aa;color:#f6cc66}#mdk .nw-status em:nth-child(3){animation-delay:1.6s}
+/* video clip */
+#mdk .nw-scr{position:relative;display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:8px;border:2px solid #ffffff55;background:#070914}
+#mdk .nw-scr u{position:absolute;right:6px;top:6px;width:8px;height:8px;border-radius:50%;background:#ff2d4d;animation:nwBlink 1.2s ease-in-out infinite}
+#mdk .nw-scr .nw-mat{width:86px}
+#mdk .nw-scr span{display:grid;gap:4px}
+#mdk .nw-scr span i{width:52px;height:12px;border-radius:3px;background:#1a2150;border-left:3px solid #f0b429;opacity:0;animation:nwSlam 5s ease-out infinite}
+#mdk .nw-scr span i:nth-child(2){animation-delay:.9s}#mdk .nw-scr span i:nth-child(3){animation-delay:1.8s}
+@keyframes nwBlink{50%{opacity:.25}}
+/* turning the phone */
+#mdk .nw-ph{display:grid;place-items:center;width:58px;height:100px;border-radius:10px;border:2px solid #ffffff88;background:#070914;animation:nwTurn 6s ease-in-out infinite}
+#mdk .nw-ph .nw-mat{width:44px;padding:3px;gap:2px;animation:nwTurnIn 6s ease-in-out infinite}
+@keyframes nwTurn{0%,30%{transform:rotate(0)}45%,85%{transform:rotate(90deg)}100%{transform:rotate(0)}}
+@keyframes nwTurnIn{0%,30%{transform:rotate(0) scale(1)}45%,85%{transform:rotate(-90deg) scale(1.5)}100%{transform:rotate(0) scale(1)}}
+@media (prefers-reduced-motion:reduce){#mdk .nw-d *{animation:none!important;opacity:1!important;transform:none!important}#mdk .nw-field .nw-mat:not(.a){display:none}}

@@ -278,6 +278,18 @@
   function whyPage() {
     var sec = [];
     sec.push(["what", "What KodeX is", paras(D.what) + '<div class="feat">' + D.features.map(function (f) { return '<div class="ft"><div class="ico">' + f.i + "</div><b>" + esc(f.t) + "</b><p>" + md(f.d) + "</p>" + (f.tag ? "<em>" + esc(f.tag) + "</em>" : "") + "</div>"; }).join("") + "</div>"]);
+    /* what is new: each card has a small looping picture of the feature (drawn with CSS, nothing to load) */
+    var cards = function (n) { var o = ""; for (var i = 0; i < n; i++) o += "<i></i>"; return o; };
+    var demo = {
+      chain: '<div class="nw-d nw-chain"><b>CHAIN</b><span><i><u>1</u></i><s></s><i><u>2</u></i><s></s><i><u>3</u></i></span></div>',
+      combo: '<div class="nw-d nw-combo"><span><i></i><em>STEP 1</em></span><span><i></i><em>STEP 2</em></span><span><i></i><em>STEP 3</em></span><s></s></div>',
+      replay: '<div class="nw-d nw-replay"><div class="nw-mat">' + cards(10) + '</div><b>→</b><div class="nw-steps"><i></i><i></i><i></i></div></div>',
+      field: '<div class="nw-d nw-field"><div class="nw-mat a">' + cards(10) + '</div><div class="nw-mat b">' + cards(10) + '</div><div class="nw-mat c">' + cards(10) + '</div><div class="nw-mat d">' + cards(10) + "</div></div>",
+      status: '<div class="nw-d nw-status"><i></i><span><em>Cannot be destroyed by battle</em><em>ATK is changed</em><em>Unaffected by Spells</em></span></div>',
+      clip: '<div class="nw-d nw-clip"><div class="nw-scr"><u></u><div class="nw-mat">' + cards(10) + '</div><span><i></i><i></i><i></i></span></div></div>',
+      turn: '<div class="nw-d nw-turn"><div class="nw-ph"><div class="nw-mat">' + cards(10) + "</div></div></div>"
+    };
+    if (D.fresh && D.fresh.length) sec.push(["new", "New in KodeX", '<div class="nw">' + D.fresh.map(function (f) { return '<div class="nw-c">' + (demo[f.k] || "") + "<b>" + esc(f.t) + "</b><p>" + md(f.d) + "</p>" + (f.tag ? "<em>" + esc(f.tag) + "</em>" : "") + "</div>"; }).join("") + "</div>"]);
     sec.push(["arena", "Duel Synapse Arena", paras(D.arena.intro) + ul(D.arena.points)]);
     sec.push(["table", "Free and Premium", '<div class="tbl cmp"><table><thead><tr><th>Feature</th><th>KodeX (free)</th><th>KodeX Premium</th></tr></thead><tbody>' + D.plans.map(function (r) { var c = function (v) { return v === true ? '<span class="yes">✓</span>' : v === false ? '<span class="no">–</span>' : esc(v); }; return "<tr><td>" + esc(r[0]) + "</td><td>" + c(r[1]) + "</td><td>" + c(r[2]) + "</td></tr>"; }).join("") + "</tbody></table></div>"]);
     sec.push(["not", "What KodeX is not (yet)", ul(D.not)]);

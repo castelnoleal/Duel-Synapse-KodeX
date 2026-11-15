@@ -145,7 +145,7 @@ pages[C.PAGES["hub"]] = ("OCG Meta Decks (November 2026): Tier List, Combos & Ho
                          C.URL("hub"), OG + "decks.png",
                          {"@context": "https://schema.org", "@type": "CollectionPage", "name": "OCG Meta Decks", "url": C.URL("hub"), "dateModified": C.UPDATED}, hub)
 
-why = dict(kind="why", lead=C.WHY["lead"], updated=C.UPDATED, what=C.WHY["what"], features=C.WHY["features"], arena=C.WHY["arena"],
+why = dict(kind="why", lead=C.WHY["lead"], updated=C.UPDATED, what=C.WHY["what"], features=C.WHY["features"], fresh=C.WHY["fresh"], arena=C.WHY["arena"],
            plans=C.WHY["plans"], **{"not": C.WHY["not_"]}, get=C.WHY["get"], faq=C.WHY["faq"])
 why["ids"] = ids_for(why)
 pages[C.PAGES["why"]] = ("Why KodeX: OCG Card Rulings, Deck Builder, Scanner & Duel Arena | Meta Insider OCG",

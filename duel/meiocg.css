@@ -820,3 +820,47 @@ html.no-zoom, html.no-zoom body { touch-action: pan-x pan-y; -webkit-text-size-a
 @media (prefers-reduced-motion: reduce) { .cad-row, .cad-row i, .cad-row b, .cad-row em { animation: none; opacity: 1; } }
 .combo-ad .cad-scene, .combo-ad .cad-list, .combo-ad .btn.primary, .combo-ad .hint { margin-left: 14px; margin-right: 14px; }
 .combo-ad .cad-scene { margin-top: 12px; } .combo-ad .hint { margin-bottom: 14px; text-align: center; }
+
+/* ---------- v67: the lobby strip says less, and the Combo Generator is one tap away ---------- */
+.ticker { margin: 4px 0 16px; border-radius: 12px; background: #0d1126; }
+.ticker ul { animation-duration: 60s; }
+.ticker li { padding: 8px 20px; font: 700 .72rem var(--f-display); letter-spacing: .16em; text-transform: uppercase; color: #aeb6da; gap: 20px; }
+.ticker li::before { width: 5px; height: 5px; opacity: .85; }
+.combo-gen { display: inline-flex; align-items: center; gap: 12px; margin: 14px auto 0; padding: 9px 12px 9px 10px; min-height: 52px; border-radius: 16px; border: 1px solid #f0b42988; background: linear-gradient(120deg, #1c2260, #121634 60%); color: #fff; text-align: left; cursor: pointer; box-shadow: 0 8px 24px #0007; max-width: 100%; }
+.combo-gen:hover, .combo-gen:focus-visible { border-color: #f0b429; }
+.combo-gen i { flex: none; width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; background: #f0b429; color: #141005; }
+.combo-gen span { display: grid; gap: 1px; min-width: 0; }
+.combo-gen b { font: 800 .98rem/1.15 var(--f-display); letter-spacing: .01em; white-space: nowrap; }
+.combo-gen small { font-size: .74rem; color: #b9c0e4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.combo-gen em { flex: none; font: 800 .68rem/1 var(--f-display); font-style: normal; letter-spacing: .12em; text-transform: uppercase; padding: 7px 10px; border-radius: 999px; background: #ffffff14; color: #f0b429; }
+.embed .combo-gen { margin-top: 10px; }
+@media (orientation: landscape) and (min-width: 640px) and (max-height: 700px) {
+  .combo-gen { margin: 0 0 0 10px; min-height: 36px; padding: 4px 10px 4px 5px; border-radius: 12px; gap: 8px; box-shadow: none; }
+  .combo-gen i { width: 26px; height: 26px; border-radius: 8px; } .combo-gen small, .combo-gen em { display: none; } .combo-gen b { font-size: .8rem; }
+  .hero .motto { margin-left: auto; }
+}
+/* ---------- v67: the table when the screen is turned (landscape), on phones, tablets and desktop windows ---------- */
+/* short phones: the chain and quick buttons sit above the turn dial, inside their own column, instead of over the field */
+@media (orientation: landscape) and (min-width: 640px) and (max-height: 460px) {
+  .arena .turnbar .chain-btn { right: 0; top: -32px; }
+  .arena .turnbar .quick-btn { right: 74px; top: -32px; }
+}
+/* enough height: more of your hand shows */
+@media (orientation: landscape) and (min-width: 640px) and (min-height: 461px) {
+  .arena #myHand { height: calc(var(--ch) * .96); }
+}
+/* tall landscape (tablets, 4:3 and squarer windows): the field stands in the middle and your hand is shown whole */
+@media (orientation: landscape) and (min-width: 640px) and (min-height: 600px) and (max-aspect-ratio: 16/10) {
+  .arena .mat-wrap { align-self: center; margin-bottom: 0; }
+  .arena .mat { transform: perspective(1500px) rotateX(18deg); }
+  .arena #myHand { height: calc(var(--ch) * 1.34); margin-bottom: 0; align-items: flex-end; }
+  .my-hand .card { width: calc(var(--cw) * 1.3); height: calc(var(--ch) * 1.3); }
+  .my-hand .card:hover, .my-hand .card:focus-visible, .my-hand .card.act:active { --lift: calc(var(--ch) * -.16); }
+  .arena #opHand { height: calc(var(--ch) * .62); margin-top: 0; }
+  .op-hand .card { width: calc(var(--cw) * .7); height: calc(var(--ch) * .7); transform: none; }
+}
+
+/* a combo being played: what the step does is written in the replay bar itself (the status line sat under the bar) */
+.replay-bar .rb-cap { font: 700 12.5px/1.3 system-ui, sans-serif; color: #eef0ff; text-align: center; padding: 2px 6px 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.replay-bar .rb-cap[hidden] { display: none; }
+@media (orientation: portrait), (max-width: 639px) { body.replaying.combo-play #status { visibility: hidden; } }

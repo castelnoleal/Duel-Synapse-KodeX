@@ -1,0 +1,27 @@
+/* KodeX 10.0 (v67) */
+/* the combo sheet can be taller than it is wide: the preview scrolls instead of squeezing it */
+.mdl[data-k=pm] .di-prev .di-svg.tall{aspect-ratio:auto;max-height:62vh;overflow:auto;-webkit-overflow-scrolling:touch}
+.mdl[data-k=pm] .di-prev .di-svg.tall svg{height:auto}
+/* landscape phones and wide screens: nothing is cut off, panels use the width */
+@media (orientation:landscape) and (max-height:520px){
+ .mdl{max-height:96vh}
+ .mdl .dact{position:sticky;bottom:0}
+ .th-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .cad-scene{display:none}
+}
+/* a phone turned on its side: the tabs become a rail on the left and the heading is one line, so the page gets the height */
+@media (orientation:landscape) and (max-height:520px){
+ :root{--nav:0px;--rail:66px}
+ body{padding-left:calc(var(--rail) + env(safe-area-inset-left))}
+ .nav{top:0;right:auto;bottom:0;width:calc(var(--rail) + env(safe-area-inset-left));border-top:0;border-right:1px solid var(--line);padding:env(safe-area-inset-top) 0 var(--sab) env(safe-area-inset-left)}
+ .nav>div{grid-template-columns:1fr;grid-template-rows:repeat(4,1fr);height:100%;max-width:none;margin:0}
+ .nav button{font-size:.66rem}
+ .nav button i.ic{padding:3px 12px}
+ header{padding-top:6px;padding-bottom:2px;gap:8px}
+ header .logo img{width:30px;height:30px}
+ header .brand,header .sub{display:none}
+ header,.search,main{max-width:none}
+ main{padding-bottom:calc(14px + var(--sab))}
+}
+/* wide screens: the list uses the width */
+@media (min-width:1100px){header,.search,main{max-width:1240px}}
