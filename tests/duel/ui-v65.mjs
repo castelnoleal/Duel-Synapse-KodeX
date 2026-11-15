@@ -77,7 +77,8 @@ for (const [w, h, tag] of [[412, 915, "p"], [915, 412, "l"]]) {
     { type: 70, chain_size: 1, code: POT, controller: 0, location: 2, sequence: 0, description: "0" },
     { type: 70, chain_size: 2, code: ASH, controller: 1, location: 2, sequence: 0, description: "0" },
     { type: 70, chain_size: 3, code: MARSH, controller: 0, location: 4, sequence: 2, description: "0" }] }), [POT, ASH, MARSH]);
-  ok(wait >= 2600 && wait <= 2800, "three links take three turns of the chosen time (" + wait + " ms)");
+  // since v68 the Ash Blossom cut-in (twice its old length) waits its turn in the same queue
+  ok(wait >= 2600 + 3900 - 200 && wait <= 2800 + 3900, "three links take three turns of the chosen time, plus the Ash Blossom cut-in (" + wait + " ms)");
   await page.waitForTimeout(500);
   let st = await f.evaluate(() => { const s = document.querySelector("#chainFx .cl-stage"); return s && { cls: s.className, cards: s.querySelectorAll(".cl-card").length, n: s.querySelector(".cl-card.new .cl-n").textContent, word: s.querySelector(".cl-word").textContent }; });
   ok(st && st.cards === 1 && st.n === "1" && /CHAIN1/.test(st.word), "link 1 shown first " + JSON.stringify(st));
@@ -86,7 +87,7 @@ for (const [w, h, tag] of [[412, 915, "p"], [915, 412, "l"]]) {
   st = await f.evaluate(() => { const s = document.querySelector("#chainFx .cl-stage"); return s && { cls: s.className, cards: s.querySelectorAll(".cl-card").length, n: s.querySelector(".cl-card.new .cl-n").textContent, wires: s.querySelectorAll(".cl-wire").length }; });
   ok(st && st.cards === 2 && st.n === "2" && st.wires === 1 && / op/.test(st.cls), "link 2 joins link 1 only after it has finished " + JSON.stringify(st));
   if (shot) await page.screenshot({ path: `${out}/v65-chain2-${tag}.png` });
-  await page.waitForTimeout(900);
+  await page.waitForTimeout(900 + 3900); // link 2 is Ash Blossom: its cut-in plays before link 3
   st = await f.evaluate(() => { const s = document.querySelector("#chainFx .cl-stage"); const r = s && s.querySelector(".cl-row").getBoundingClientRect(); return s && { cards: s.querySelectorAll(".cl-card").length, n: s.querySelector(".cl-card.new .cl-n").textContent, fits: r.left >= -1 && r.right <= innerWidth + 1 && r.top >= 0 && r.bottom <= innerHeight }; });
   ok(st && st.cards === 3 && st.n === "3" && st.fits, "link 3 with both earlier links, inside the screen " + JSON.stringify(st));
   if (shot) await page.screenshot({ path: `${out}/v65-chain3-${tag}.png` });

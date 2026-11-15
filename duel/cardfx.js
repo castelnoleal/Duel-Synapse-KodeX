@@ -28,11 +28,17 @@ function layer() {
   return l;
 }
 function div(cls, css, text) { const d = document.createElement("div"); d.className = cls; if (css) for (const [k, v] of Object.entries(css)) { if (k.startsWith("--")) d.style.setProperty(k, v); else d.style[k] = v; } if (text != null) d.textContent = text; return d; }
-const later = (n, ms) => setTimeout(() => n.remove(), ms);
+// K stretches the special card animations (Settings → Special card animations): 1 = the original length
+let K = 1, PACE = 2;
+export const setStaplePace = (k) => { PACE = Math.max(.5, Math.min(4, Number(k) || 2)); };
+/** How long a staple's moment lasts at the chosen pace (the Arena waits this long before the next thing). */
+export const stapleMs = () => Math.round(1950 * PACE);
+const later = (n, ms) => setTimeout(() => n.remove(), ms * K);
 /** el.animate, with the easing applied between each pair of keyframes (in the options it would bend the whole
  *  timeline, so "hold" keyframes would be skipped and things would fade early). */
 function A(el, frames, opts = {}) {
   const { easing, ...o } = typeof opts === "number" ? { duration: opts } : opts;
+  if (K !== 1) { if (o.duration) o.duration *= K; if (o.delay) o.delay *= K; }
   return el.animate(easing ? frames.map((f) => ({ easing, ...f })) : frames, o);
 }
 
@@ -132,7 +138,7 @@ function glyphs(L, spec, from) {
       case "fly": { const y = rnd(H * .2, H * .6); k = [{ transform: `translate(${px(-60)},${px(y)}) scale(1.2)`, opacity: 0 }, { transform: `translate(${px(W * .5)},${px(y - 80)}) scale(1.5)`, opacity: 1, offset: .5 }, { transform: `translate(${px(W + 60)},${px(y - 200)}) scale(1)`, opacity: 0 }]; break; }
       default: { const a = (i / n) * Math.PI * 2, r = rnd(90, Math.min(W, H) * .5); k = [{ transform: `translate(${px(x0)},${px(y0)}) scale(.3)`, opacity: 1 }, { transform: `translate(${px(x0 + Math.cos(a) * r)},${px(y0 + Math.sin(a) * r)}) scale(1.3) rotate(${rnd(-90, 90)}deg)`, opacity: 0 }]; }
     }
-    p.animate(k, { duration: spec.kind === "dash" ? rnd(700, 1300) : rnd(1100, 1900), delay: rnd(0, spec.kind === "dash" ? 700 : 300), easing: spec.kind === "dash" ? "linear" : "cubic-bezier(.2,.7,.3,1)", fill: "both" });
+    p.animate(k, { duration: K * (spec.kind === "dash" ? rnd(700, 1300) : rnd(1100, 1900)), delay: K * rnd(0, spec.kind === "dash" ? 700 : 300), easing: spec.kind === "dash" ? "linear" : "cubic-bezier(.2,.7,.3,1)", fill: "both" });
   }
 }
 function overlay(L, spec, at) {
@@ -158,6 +164,11 @@ export function staple(name, code, src, at) {
   if (at === undefined && code && code.getBoundingClientRect) { at = code; code = 0; src = ""; }   // old call: staple(name, at)
   const spec = STAPLES[norm(name)];
   if (!spec || reduced()) return !!spec;
+  K = PACE;
+  try { stapleDraw(spec, name, src, at); } finally { K = 1; }
+  return true;
+}
+function stapleDraw(spec, name, src, at) {
   const L = layer(), r = at && at.getBoundingClientRect && at.getBoundingClientRect();
   const from = r && r.width ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : { x: innerWidth / 2, y: innerHeight / 2 };
   overlay(L, spec, from);
@@ -166,7 +177,6 @@ export function staple(name, code, src, at) {
   if (src) cutIn(L, src, name, spec.col);
   else stamp(L, spec.word, spec.sub, spec.col);
   if (src) stamp(L, spec.word, "", spec.col, false, true);
-  return true;
 }
 /** Anime cut-in: a diagonal band slides across with the card's own art and name. */
 function cutIn(L, src, name, col) {

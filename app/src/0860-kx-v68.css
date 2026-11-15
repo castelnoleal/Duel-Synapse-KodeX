@@ -1,0 +1,51 @@
+/* KodeX 10.1 (v68): button shapes and spacing (see kxDiagnose in 0880-kx-v68-late.js for the self-check) */
+
+/* Room for the floating help button (bottom right): the last item of a page or panel can always scroll clear of it,
+   so it never sits on a card, a tile or a button. */
+body[data-kxtop=''] main,
+body[data-kxtop='tool'] #tb,
+body[data-kxtop='detail'] #Ldetail .sb,
+body[data-kxtop='dv'] .sb {
+  padding-bottom: calc(76px + var(--sab, 0px));
+}
+
+/* Combo editor: the small "add a card to this step" buttons are a comfortable size to tap */
+.cb-add,
+[aria-label='Add a card to this step'] {
+  min-width: 36px;
+  min-height: 36px;
+}
+
+/* Button rows stuck to the bottom of a panel get their own background, so what scrolls under them never shows
+   through (in landscape they sat on top of the starting hand) */
+.mdl .dact {
+  background: var(--panel, #12172f);
+  box-shadow: 0 -10px 14px -6px rgba(0, 0, 0, 0.55);
+  padding-top: 10px;
+  z-index: 2;
+}
+
+/* Combo image: the three looks keep their names to two short lines */
+.di-des button {
+  font-size: 11.5px;
+  overflow-wrap: anywhere;
+}
+
+/* Every button keeps its shape: the label stays in the middle and never pushes the button taller than it needs */
+.btn,
+.ibtn {
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+}
+.btn {
+  line-height: 1.2;
+}
+.dact .btn,
+.dk-act .btn,
+.cb-act .btn {
+  min-height: 44px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

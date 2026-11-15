@@ -18,7 +18,7 @@ This is the map of how KodeX is built, so any part can be found and changed on i
 | **Android app** | The KodeX page in instApped (WebView). Bundles the Arena so duels need no download. | `scripts/build_app_bundle.py` → ZIP for instApped |
 | **meiocg.org pages** | Deck pages, guides, Cup, Players, Why KodeX. DashNex pages (head + body code each). | `meiocg-site/` |
 | **Players page** | kodex.meiocg.org/players: leaderboard and public profiles. | `scripts/players_page.template.html` → `players.html` |
-| **KodeX Editor** | One tool for sponsor banners (free) and skins (Premium) on top of any KodeX build. | `scripts/editor.template.html` → `KodeX_Editor.html` |
+| **KodeX Master Editor** | Edit, configure and diagnose KodeX module by module with a live view; also sponsor banners (free) and skins (Premium) on any build. | `scripts/editor.template.html` + `scripts/editor.master.*` → `KodeX_Editor.html` |
 
 ## 2. Editions
 
@@ -59,10 +59,21 @@ the main script (`core-…`) is cut at its section comments. Later modules may r
 | `0700`–`0720` | 9.7: button-shape fixes, Arena closes to the Test tab, combo plays read from card text (`cbxPlays`, `cbxOpen`, `cbNextStep`, `cbFirstStep`, `cbxPick`) |
 | `0740`–`0760` | 9.8: no zoom in the app (`kxInApp`), store link (`KX_STORE`), combo code in images (`cbqPack`, `cbqBand`, `cbqRead`), image import (`cbImportImage`), replay combos from the Arena (`comboNew`) |
 | `0780`–`0800` | 9.9: Combos only in the app (`kxComboAd` wraps every way into Combos in a browser); the Arena is told whether it is in the app (`{kx:"host"}`) |
+| `0860`–`0880` | 10.1: button and spacing fixes (`0860`), KodeX button area sent to the Arena (`kxChromeToArena`, `{kx:"chrome"}`), screen checks used by the Master Editor (`kxDiagnose`) |
 | `0820`–`0840` | 10.0: combo sheet (`buildComboSvg`, `cbFinalBoard`), combo code v2 (`CBQ2`, `cbqPack`, `cbqRead`), placement on combo cards (`cbPlaceOf`), landscape rail, Combo Generator hand-off from the Arena (`{kx:"combos"}`) |
 
-To add a feature: add a new numbered pair (for example `0860-kx-v68.css`, `0880-kx-v68-late.js`) to `manifest.json`, or edit
+To add a feature: add a new numbered pair (for example `0900-kx-v69.css`, `0920-kx-v69-late.js`) to `manifest.json`, or edit
 the module that owns it. The constant `KODEX_BLUEPRINT` in the last module names the creator in the running app.
+
+### Editing by hand
+
+- Every `.js` and `.css` module is formatted with Prettier using `app/src/.prettierrc.json` (120 columns, single quotes).
+  Run `npx prettier --config app/src/.prettierrc.json --write app/src/*.js app/src/*.css` after big edits so diffs stay small.
+- Each function is written once. Two exceptions run while the page loads, before the later copy exists, and are kept on
+  purpose: `showTiles` (`0060`, replaced in `0480`) and `skinsToArena` (`0100`/`0440`, replaced later).
+- The KodeX Master Editor (`python3 scripts/build_editor.py`) opens every module with line numbers and a live view, marks
+  the lines you changed, and its Diagnose tab finds syntax errors and on-screen problems with module and line. Downloaded
+  modules go back into `app/src/`; then run `python3 scripts/build_kodex.py build`.
 
 ## 4. Build and release
 

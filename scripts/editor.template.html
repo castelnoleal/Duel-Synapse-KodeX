@@ -4,7 +4,7 @@
      One tool for every KodeX build: sponsor banners for the free edition, skin packs for Premium.
      Built by scripts/build_editor.py (the newest free and Premium KodeX pages are inside). -->
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="editor-build" content="EDITOR-1.0"><meta name="author" content="Castel Noleal (MEIOCG)"><title>KodeX Editor</title>
+<meta name="editor-build" content="EDITOR-1.0"><meta name="author" content="Castel Noleal (MEIOCG)"><title>KodeX Master Editor</title>
 <style>
 :root{color-scheme:dark;--bg:#070a16;--panel:#10152b;--panel2:#0b1022;--line:#ffffff1a;--line2:#ffffff2a;--ink:#eef1ff;--muted:#9aa3c7;--brand:#7088ff;--gold:#f0b429;--ok:#3dd68c;--bad:#ff6a7a}
 *{box-sizing:border-box}html,body{margin:0}body{min-height:100vh;color:var(--ink);font:15px/1.5 Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:radial-gradient(80% 50% at 0% 0%,#1d2a7a55,transparent 60%),radial-gradient(60% 40% at 100% 0%,#7a4fd633,transparent 60%),var(--bg)}
@@ -58,14 +58,20 @@ label.f{display:grid;gap:5px;font-size:12px;font-weight:800;color:#cdd6f5}
 .tabsm{display:none}
 @media (max-width:820px){.app{grid-template-columns:1fr}.side{position:sticky;top:0;z-index:5;height:auto;flex-direction:row;overflow-x:auto;padding:10px;gap:6px;border-right:0;border-bottom:1px solid var(--line)}.side .logo,.side .foot{display:none}.nav{width:auto;white-space:nowrap;padding:8px 12px}.nav em{display:none}
  .bases,.builds{grid-template-columns:1fr}.g4{grid-template-columns:1fr 1fr}.main{padding-top:16px}}
+.nav-sep{margin:14px 12px 4px;font-size:10.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+%%MASTER_CSS%%
 </style></head><body>
 <div class="app">
  <aside class="side" aria-label="Steps">
-  <div class="logo"><i></i><div><b>KodeX Editor</b><small>MEIOCG · Duel Synapse</small></div></div>
+  <div class="logo"><i></i><div><b>KodeX Master Editor</b><small>MEIOCG · Duel Synapse</small></div></div>
   <button class="nav on" data-go="base"><span class="n">1</span>Base<em id="nvBase"></em></button>
   <button class="nav" data-go="sp"><span class="n">2</span>Sponsors<em id="nvSp">0</em></button>
   <button class="nav" data-go="sk"><span class="n">3</span>Skins<em id="nvSk">0</em></button>
   <button class="nav" data-go="build"><span class="n">4</span>Build</button>
+  <div class="nav-sep">Master tools</div>
+  <button class="nav" data-go="code"><span class="n">5</span>Code<em id="nvCode"></em></button>
+  <button class="nav" data-go="diag"><span class="n">6</span>Diagnose</button>
+  <button class="nav" data-go="cfg"><span class="n">7</span>Config</button>
   <div class="foot">Created by Castel Noleal, creator of MEIOCG.<br>Everything you add is remembered on this device.</div>
  </aside>
  <main class="main">
@@ -105,6 +111,7 @@ label.f{display:grid;gap:5px;font-size:12px;font-weight:800;color:#cdd6f5}
    <div class="row" style="margin-top:12px"><button class="btn" id="goBoth">Build both</button></div>
    <div class="status" id="st">Ready.</div>
   </section>
+ %%MASTER_HTML%%
  </main>
 </div>
 <script>
@@ -234,4 +241,8 @@ for(const [id,ks] of [['goFree',['free']],['goPrem',['prem']],['goBoth',['free',
   if(added)await saveB();
   drawB();drawS();summary();
 })();
-</script></body></html>
+</script><script type="application/json" id="kx-src">%%SRC_JSON%%</script>
+<script>
+%%MASTER_JS%%
+</script>
+</body></html>
