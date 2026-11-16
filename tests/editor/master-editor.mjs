@@ -2,6 +2,7 @@
 // inspect, config and downloads. Opened as a local file, the way it is usually used.
 // Usage: node tests/editor/master-editor.mjs /path/to/KodeX_Editor.html [outdir]
 import { chromium } from "playwright";
+import fs0 from "node:fs";
 const file = process.argv[2], out = process.argv[3] || "/tmp";
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1440, height: 900 }, acceptDownloads: true });
@@ -68,7 +69,7 @@ await p.click("#dgInspect");
 // config: links and version
 await p.click("[data-go=cfg]"); await p.waitForTimeout(500);
 const cf = await p.evaluate(() => ({ ver: document.querySelector("#cfVer").value, play: [...document.querySelectorAll("#cfLinks input")].some((i) => /play\.google\.com/.test(i.value)), mods: document.querySelectorAll("#cfMods .cf-mod").length, ed: [...document.querySelectorAll("#cfEd b")].every((b) => b.textContent === "found once") }));
-ok(cf.ver === "68" && cf.play && cf.mods > 70 && cf.ed, "Config shows the version, the links, the modules, and the Premium replacements all found " + JSON.stringify(cf));
+ok(cf.ver === String(JSON.parse(fs0.readFileSync(new URL("../../app/src/manifest.json", import.meta.url))).version) && cf.play && cf.mods > 70 && cf.ed, "Config shows the version, the links, the modules, and the Premium replacements all found " + JSON.stringify(cf));
 await p.evaluate(() => { const row = [...document.querySelectorAll("#cfLinks .cf-link")].find((r) => /play\.google\.com\/store\/search/.test(r.querySelector("input").value)); row.querySelector("input").value = "https://play.google.com/store/apps/details?id=org.meiocg.kodex"; row.querySelector("button").click(); });
 await p.waitForTimeout(300);
 ok(await p.evaluate(() => Object.values(window.__kxMaster.files).some((t) => t.includes("details?id=org.meiocg.kodex")) && !Object.values(window.__kxMaster.files).some((t) => t.includes("store/search?q=Duel%20Synapse"))), "changing a link changes it everywhere");

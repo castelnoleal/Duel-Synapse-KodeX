@@ -6,11 +6,23 @@ for (const a of [
   ['att', 'Attach as Xyz material'],
   ['ex', 'To the Extra Deck'],
   ['deck', 'Return to the Deck'],
-  ['put', 'Place on the field']
+  ['put', 'Place on the field'],
+  ['trib', 'Tribute'],
+  ['dis', 'Discard'],
+  ['des', 'Destroy']
 ])
   if (!CB_ACT.some(x => x[0] === a[0])) CB_ACT.push(a);
-Object.assign(CB_SHORT, { mat: 'Material', att: 'Attach', ex: 'To Extra', deck: 'To Deck', put: 'Place' });
-const CB_RESULT = new Set(['add', 'gy', 'ban', 'mat', 'att', 'ex', 'deck', 'put']);
+Object.assign(CB_SHORT, {
+  mat: 'Material',
+  att: 'Attach',
+  ex: 'To Extra',
+  deck: 'To Deck',
+  put: 'Place',
+  trib: 'Tribute',
+  dis: 'Discard',
+  des: 'Destroy'
+});
+const CB_RESULT = new Set(['add', 'gy', 'ban', 'mat', 'att', 'ex', 'deck', 'put', 'trib', 'dis', 'des']);
 const CB_GROUP = {
   add: 'ADD TO HAND',
   gy: 'SEND TO GY',
@@ -20,6 +32,9 @@ const CB_GROUP = {
   ex: 'TO EXTRA DECK',
   deck: 'RETURN TO DECK',
   put: 'PLACE',
+  trib: 'TRIBUTE',
+  dis: 'DISCARD',
+  des: 'DESTROY',
   ss: 'SPECIAL SUMMON',
   ns: 'NORMAL SUMMON',
   set: 'SET',
@@ -27,6 +42,18 @@ const CB_GROUP = {
   scale: 'PENDULUM SCALE',
   eff: 'EFFECT',
   auto: 'THEN'
+};
+/* the opponent's side (o:1): what happens to their cards, or to yours placed on their field */
+const CB_GROUP_OPP = {
+  dis: 'OPPONENT DISCARDS',
+  des: "DESTROY THE OPPONENT'S",
+  ban: "BANISH THE OPPONENT'S",
+  gy: "SEND THE OPPONENT'S",
+  trib: "TRIBUTE THE OPPONENT'S",
+  ss: "TO THE OPPONENT'S FIELD",
+  put: "TO THE OPPONENT'S FIELD",
+  add: "TO THE OPPONENT'S HAND",
+  deck: "TO THE OPPONENT'S DECK"
 };
 const cbPlaceOf = x => {
   const o = {};
@@ -39,6 +66,7 @@ const cbPlaceOf = x => {
     const v = x && x[k] != null ? Number(x[k]) : NaN;
     if (Number.isInteger(v) && v >= min && v <= max) o[k] = v;
   }
+  if (x && (x.o === 1 || x.o === true)) o.o = 1; // on the opponent's side (summoned there, or one of their cards)
   return o;
 };
 /* ---------- the combo code, version 2: more steps, the new moves, and each card's placement ---------- */
@@ -47,7 +75,26 @@ const CBQ2 = {
   cal: 6,
   maxRows: 90,
   foot: 74,
-  acts: ['auto', 'act', 'ns', 'ss', 'add', 'set', 'scale', 'eff', 'gy', 'ban', 'mat', 'att', 'ex', 'deck', 'put']
+  acts: [
+    'auto',
+    'act',
+    'ns',
+    'ss',
+    'add',
+    'set',
+    'scale',
+    'eff',
+    'gy',
+    'ban',
+    'mat',
+    'att',
+    'ex',
+    'deck',
+    'put',
+    'trib',
+    'dis',
+    'des'
+  ]
 };
 function cbqPack(list, withExtra, withPlace) {
   const bits = [],
@@ -102,7 +149,7 @@ function cbqPack(list, withExtra, withPlace) {
         .filter(l => l.length)
     };
   });
-  put(2, 4);
+  put(3, 4); // version 3: 5-bit moves, and the opponent's side
   put(dict.length, 7);
   for (const n of dict) put(n, 34);
   put(cs.length, 3);
@@ -121,14 +168,15 @@ function cbqPack(list, withExtra, withPlace) {
         put(n.length, 3);
         for (const [i, a, pl] of n) {
           put(i, 7);
-          put(a, 4);
-          const has = pl.z != null || pl.p != null || pl.f != null;
+          put(a, 5);
+          const has = pl.z != null || pl.p != null || pl.f != null || !!pl.o;
           put(has ? 1 : 0, 1);
           if (has) {
             put(pl.z != null ? pl.z + 1 : 0, 4);
             put(pl.p || 0, 2);
             put(pl.f || 0, 3);
             put(pl.s != null ? pl.s + 1 : 0, 4);
+            put(pl.o ? 1 : 0, 1);
           }
         }
       }
@@ -171,7 +219,7 @@ function cbqUnpack(bytes) {
     };
   try {
     const ver = get(4);
-    if (ver !== 1 && ver !== 2) return null;
+    if (ver < 1 || ver > 3) return null;
     const dict = [];
     for (let n = get(7); n > 0; n--) dict.push(get(34));
     const at = i => dict[i] || 0,
@@ -194,8 +242,8 @@ function cbqUnpack(bytes) {
           const cards = [];
           for (let j = get(3); j > 0; j--) {
             const id = at(get(7)),
-              x = { c: id, a: CBQ2.acts[get(4)] || 'auto' };
-            if (ver === 2 && get(1)) {
+              x = { c: id, a: CBQ2.acts[get(ver === 3 ? 5 : 4)] || 'auto' };
+            if (ver >= 2 && get(1)) {
               const z = get(4),
                 pp = get(2),
                 f = get(3),
@@ -204,6 +252,7 @@ function cbqUnpack(bytes) {
               if (pp) x.p = pp;
               if (f) x.f = f;
               if (s) x.s = s - 1;
+              if (ver === 3 && get(1)) x.o = 1;
             }
             if (id) cards.push(x);
           }
@@ -380,24 +429,64 @@ function cbAdopt(raw, from) {
   cbStore(c);
   return c;
 }
-/* ---------- what is on the field after the combo (for the sheet's "Final board") ---------- */
+/* ---------- what is on the field after the combo (for the sheet's "Final board") ----------
+   Each card is followed zone by zone on both sides of the table, the way the Arena plays it back: a card summoned to the
+   opponent's field (o:1) stands there, and one of their cards that the combo removes leaves their side. */
 function cbWalk(c) {
   const hand = c.hand.map(String),
-    field = [],
     gone = [];
+  const B = [
+    { m: Array(7).fill(null), s: Array(6).fill(null) },
+    { m: Array(7).fill(null), s: Array(6).fill(null) }
+  ];
   let normal = false;
-  const txt = id => {
-      const k = cbCard(id);
-      return String((k && k.type) || '');
-    },
+  const txt = id => String((cbCard(id) || {}).type || ''),
+    race = id => String((cbCard(id) || {}).race || ''),
     isMon = id => /monster/i.test(txt(id)),
     isX = id => /link|xyz|synchro|fusion/i.test(txt(id)),
-    stays = id =>
-      isMon(id) || /pendulum/i.test(txt(id)) || /continuous|field|equip/i.test(String((cbCard(id) || {}).race || ''));
+    isPend = id => /pendulum/i.test(txt(id)),
+    stays = id => isMon(id) || /continuous|field|equip/i.test(race(id));
   const drop = (a, id) => {
     const i = a.indexOf(String(id));
     if (i >= 0) a.splice(i, 1);
     return i >= 0;
+  };
+  // where a card stands: [side, row, zone]; the side asked for is looked at first
+  const where = (id, pref = 0) => {
+    for (const sd of [pref, 1 - pref])
+      for (const r of ['m', 's']) {
+        const i = B[sd][r].findIndex(z => z && z.id === String(id));
+        if (i >= 0) return [sd, r, i];
+      }
+    return null;
+  };
+  const onField = id => !!where(id);
+  const leave = (id, x) => {
+    let w = null;
+    if (x.s != null)
+      for (const sd of [x.o ? 1 : 0, x.o ? 0 : 1])
+        for (const r of ['m', 's']) if (!w && B[sd][r][x.s] && B[sd][r][x.s].id === String(id)) w = [sd, r, x.s];
+    w = w || where(id, x.o ? 1 : 0);
+    if (!w) return false;
+    B[w[0]][w[1]][w[2]] = null;
+    return true;
+  };
+  const place = (id, x, a) => {
+    const sd = x.o ? 1 : 0,
+      b = B[sd],
+      mon = isMon(id) && !(a === 'scale' || (a === 'act' && isPend(id)));
+    const pos = x.p === 3 || (a === 'set' && mon) ? 'down' : x.p === 2 ? 'def' : 'atk';
+    if (mon) {
+      let z = x.z != null && x.z < 7 && !b.m[x.z] ? x.z : -1;
+      if (z < 0 && isX(id)) z = [5, 6].find(i => !b.m[i] && !B[1 - sd].m[i]) ?? -1;
+      if (z < 0) z = [2, 1, 3, 0, 4].find(i => !b.m[i]) ?? -1;
+      if (z >= 0) b.m[z] = { id: String(id), pos };
+    } else {
+      const field = /field/i.test(race(id)) && !isMon(id);
+      let z = field ? 5 : x.z != null && x.z < 5 && !b.s[x.z] ? x.z : -1;
+      if (z < 0) z = (a === 'scale' || isPend(id) ? [0, 4] : [2, 1, 3, 0, 4]).find(i => !b.s[i]) ?? -1;
+      if (z >= 0) b.s[z] = { id: String(id), pos: a === 'set' || (a === 'put' && x.p === 3) ? 'down' : 'atk' };
+    }
   };
   // "Auto" is decided the way the Arena decides it: by where the card is and what it is
   const lines = c.lines.map(l =>
@@ -407,7 +496,7 @@ function cbWalk(c) {
         const id = String(x.c);
         let a = x.a;
         if (a === 'auto')
-          a = field.includes(id)
+          a = onField(id)
             ? 'eff'
             : gone.includes(id)
               ? 'eff'
@@ -422,24 +511,29 @@ function cbWalk(c) {
                   : 'add';
         if (a === 'ns') normal = true;
         if (a === 'ns' || a === 'ss' || a === 'set' || a === 'scale' || a === 'put') {
-          if (x.f === 1 || x.f == null) drop(hand, id);
+          if (x.f === 6) leave(id, { ...x, o: 0 });
+          else if (x.f === 1 || x.f == null) drop(hand, id);
           drop(gone, id);
-          field.push(id);
+          place(id, x, a);
         } else if (a === 'act') {
-          if (!field.includes(id)) {
+          if (!onField(id)) {
             drop(hand, id);
-            if (stays(id)) field.push(id);
+            if (stays(id)) place(id, x, a);
             else gone.push(id);
+          } else {
+            const w = where(id);
+            if (w && B[w[0]][w[1]][w[2]].pos === 'down') B[w[0]][w[1]][w[2]].pos = 'atk';
           }
         } else if (a === 'add') {
-          if (x.f === 6 || (x.f == null && field.includes(id))) drop(field, id);
+          if (x.f === 6 || (x.f == null && onField(id))) leave(id, x);
           drop(gone, id);
-          hand.push(id);
+          if (!x.o) hand.push(id);
         } else if (CB_RESULT.has(a)) {
-          if (x.f === 6) drop(field, id);
-          else if (x.f === 1) drop(hand, id);
-          else if (x.f == null) {
-            if (!drop(field, id)) drop(hand, id);
+          if (x.f === 6) leave(id, x);
+          else if (x.f === 1 || a === 'dis') {
+            if (!x.o) drop(hand, id);
+          } else if (x.f == null) {
+            if (!leave(id, x) && !x.o) drop(hand, id);
           }
           if (a !== 'deck' && a !== 'att') gone.push(id);
         }
@@ -447,15 +541,16 @@ function cbWalk(c) {
       })
     }))
   );
-  return { lines, field, hand };
+  const ids = sd => [...B[sd].m, ...B[sd].s].filter(Boolean).map(z => z.id);
+  return { lines, field: ids(0), opp: ids(1), hand, board: B };
 }
 const cbFinalBoard = c => {
   const w = cbWalk(c);
-  return { field: w.field, hand: w.hand };
+  return { field: w.field, hand: w.hand, opp: w.opp, board: w.board };
 };
 /* ---------- the combo sheet ---------- */
 function buildComboSvg(list, meta, bg) {
-  const W = DI_SIZE,
+  const W = meta.W || DI_SIZE, // wider for the big square sheet; the steps grid gains columns with it
     P = DI_PAL[meta.design] || DI_PAL.night,
     clean = meta.design === 'clean',
     X = v =>
@@ -474,8 +569,10 @@ function buildComboSvg(list, meta, bg) {
     right = pf ? 430 : 0,
     ts = Math.max(40, Math.min(76, Math.floor((W - pad * 2 - right) / (title.length * 0.62))));
   const band = cbqBand(list, W, 1600, pad, P),
-    o = [];
+    o = [],
+    cuts = []; // places a page can end without cutting a card (for square pages)
   let y = 206 + ts;
+  cuts.push(y - 20);
   const fit = (t, max, fs) => {
     t = String(t || '');
     const n = Math.max(3, Math.floor(max / (fs * 0.56)));
@@ -606,7 +703,7 @@ function buildComboSvg(list, meta, bg) {
         }
         const tgt = cur ? cur.groups : lead;
         for (const x of res) {
-          const lb = CB_GROUP[x.a] || 'THEN';
+          const lb = x.o ? CB_GROUP_OPP[x.a] || (CB_GROUP[x.a] || 'THEN') + " (OPPONENT'S)" : CB_GROUP[x.a] || 'THEN';
           let g = tgt[tgt.length - 1];
           if (!g || g.t !== lb || g.ids.length >= 8) {
             g = { t: lb, ids: [] };
@@ -621,8 +718,9 @@ function buildComboSvg(list, meta, bg) {
       }
     });
     if (tiles.length) {
+      cuts.push(y);
       y = section(`COMBO STEPS · ${tiles.length}`, y);
-      const cols = 5,
+      const cols = Math.max(5, Math.round((5 * W) / DI_SIZE)),
         gap = 16,
         tw = (W - pad * 2 - gap * (cols - 1)) / cols,
         mw = 60,
@@ -664,12 +762,17 @@ function buildComboSvg(list, meta, bg) {
           );
           const lab = !main
               ? 'Then'
-              : a === 'ss' && k && t.groups.some(g => g.t === 'USING')
-                ? k + ' Summon'
-                : LABEL[a] || 'Play',
-            lw = lab.length * 9.4 + 26;
+              : (a === 'ss' && k && t.groups.some(g => g.t === 'USING') ? k + ' Summon' : LABEL[a] || 'Play') +
+                (main.o && ['ss', 'put', 'set', 'ns'].includes(a)
+                  ? " · to opponent's field"
+                  : main.o
+                    ? " · opponent's card"
+                    : ''),
+            // the label shrinks to fit its tile (a summon to the opponent's field is a long label)
+            lfs = Math.max(11, Math.min(17, Math.floor((tw - 40) / (lab.length * 0.56)))),
+            lw = lab.length * lfs * 0.553 + 26;
           o.push(
-            `<circle cx="${x + tw / 2 - lw / 2 + 6}" cy="${yy + 52}" r="6" fill="${DOT[a] || P.sub}"/><text x="${x + tw / 2 - lw / 2 + 22}" y="${yy + 58}" font-family="${F}" font-size="17" font-weight="700" fill="${DOT[a] || P.sub}">${X(lab)}</text>`
+            `<circle cx="${x + tw / 2 - lw / 2 + 6}" cy="${yy + 52}" r="6" fill="${DOT[a] || P.sub}"/><text x="${x + tw / 2 - lw / 2 + 22}" y="${yy + 58}" font-family="${F}" font-size="${lfs}" font-weight="700" fill="${DOT[a] || P.sub}">${X(lab)}</text>`
           );
           yy += 74;
           if (n) {
@@ -718,39 +821,106 @@ function buildComboSvg(list, meta, bg) {
             }
         });
         y += rh + gap;
+        cuts.push(y - gap / 2);
       }
       y += 12;
     }
-    // final board
+    // final board: the field as it stands at the end, zone by zone (both sides when the combo used the opponent's)
     const fb = walk;
-    if (fb.field.length) {
+    if (fb.field.length || fb.opp.length) {
+      cuts.push(y);
       y = section('FINAL BOARD', y);
-      const cw = 118,
-        ch = Math.round((cw * 86) / 59),
-        gap = 16,
-        per = Math.floor((W - pad * 2 - 32) / (cw + gap)),
-        rows = Math.ceil(fb.field.length / per),
-        h = rows * (ch + 34) + 24 + (fb.hand.length ? 30 : 0);
+      const both = fb.opp.length > 0,
+        gap = 12,
+        zw = Math.min(150, Math.floor((W - pad * 2 - 40 - gap * 6) / 7)),
+        zh = Math.round((zw * 86) / 59),
+        rowH = zh + 30,
+        rows = both ? 5 : 3,
+        h = rows * rowH + 40 + (fb.hand.length ? 34 : 0) + (both ? 30 : 0),
+        x0 = pad + (W - pad * 2 - (7 * zw + 6 * gap)) / 2;
       panel(pad, y, W - pad * 2, h);
-      fb.field.forEach((id, i) => {
-        const x = pad + 16 + (i % per) * (cw + gap),
-          yy = y + 14 + Math.floor(i / per) * (ch + 34);
-        card(id, x, yy, cw);
+      const slot = (col, yy, label) => {
+        const x = x0 + col * (zw + gap);
         o.push(
-          `<text x="${x + cw / 2}" y="${yy + ch + 20}" font-family="${B}" font-size="14" font-weight="700" fill="${P.ink}" text-anchor="middle">${X(fit(cbName(id), cw + 10, 14))}</text>`
+          `<rect x="${x}" y="${yy}" width="${zw}" height="${zh}" rx="${Math.round(zw * 0.06)}" fill="${P.slot}" fill-opacity=".45" stroke="${P.line}" stroke-dasharray="${label === 'EMZ' ? '6 5' : '0'}"/>`
         );
-      });
+        if (label)
+          o.push(
+            `<text x="${x + zw / 2}" y="${yy + zh / 2 + 5}" font-family="${F}" font-size="${Math.round(zw / 9)}" font-weight="700" letter-spacing="1.5" fill="${P.mute}" text-anchor="middle">${label}</text>`
+          );
+        return x;
+      };
+      const back = (x, yy, w, hh) =>
+        o.push(
+          `<rect x="${x}" y="${yy}" width="${w}" height="${hh}" rx="${Math.round(w * 0.06)}" fill="${P.head}" stroke="${acc}" stroke-width="2"/><path d="M${x + w / 2} ${yy + hh * 0.28}L${x + w * 0.72} ${yy + hh / 2}L${x + w / 2} ${yy + hh * 0.72}L${x + w * 0.28} ${yy + hh / 2}Z" fill="none" stroke="${acc}" stroke-width="2"/>`
+        );
+      const put = (z, col, yy, flip) => {
+        const x = x0 + col * (zw + gap);
+        if (!z) return;
+        if (z.pos === 'def' || (z.pos === 'down' && isMonId(z.id))) {
+          // Defense Position: the card lies sideways within its zone
+          const cw = Math.round((zw * 59) / 86) * 1,
+            ch = Math.round((cw * 86) / 59),
+            cx = x + zw / 2,
+            cy = yy + zh / 2;
+          o.push(`<g transform="rotate(${flip ? 90 : -90} ${cx} ${cy})">`);
+          if (z.pos === 'down') back(cx - ch / 2 + (ch - cw) / 2, cy - ch / 2, cw, ch);
+          else card(z.id, cx - cw / 2, cy - ch / 2, cw);
+          o.push('</g>');
+        } else if (z.pos === 'down') back(x, yy, zw, zh);
+        else if (flip) {
+          o.push(`<g transform="rotate(180 ${x + zw / 2} ${yy + zh / 2})">`);
+          card(z.id, x, yy, zw);
+          o.push('</g>');
+        } else card(z.id, x, yy, zw);
+        o.push(
+          `<text x="${x + zw / 2}" y="${yy + zh + 18}" font-family="${B}" font-size="${Math.max(11, Math.round(zw / 11))}" font-weight="700" fill="${P.ink}" text-anchor="middle">${X(fit(z.pos === 'down' && flip ? 'Set card' : cbName(z.id), zw + gap, Math.max(11, Math.round(zw / 11))))}</text>`
+        );
+      };
+      const isMonId = id => /monster/i.test(String((cbCard(id) || {}).type || ''));
+      let yy = y + 20;
+      const sideRows = (sd, flip) => {
+        const b = fb.board[sd],
+          order = flip ? ['s', 'm'] : ['m', 's'];
+        for (const r of order) {
+          for (let i = 0; i < 5; i++) slot(1 + (flip ? 4 - i : i), yy, '');
+          if (r === 'm') slot(flip ? 6 : 0, yy, 'FIELD');
+          if (r === 'm') put(b.s[5], flip ? 6 : 0, yy, flip);
+          for (let i = 0; i < 5; i++) put(b[r][i], 1 + (flip ? 4 - i : i), yy, flip);
+          yy += rowH;
+        }
+      };
+      if (both) {
+        o.push(
+          `<text x="${pad + 20}" y="${yy + 14}" font-family="${F}" font-size="15" font-weight="800" letter-spacing="2" fill="${P.sub}">YOUR OPPONENT</text>`
+        );
+        yy += 26;
+        sideRows(1, true);
+      }
+      // the Extra Monster Zones sit between the two sides, above zones 2 and 4
+      slot(2, yy, 'EMZ');
+      slot(4, yy, 'EMZ');
+      for (const [i, col] of [
+        [5, 2],
+        [6, 4]
+      ]) {
+        const z = fb.board[0].m[i] || fb.board[1].m[i];
+        put(z, col, yy, !fb.board[0].m[i] && !!fb.board[1].m[i]);
+      }
+      yy += rowH;
+      sideRows(0, false);
       if (fb.hand.length)
         o.push(
-          `<text x="${pad + 18}" y="${y + h - 14}" font-family="${B}" font-size="17" fill="${P.sub}">${X(fit('In hand: ' + fb.hand.map(cbName).join(', '), W - pad * 2 - 36, 17))}</text>`
+          `<text x="${pad + 18}" y="${y + h - 16}" font-family="${B}" font-size="17" fill="${P.sub}">${X(fit('In hand: ' + fb.hand.map(cbName).join(', '), W - pad * 2 - 36, 17))}</text>`
         );
       y += h + 26;
     }
     y += 10;
   });
-  const H = Math.max(900, Math.ceil(y + (band ? band.h : 0) + 92));
+  cuts.push(y);
+  const H = Math.max(meta.square ? W : 900, Math.ceil(y + (band ? band.h : 0) + 92));
   const head = [
-    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`,
+    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" data-cuts="${cuts.map(Math.round).join(',')}" data-foot="${Math.ceil(H - y)}">`,
     `<defs><linearGradient id="dg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${P.bg2}"/><stop offset=".6" stop-color="${P.bg}"/><stop offset="1" stop-color="${P.bg}"/></linearGradient><linearGradient id="da" x1="0" x2="1"><stop offset="0" stop-color="${P.accent}"/><stop offset=".6" stop-color="${P.accent2}"/><stop offset="1" stop-color="${P.gold}"/></linearGradient>` +
       (pf
         ? `<linearGradient id="dfr" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${(DI_FRAME[pf.frame] || DI_FRAME.none)[0]}"/><stop offset="1" stop-color="${(DI_FRAME[pf.frame] || DI_FRAME.none)[1]}"/></linearGradient><clipPath id="dav"><circle cx="0" cy="0" r="44"/></clipPath>`
@@ -851,3 +1021,101 @@ window.addEventListener('message', e => {
     setTimeout(() => kxCombos(), 420);
   } else kxCombos();
 });
+/* ---------- sheet formats: long (grows with the combo), one big square, or square pages ---------- */
+/** The long sheet, or for "square" the narrowest width at which the whole combo fits a square. */
+function cbSheetSvg(list, o, bg) {
+  if (o.fmt !== 'square') return buildComboSvg(list, o, bg);
+  let svg = '';
+  for (let W = DI_SIZE; W <= DI_SIZE * 3; W += 200) {
+    svg = buildComboSvg(list, Object.assign({}, o, { W, square: true }), bg);
+    const H = +((svg.match(/<svg[^>]* height="(\d+)"/) || [])[1] || 0);
+    if (H <= W) break;
+  }
+  return svg;
+}
+/** Cuts the long sheet into square pages between rows, so no card is split; each page repeats the title and counts. */
+function cbPages(svg, o, title) {
+  const W = +((svg.match(/<svg[^>]* width="(\d+)"/) || [])[1] || DI_SIZE),
+    H = +((svg.match(/<svg[^>]* height="(\d+)"/) || [])[1] || W),
+    cuts = ((svg.match(/data-cuts="([\d,]*)"/) || [])[1] || '')
+      .split(',')
+      .map(Number)
+      .filter(n => n > 0),
+    P = DI_PAL[o.design] || DI_PAL.night,
+    top = 84,
+    bottom = 84,
+    inner = svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
+  const starts = [0];
+  for (let s0 = 0; ; ) {
+    if (H - s0 <= W - (s0 ? top : 0)) break;
+    const lim = s0 + W - bottom - (s0 ? top : 0),
+      fit = cuts.filter(c => c > s0 + 200 && c <= lim);
+    const nx = fit.length ? fit[fit.length - 1] : lim;
+    starts.push(nx);
+    s0 = nx;
+    if (starts.length > 40) break;
+  }
+  const n = starts.length,
+    X = v => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  return starts.map((s0, i) => {
+    const vy = i ? s0 - top : 0,
+      end = i + 1 < n ? starts[i + 1] : H,
+      bar = [];
+    // hide what belongs to the next page, then the page's own head and foot
+    if (i + 1 < n) bar.push(`<rect x="0" y="${end}" width="${W}" height="${vy + W - end}" fill="${P.bg}"/>`);
+    if (i)
+      bar.push(
+        `<rect x="0" y="${vy}" width="${W}" height="${top}" fill="${P.bg}"/><text x="56" y="${vy + 54}" font-family="'Chakra Petch',Arial,sans-serif" font-size="26" font-weight="800" fill="${P.ink}">${X(String(title).slice(0, 50))}</text>`
+      );
+    bar.push(
+      `<text x="${W - 56}" y="${vy + 54}" font-family="'Chakra Petch',Arial,sans-serif" font-size="24" font-weight="800" fill="${P.gold}" text-anchor="end">${i + 1} / ${n}</text>`
+    );
+    if (i + 1 < n)
+      bar.push(
+        `<text x="56" y="${vy + W - 34}" font-family="'Chakra Petch',Arial,sans-serif" font-size="18" fill="${P.mute}">Made with Duel Synapse: KodeX · a project of Meta Insider OCG</text><text x="${W - 56}" y="${vy + W - 34}" font-family="'Chakra Petch',Arial,sans-serif" font-size="18" font-weight="700" fill="${P.gold}" text-anchor="end">Swipe for more ›</text>`
+      );
+    bar.push(
+      `<rect x="16" y="${vy + 16}" width="${W - 32}" height="${W - 32}" rx="28" fill="none" stroke="${P.gold}" stroke-opacity=".55" stroke-width="3"/>`
+    );
+    return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${W}" height="${W}" viewBox="0 ${vy} ${W} ${W}"><rect x="0" y="${vy}" width="${W}" height="${W}" fill="${P.bg}"/>${inner}${bar.join('')}</svg>`;
+  });
+}
+/** Every page of a combo, each saved as its own picture (or all at once). */
+function cbPagesViewer(pages, name) {
+  const m = openModal(
+    `<div class="dk-hd"><h3>${esc(name)} · ${pages.length} page${pages.length === 1 ? '' : 's'}</h3><button class="ibtn" data-close aria-label="Close">${ic('x')}</button></div>
+ <div class="cbp-list">${pages.map((p, i) => `<figure class="cbp"><div class="cbp-svg">${p}</div><figcaption>Page ${i + 1}<button class="btn sm" data-pg="${i}">${ic('down', 16)}Save</button></figcaption></figure>`).join('')}</div>
+ <div class="dact"><button class="btn p" data-pgall>${ic('down', 18)}Save all ${pages.length} pages</button></div>`,
+    'big',
+    'cbp'
+  );
+  const save = async i => {
+    const p = await svgToPng(pages[i], 1, 'image/png');
+    await saveFile(p, `${name}-${i + 1}.png`, 'image/png');
+  };
+  m.querySelectorAll('[data-pg]').forEach(
+    b =>
+      (b.onclick = async () => {
+        b.disabled = true;
+        try {
+          await save(+b.dataset.pg);
+        } catch (e) {
+          toast('Could not make the image');
+        }
+        b.disabled = false;
+      })
+  );
+  m.querySelector('[data-pgall]').onclick = async e => {
+    const b = e.currentTarget;
+    b.disabled = true;
+    toast('Saving ' + pages.length + ' pages…');
+    try {
+      for (let i = 0; i < pages.length; i++) await save(i);
+      toast('Saved ' + pages.length + ' pages');
+    } catch (err) {
+      toast('Could not make the images');
+    }
+    b.disabled = false;
+  };
+  return m;
+}

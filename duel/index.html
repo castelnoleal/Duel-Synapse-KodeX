@@ -127,6 +127,8 @@
         <div class="pane" data-pane="host" id="hostMode" hidden>
           <div id="hostIdle">
             <button class="btn primary wide" id="hostOpen" type="button" disabled>Open a room</button>
+            <button class="btn ghost wide nb-btn" id="nearbyHost" type="button" disabled><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M12 19.5h.01"/></svg>Nearby duel · no internet</button>
+            <p class="hint">Nearby duels: both phones on the same Wi-Fi or hotspot, with no internet needed. You swap two QR codes and play directly.</p>
           </div>
           <div id="hostRoom" hidden>
             <div class="room-code"><span>Room</span><b id="roomCode">------</b></div>
@@ -148,6 +150,7 @@
             <button class="btn" id="watchBtn" type="button">Watch</button>
           </div>
           <p id="joinStatus" class="hint" role="status"></p>
+          <button class="btn ghost wide nb-btn" id="nearbyJoin" type="button" disabled><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M12 19.5h.01"/></svg>Join a nearby duel · no internet</button>
         </div>
 
         <details class="disclose">
@@ -331,6 +334,18 @@
 <dialog id="rpTurn" class="dlg rp-lib"><div class="pile-head"><h3>Turn into a combo</h3><button class="icon" id="rpTurnClose" type="button" aria-label="Close">×</button></div>
   <p class="hint">Choose the turn to map out. Its plays become a combo: the starting hand, then each play and what it led to. You can edit it and save it as an image in Combos.</p>
   <ul id="rpTurnList" class="rp-list"></ul></dialog>
+<dialog id="nearbyDlg" class="dlg nb-dlg"><div class="pile-head"><h3 id="nbTitle">Nearby duel</h3><button class="icon" id="nbClose" type="button" aria-label="Close">×</button></div>
+  <div class="nb-body">
+    <ol class="nb-steps" id="nbSteps"></ol>
+    <div class="nb-show" id="nbShow" hidden><div class="nb-qr" id="nbQr"></div><button class="btn" id="nbCopy" type="button">Copy the code instead</button></div>
+    <div class="nb-read" id="nbRead" hidden>
+      <div class="nb-cam" id="nbCam"></div>
+      <button class="btn primary wide" id="nbScan" type="button">Scan with the camera</button>
+      <details class="nb-paste"><summary>No camera? Paste the code</summary><textarea id="nbCode" rows="3" spellcheck="false" autocomplete="off" placeholder="DSN1|…"></textarea><button class="btn" id="nbUse" type="button">Use this code</button></details>
+    </div>
+    <p class="hint nb-status" id="nbStatus" role="status"></p>
+  </div>
+</dialog>
 <dialog id="comboAd" class="dlg combo-ad"><div class="pile-head"><h3>Combos are in the app</h3><button class="icon" id="comboAdClose" type="button" aria-label="Close">×</button></div>
   <div class="cad-scene" aria-hidden="true"><div class="cad-row cad-hand"><i></i><i></i><i></i><i></i><i></i><span>Starting hand</span></div>
     <div class="cad-row cad-line"><i></i><b>→</b><i></i><b>→</b><i></i><b>+</b><i></i><span>Each play and what it leads to</span></div>

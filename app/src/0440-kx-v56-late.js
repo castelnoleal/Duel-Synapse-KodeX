@@ -103,14 +103,14 @@ function movesPanel(tb) {
         let src;
         if (/gif$/i.test(f.type)) {
           if (f.size > IMG_MAX) {
-            toast('That GIF is too large (up to 3.3 MB)');
+            toast('That GIF is too large (up to 6 MB)');
             return;
           }
           src = await fileToDataUrl(f);
         } else if (f.size <= 1.2e6 && /png|webp/i.test(f.type)) {
           src = await fileToDataUrl(f);
         } else src = await shrinkPng(f, 512);
-        if (src.length > 4.5e6) {
+        if (src.length > 8.2e6) {
           toast('That picture is too large');
           return;
         }
@@ -435,6 +435,9 @@ function analyzeDeck(d) {
       `Draw cards ${m.draw} × 1.2`
     ];
   }
+  // the ratings are real chances (exact odds from duel/deckstats.js) instead of points that pile up to 100
+  if (typeof DeckStats !== 'undefined')
+    base.stat = deckStatsOf(d).rating.map(r => ({ k: r.k, label: r.label, v: r.v, why: [r.why, r.word] }));
   const baseScore = base.stat.reduce((a, x) => a + x.v, 0) / base.stat.length;
   const T = base.T;
   const final = clamp100(T.n >= 5 ? baseScore * 0.7 + T.rate * 100 * 0.3 : baseScore);
@@ -529,7 +532,7 @@ function openAnalyzer(id) {
 <div class="az">
 <div class="az-hero"><div class="az-rank r-${A.rank.replace('+', 'p')}"><b>${A.rank}</b><small>${A.final}/100</small></div><div class="az-ht"><small>FINAL SCORE</small><h4>${esc(d.name)}</h4><p>${A.N} Main · ${A.extra} Extra · ${A.difficulty} · ${A.stamina}${T.n ? ` · ${T.n} duels tested` : ''}</p></div></div>
 <label class="az-calc"><input type="checkbox" data-azcalc><span>Show the calculations</span></label>
-<section class="az-sec"><h5>Main stats</h5><div class="az-main">${azRadar(A.stat)}<div class="az-bars">${A.stat.map(s => `<div class="az-bar"><span>${s.label}</span><i><b style="width:${s.v}%"></b></i><em>${s.v}</em><ul class="az-why">${s.why.map(w => `<li>${esc(w)}</li>`).join('')}<li>Capped at 100</li></ul></div>`).join('')}</div></div></section>
+<section class="az-sec"><h5>Main stats</h5><div class="az-main">${azRadar(A.stat)}<div class="az-bars">${A.stat.map(s => `<div class="az-bar"><span>${s.label}</span><i><b style="width:${s.v}%"></b></i><em>${s.v}</em><ul class="az-why">${s.why.map(w => `<li>${esc(w)}</li>`).join('')}</ul></div>`).join('')}</div></div></section>
 <section class="az-sec"><h5>Starters in this deck</h5>${A.starters.length ? `<div class="az-starters">${A.starters.map((c, i) => `<div class="az-sti${i ? '' : ' top'}">${kimg(c.x)}<div><b>${i ? '#' + (i + 1) : 'TOP STARTER'}</b><span>${esc(c.x.name)}</span><small>${[c.x.search ? 'searches' : '', c.x.deckSS ? 'summons from the Deck' : '', c.r ? `reaches ${c.r} card${c.r === 1 ? '' : 's'} of this deck` : '', c.o ? `opened ${c.o} of your turns` : ''].filter(Boolean).join(' · ')}</small></div></div>`).join('')}</div>` : '<p class="note">No card in this deck searches or summons from the Deck.</p>'}<small class="az-why">Ranked by: searches (+10) or summons from the Deck (+8), how many cards of this deck it can reach (×1.2), copies (×2.5) and how often it opened your turns in Arena duels (×7).</small></section>
 ${A.combo.length ? `<section class="az-sec"><h5>Combo links from your duels</h5><ol class="az-combo">${A.combo.map(([a, b, n]) => `<li><span>${esc(a)}</span><i>→</i><span>${esc(b)}</span><em>${n}×</em></li>`).join('')}</ol><small class="az-why">Plays that followed each other in the same turn, counted over every Arena duel with this deck.</small></section>` : ''}
 <section class="az-sec"><h5>Probability lab</h5>

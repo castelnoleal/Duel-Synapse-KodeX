@@ -51,7 +51,13 @@ export function cleanProfile(v, imgOk) {
   if (frame === "premium" && !premium) frame = "none";
   const theme = THEME_IDS.includes(v.theme) && (premium || !PROFILE_DATA.themes.find((x) => x[0] === v.theme)[2]) ? v.theme : "default";
   const n = (x) => Math.max(0, Math.min(1e7, Math.floor(Number(x) || 0)));
+  // Premium: their own banner picture (GIFs move), with a motion
+  const bimg = premium && typeof v.bimg === "string" && v.bimg.length < 470000 && (!imgOk || imgOk(v.bimg)) && /^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(v.bimg) ? v.bimg : "";
+  // MEIOCG National Ranking System: rank, points and region; the real name only when the player shows it
+  const nr = v.nrs && typeof v.nrs === "object" ? v.nrs : null;
+  const nrs = nr && n(nr.rank) ? { rank: n(nr.rank), pts: n(nr.pts), region: t(nr.region, 24), season: t(nr.season, 16), real: t(nr.real, 40) } : null;
   return { name: t(v.name, 24) || "Duelist", title: t(v.title, 32), bio: t(v.bio, 140), icon, img, frame, theme, premium,
+    bimg, bfx: BFX.includes(v.bfx) ? v.bfx : "slide", nrs,
     tier: TIER_IDS.includes(v.tier) ? v.tier : "rookie", accent: premium && /^#[0-9a-f]{6}$/i.test(v.accent || "") ? v.accent : "",
     stats: { points: n(v.stats && v.stats.points), days: n(v.stats && v.stats.days), duels: n(v.stats && v.stats.duels), wins: n(v.stats && v.stats.wins) } };
 }
@@ -66,14 +72,19 @@ export function avatarHTML(p, meiocgLogo, size = 0) {
   const fr = (p && p.frame) || "none";
   return `<span class="pf-av fr-${fr}"${size ? ` style="--pf:${size}px"` : ""}><img src="${esc(iconSrc(p, meiocgLogo))}" alt="" draggable="false"></span>`;
 }
+const BFX = ["slide", "pan", "zoom", "glide", "still"];
+/** The banner: a theme, or (Premium) their own picture moving the way they chose. */
+export function bannerHTML(p) {
+  return p && p.bimg ? `<div class="pf-banner up bfx-${esc(p.bfx || "slide")}" style="--pf-bimg:url('${esc(p.bimg)}')"><i></i></div>` : '<div class="pf-banner"><i></i></div>';
+}
 /** The profile card (opened by tapping a player's plate). */
 export function cardHTML(p, meiocgLogo, opts = {}) {
   if (!p) return "";
   const s = p.stats || {}, rate = s.duels ? Math.round((s.wins / s.duels) * 100) + "%" : "–";
   return `<div class="pf-card th-${esc(p.theme || "default")}"${p.accent ? ` style="--pf-acc:${esc(p.accent)}"` : ""}>
-    <div class="pf-banner"><i></i></div>
-    <div class="pf-head">${avatarHTML(p, meiocgLogo, 84)}<div class="pf-who"><b>${esc(p.name)}</b>${p.title ? `<span>${esc(p.title)}</span>` : ""}
-      <div class="pf-tags"><em class="pf-tier t-${esc(p.tier)}">${esc(tierName(p.tier))}</em>${p.premium ? '<em class="pf-prem">PREMIUM</em>' : ""}${opts.ai ? '<em class="pf-ai">AI</em>' : ""}</div></div></div>
+    ${bannerHTML(p)}
+    <div class="pf-head">${avatarHTML(p, meiocgLogo, 84)}<div class="pf-who"><b>${esc(p.name)}</b>${p.nrs && p.nrs.real && p.nrs.real !== p.name ? `<span class="pf-real">${esc(p.nrs.real)}</span>` : ""}${p.title ? `<span>${esc(p.title)}</span>` : ""}
+      <div class="pf-tags"><em class="pf-tier t-${esc(p.tier)}">${esc(tierName(p.tier))}</em>${p.premium ? '<em class="pf-prem">PREMIUM</em>' : ""}${p.nrs ? `<em class="pf-nrs">NRS #${p.nrs.rank}${p.nrs.region ? " · " + esc(p.nrs.region) : ""}</em>` : ""}${opts.ai ? '<em class="pf-ai">AI</em>' : ""}</div></div></div>
     ${p.bio ? `<p class="pf-bio">${esc(p.bio)}</p>` : ""}
     ${opts.ai ? "" : `<div class="pf-stats"><div><b>${s.days || 0}</b><span>Days on KodeX</span></div><div><b>${s.duels || 0}</b><span>Duels</span></div><div><b>${rate}</b><span>Win rate</span></div><div><b>${s.points || 0}</b><span>Points</span></div></div>`}
   </div>`;

@@ -925,3 +925,63 @@ html.no-zoom, html.no-zoom body { touch-action: pan-x pan-y; -webkit-text-size-a
   .rb-seek { height: 14px; }
   body.replaying .arena .turnbar { display: none; }
 }
+
+/* ---------- v69: the lobby's title banner in the app looks like the browser's, kept compact ---------- */
+/* the logo and the "MEIOCG · Duel Arena" line come back; the banner starts below KodeX's buttons and stays small */
+.embed .hero-logo { display: block; width: 64px; height: 64px; margin: 0 auto 6px; }
+.embed .hero .kicker { display: inline-flex; font-size: .72rem; padding: 4px 12px; }
+.embed .hero { padding: calc(var(--kx-top, 50px) + 2px) 0 12px; }
+.embed .hero h1 { margin-top: 8px; font-size: clamp(1.6rem, 7.4vw, 2.2rem); }
+.embed .hero .sub { margin-top: 4px; font-size: .9rem; }
+@media (orientation: landscape) and (max-height: 520px) {
+  /* a phone on its side: one compact row of logo and title so the lobby keeps its room */
+  .embed .hero { padding: 8px calc(var(--kx-right, 150px) + 8px) 8px 12px; display: grid; grid-template-columns: auto 1fr; column-gap: 12px; text-align: left; }
+  .embed .hero-logo { width: 44px; height: 44px; margin: 0; grid-row: span 2; }
+  .embed .hero .kicker { justify-self: start; }
+  .embed .hero h1 { margin: 2px 0 0; font-size: 1.4rem; }
+  .embed .hero .sub, .embed .hero .motto { display: none; }
+  .embed .hero .combo-gen { grid-column: 1 / -1; justify-self: start; margin-top: 6px; }
+}
+
+/* ---------- v69: the finishing emote fills the field before the winning showdown ---------- */
+.fin-emote { position: fixed; z-index: 85; display: grid; place-items: center; pointer-events: none; background: radial-gradient(closest-side, #0a0d1ccc, #0a0d1c55 70%, transparent);
+  animation: finEmIn .32s cubic-bezier(.2, .9, .3, 1.2) both; }
+.fin-emote img { max-width: 92%; max-height: 92%; object-fit: contain; border-radius: 18px; filter: drop-shadow(0 12px 40px #000c) drop-shadow(0 0 22px #f2c75c55); }
+.fin-emote.out { animation: finEmOut .3s ease both; }
+@keyframes finEmIn { from { opacity: 0; transform: scale(.6); } to { opacity: 1; transform: none; } }
+@keyframes finEmOut { to { opacity: 0; transform: scale(1.08); } }
+@media (prefers-reduced-motion: reduce) { .fin-emote, .fin-emote.out { animation: none; } }
+
+/* ---------- v69: deck stats in the lobby; the card list folds away ---------- */
+.deck-sum { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; padding: 12px; border-radius: 14px; background: #151a33aa; border: 1px solid var(--line); }
+.deck-sum h4 { margin: 0; font: 700 .78rem var(--f-display); letter-spacing: .14em; text-transform: uppercase; color: var(--muted, #9aa4bd); }
+.ds-mini { display: flex; flex-direction: column; gap: 6px; }
+.ds-mr { display: grid; grid-template-columns: minmax(0, 9.5em) minmax(0, 1fr) 3em; grid-template-rows: auto auto; column-gap: 8px; align-items: center; font-size: .82rem; }
+.ds-mr span { line-height: 1.2; }
+.ds-mr i { height: 7px; border-radius: 7px; background: #ffffff14; overflow: hidden; }
+.ds-mr i b { display: block; height: 100%; border-radius: 7px; background: linear-gradient(90deg, #3347f0, #8d99ff 60%, #f2c75c); }
+.ds-mr em { font-style: normal; font-weight: 800; text-align: right; }
+.ds-mr small { grid-column: 2 / 4; color: var(--muted, #9aa4bd); font-size: .72rem; }
+.ds-mk { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 6px; }
+.ds-mk div { padding: 8px 10px; border-radius: 10px; background: #0d1124; border: 1px solid var(--line); display: flex; flex-direction: column; }
+.ds-mk b { font-size: 1.05rem; } .ds-mk small { font-size: .72rem; color: var(--muted, #9aa4bd); line-height: 1.25; }
+.ds-mroles, .ds-mweak { margin: 0; font-size: .78rem; color: var(--muted, #9aa4bd); line-height: 1.4; }
+.ds-mweak { color: #ffb3bd; }
+.deck-show { width: 100%; margin: 4px 0 8px; }
+.deck-cards[hidden] { display: none; }
+
+/* ---------- v69: nearby duels (no internet) ---------- */
+.nb-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; }
+.nb-dlg { width: min(420px, calc(100vw - 32px)); }
+.nb-body { display: flex; flex-direction: column; gap: 12px; padding: 4px 16px 16px; }
+.nb-steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; font-size: .9rem; color: var(--muted, #9aa4bd); }
+.nb-steps li.on { color: var(--text, #fff); font-weight: 700; }
+.nb-steps li.done { text-decoration: line-through; opacity: .7; }
+.nb-show { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.nb-qr svg { display: block; border-radius: 14px; box-shadow: 0 0 0 6px #fff; max-width: 100%; height: auto; }
+.nb-read { display: flex; flex-direction: column; gap: 10px; }
+.nb-cam:empty { display: none; }
+.nb-video { width: 100%; max-height: 46vh; border-radius: 14px; background: #000; object-fit: cover; }
+.nb-paste summary { cursor: pointer; font-size: .88rem; color: var(--muted, #9aa4bd); }
+.nb-paste textarea { width: 100%; margin: 8px 0; padding: 10px; border-radius: 10px; border: 1px solid var(--line); background: #0d1124; color: var(--text, #fff); font: .78rem/1.4 ui-monospace, monospace; resize: vertical; }
+.nb-status { min-height: 1.3em; margin: 0; }

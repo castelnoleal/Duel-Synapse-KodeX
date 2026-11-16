@@ -28,7 +28,7 @@ document.addEventListener('click', e => {
     return;
   }
   if (D.analyze) {
-    openAnalyzer(D.analyze);
+    openDeckStats(D.analyze);
     return;
   }
   if (D.playtest) {

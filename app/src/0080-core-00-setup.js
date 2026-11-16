@@ -505,14 +505,28 @@ const norm = x => ({
   sc: x.scale ?? x.pendulum_scale ?? null,
   lk: x.linkval ?? x.linkValue ?? null,
   ban: x.ban_ocg || '',
+  banO: x.ban_ocg || '',
+  banT: x.ban_tcg || '',
+  banG: x.ban_goat || '',
   arch: x.archetype || '',
   img: x.image || x.image_url || x.card_images?.[0]?.image_url || '',
   sm: x.image_small || x.image_url_small || x.card_images?.[0]?.image_url_small || '',
-  date: (String(x.ocg_date || x.release_date || x.releaseDate || x.misc_info?.[0]?.ocg_date || '').match(
-    /\d{4}-\d{2}-\d{2}/
-  ) || [''])[0]
+  // the newest of its OCG and TCG dates (a card revealed for one region first still counts as new)
+  date: [x.ocg_date, x.tcg_date, x.release_date, x.releaseDate, x.misc_info?.[0]?.ocg_date, x.misc_info?.[0]?.tcg_date]
+    .map(v => (String(v || '').match(/\d{4}-\d{2}-\d{2}/) || [''])[0])
+    .sort()
+    .pop()
 });
+/* ---------- banlists: OCG (default), TCG or Goat; c.ban is the status on the list you chose ---------- */
+const KX_BAN_NAME = { ocg: 'OCG', tcg: 'TCG', goat: 'Goat format' };
+const kxBanList = () => (KX_BAN_NAME[S.g('banlist', 'ocg')] ? S.g('banlist', 'ocg') : 'ocg');
+function kxApplyBanlist() {
+  const k = kxBanList(),
+    f = { ocg: 'banO', tcg: 'banT', goat: 'banG' }[k];
+  for (const c of cards) c.ban = (f in c ? c[f] : k === 'ocg' ? c.ban : '') || '';
+}
 function index() {
+  kxApplyBanlist();
   M = new Map();
   KN = new Map();
   K = cards.map(c => {

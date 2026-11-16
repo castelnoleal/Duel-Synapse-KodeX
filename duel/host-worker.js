@@ -142,7 +142,14 @@ self.onmessage = async (ev) => {
     else if (m.cmd === "start") {
       if (host) { lastReplay = host.replayFile(); lastNames = host.names; host.destroy(); host = null; }
       bots = m.bots || {}; mems = {}; retries = {};
-      m.decks = m.decks.map((d) => ({ ...d, main: (d.main || []).map((c) => db.main(c)), extra: (d.extra || []).map((c) => db.main(c)), side: (d.side || []).map((c) => db.main(c)) }));
+      // Fusion, Synchro, Xyz and Link Monsters belong in the Extra Deck whatever list they came in (a deck typed or synced
+      // with one in the Main Deck must never draw it), and cards the engine does not know are left out
+      m.decks = m.decks.map((d) => {
+        const all = [...(d.main || []), ...(d.extra || [])].map((c) => db.main(c)).filter((c) => db.has(c));
+        const main = [], extra = [];
+        for (const c of all) (db.isExtra(c) ? extra : main).push(c);
+        return { ...d, main, extra: extra.slice(0, 15), side: (d.side || []).map((c) => db.main(c)).filter((c) => db.has(c)) };
+      });
       const codes = m.decks.flatMap((d) => [...d.main, ...d.extra]);
       book = new Book().mergeRows(m.book || null);
       hints = comboHints(db, codes);
