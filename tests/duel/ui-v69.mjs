@@ -1,6 +1,7 @@
 // Arena v69: combos follow the rules on both sides (a card summoned to the opponent's field, the opponent discarding),
 // Extra Deck monsters never reach the hand, practice uses the combo's hand size, the finishing emote, chat on screen,
 // the small offline pill, the deck stats in the lobby, the title banner in the app, and nearby duels with no internet.
+// (v70: chat bubbles on the field are as before v69: Premium, or from a Premium player.)
 // usage: node tests/duel/ui-v69.mjs http://localhost:8787 [outdir]
 import fs from "node:fs";
 import { chromium } from "playwright";
@@ -32,8 +33,11 @@ addEventListener("message", (e) => { const d = e.data || {}; if (d.kx === "ready
 // ---- the app (KodeX frame): title banner, deck stats, Extra Deck cards, practice, finishing emote
 {
   const { page, f } = await wrap(412, 915);
-  const ban = await f.evaluate(() => { const l = document.querySelector(".hero-logo"), k = document.querySelector(".hero .kicker"); const r = l.getBoundingClientRect(); return { logo: getComputedStyle(l).display !== "none" && r.height > 40, kicker: getComputedStyle(k).display !== "none", top: r.top }; });
-  ok(ban.logo && ban.kicker && ban.top >= 46, "the title banner in the app shows the logo and title, below KodeX's buttons " + JSON.stringify(ban));
+  // v70: the banner is fixed at the top while the lobby scrolls: logo and title beside KodeX's buttons, Combo Generator under it
+  const ban = await f.evaluate(async () => { const h = document.querySelector(".hero"), l = document.querySelector(".hero-logo"), t = document.querySelector(".hero h1"), kb = innerWidth - parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--kx-right"));
+    scrollTo(0, 600); await new Promise((r) => setTimeout(r, 200)); const hr = h.getBoundingClientRect(), tr = t.getBoundingClientRect(); scrollTo(0, 0);
+    return { logo: getComputedStyle(l).display !== "none" && l.getBoundingClientRect().height >= 28, titleClear: tr.right <= kb + 1 && t.scrollWidth <= t.clientWidth + 1, fixed: Math.abs(hr.top) < 2, height: Math.round(hr.height) }; });
+  ok(ban.logo && ban.titleClear && ban.fixed && ban.height < 130, "the title banner in the app stays at the top, compact, beside KodeX's buttons " + JSON.stringify(ban));
   ok(await f.evaluate(() => !!document.querySelector(".deck-sum .ds-mr") && document.querySelector(".deck-cards").hidden), "the lobby shows the deck's stats; the card list is folded");
   await f.click(".deck-show");
   ok(await f.evaluate(() => !document.querySelector(".deck-cards").hidden), "Show the cards opens the list");
@@ -116,8 +120,17 @@ function isXCheck(c) { return raw[c] ? isX(c) : false; }
   await H.waitForTimeout(2500);
   await G.evaluate(() => { const i = document.querySelector("#chatInput"); i.value = "gg nearby"; i.form.requestSubmit(); });
   await H.waitForTimeout(1200);
-  ok(/gg nearby/.test(await H.evaluate(() => [...document.querySelectorAll(".say-chat")].map((x) => x.textContent).join("|"))), "chat shows on the field (not only inside the chat panel)");
+  ok(/gg nearby/.test(await H.evaluate(() => document.querySelector("#chatList").textContent)), "chat arrives over the nearby connection");
   await ctx.close();
+}
+// ---- v70: the lobby turned sideways fits the screen (phones and tablets)
+for (const [w, h] of [[860, 390], [1288, 580], [915, 412], [1180, 820]]) {
+  const { page, f } = await wrap(w, h);
+  const fit = await f.evaluate(() => { const g = document.querySelector(".lobby-grid").getBoundingClientRect(), o = document.querySelector("#lobby > .off-panel"), or = o && o.getBoundingClientRect(), hero = document.querySelector(".hero").getBoundingClientRect();
+    return { gridBottom: Math.round(g.bottom), offTop: or ? Math.round(or.top) : null, offBottom: or ? Math.round(or.bottom) : null, H: innerHeight, W: innerWidth, right: Math.round(g.right), hero: Math.round(hero.height), z: getComputedStyle(document.documentElement).getPropertyValue("--lz") }; });
+  ok(fit.gridBottom <= (fit.offTop ?? fit.H) + 1 && (fit.offBottom ?? 0) <= fit.H + 1 && fit.right <= fit.W + 1 && fit.hero <= 70, `the lobby at ${w}×${h} fits the screen ` + JSON.stringify(fit));
+  if (w === 860) await page.screenshot({ path: `${out}/v70-lobby-landscape.png` });
+  await page.close();
 }
 if (errors.length) fail("page errors");
 console.log("OK: v69");
