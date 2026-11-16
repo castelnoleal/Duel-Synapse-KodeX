@@ -615,8 +615,18 @@ if (hostApp) lockZoom();
 // until it does, the usual place is assumed. Anything of ours that lands under them is moved clear.
 let kxBox = document.documentElement.classList.contains("embed") ? { w: 150, h: 50 } : null;
 addEventListener("message", (e) => { const d = e.data; if (d && d.kx === "chrome" && e.source === window.parent) { kxBox = d.w > 0 && d.h > 0 ? { w: Math.min(260, d.w), h: Math.min(90, d.h) } : null; kxClear(); } });
+/** The lobby's size on a screen turned sideways: drawn smaller on short screens so every panel fits (1 = as designed). */
+function lobbyZoom() {
+  const land = innerWidth > innerHeight && innerWidth >= 640 && innerWidth < 1500 && innerHeight <= 1100;
+  const z = land ? Math.max(0.6, Math.min(1, innerHeight / 720, innerWidth / 1180)) : 1;
+  document.documentElement.style.setProperty("--lz", z.toFixed(3));
+}
+lobbyZoom();
+addEventListener("resize", lobbyZoom);
+addEventListener("orientationchange", () => setTimeout(lobbyZoom, 120));
 function kxClear() {
-  const items = [".duelist.op", "#comboGen", ".rb-cap", "#status"];
+  // (the lobby's banner and its Combo Generator keep clear of KodeX's buttons by their own layout, in meiocg.css)
+  const items = [".duelist.op", ".rb-cap", "#status"];
   for (const sel of items) { const e = document.querySelector(sel); if (e) { e.style.removeProperty("margin-top"); e.style.removeProperty("max-width"); } }
   if (!kxBox) return;
   // the lobby's title banner starts below KodeX's buttons (and leaves room beside them on a phone turned sideways)
@@ -3517,6 +3527,8 @@ const MUTE = Object.assign({ opp: false, chat: false, emotes: false, voices: fal
 // v60: how long a revealed card or an activated effect stays on screen, and the staple card animations
 const PREF = Object.assign({ fxMs: 1000, staples: true, tapOut: true, spPace: 2 }, load("duel:pref", {}));
 /** Special card animations (staples such as Maxx "C", signature cards): 1 = their original length, 2 = twice (default). */
+/** How long a chat message stays on screen (Settings: Chat messages stay; twice the old 4.2 s by default). */
+function chatMs() { const v = Number(PREF.chatMs); return v >= 2000 && v <= 30000 ? v : 8400; }
 function spPace() { const v = Number(PREF.spPace); return v >= .5 && v <= 4 ? v : 2; }
 setStaplePace(spPace());
 function bindPrefs() {
@@ -3525,6 +3537,8 @@ function bindPrefs() {
   if (st) { st.checked = PREF.staples; st.addEventListener("change", () => { PREF.staples = st.checked; save("duel:pref", PREF); }); }
   const sp = $("#prefSpPace");
   if (sp) { sp.value = String(spPace()); if (!sp.value) sp.value = "2"; sp.addEventListener("change", () => { PREF.spPace = Number(sp.value) || 2; setStaplePace(spPace()); save("duel:pref", PREF); }); }
+  const cs = $("#prefChatMs");
+  if (cs) { cs.value = String(chatMs()); if (!cs.value) cs.value = "8400"; cs.addEventListener("change", () => { PREF.chatMs = Number(cs.value) || 8400; save("duel:pref", PREF); }); }
   const cm = $("#prefChainMs");
   if (cm) { cm.value = String(PREF.chainMs == null ? 900 : PREF.chainMs); if (!cm.value) cm.value = "900"; cm.addEventListener("change", () => { PREF.chainMs = Math.max(0, Math.min(3000, Number(cm.value) || 0)); save("duel:pref", PREF); }); }
   const po = $("#prefOpening"); po.checked = PREF.opening !== false; po.addEventListener("change", () => { PREF.opening = po.checked; save("duel:pref", PREF); });
@@ -3605,11 +3619,10 @@ function showEmote(side, id, role) {
   if (!(side === "op" && MUTE.voices)) { if (e.meme) Sound.meme(e.meme); else if (e.snd) Sound.clip(e.snd); }
 }
 function floatChat(side, who, text) {
-  // every chat line shows on screen by the sender's plate (Settings can turn it off; anyone can mute the opponent's chat)
-  if (VIEW.floatChat === false) return;
-  if (side === "op" && (MUTE.opp || MUTE.chat)) return;
+  const senderPremium = !!((sideSkins()[side] || {}).fx);
+  if (!(S.premium ? VIEW.floatChat : senderPremium)) return;
   const n = el("div", "say-chat"); n.append(el("b", null, who), el("span", null, String(text).slice(0, 120)));
-  floatAt(side, n, 4200);
+  floatAt(side, n, chatMs());
 }
 /** Will this attack win the duel if nothing answers it? (direct, or into an Attack Position monster) */
 function lethalAttack(p, e, a) {

@@ -834,7 +834,7 @@ html.no-zoom, html.no-zoom body { touch-action: pan-x pan-y; -webkit-text-size-a
 .combo-gen small { font-size: .74rem; color: #b9c0e4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .combo-gen em { flex: none; font: 800 .68rem/1 var(--f-display); font-style: normal; letter-spacing: .12em; text-transform: uppercase; padding: 7px 10px; border-radius: 999px; background: #ffffff14; color: #f0b429; }
 .embed .combo-gen { margin-top: 10px; }
-@media (orientation: landscape) and (min-width: 640px) and (max-height: 700px) {
+@media (orientation: landscape) and (min-width: 640px) and (max-height: 1100px) and (max-width: 1499px) {
   .combo-gen { margin: 0 0 0 10px; min-height: 36px; padding: 4px 10px 4px 5px; border-radius: 12px; gap: 8px; box-shadow: none; }
   .combo-gen i { width: 26px; height: 26px; border-radius: 8px; } .combo-gen small, .combo-gen em { display: none; } .combo-gen b { font-size: .8rem; }
   .hero .motto { margin-left: auto; }
@@ -926,21 +926,36 @@ html.no-zoom, html.no-zoom body { touch-action: pan-x pan-y; -webkit-text-size-a
   body.replaying .arena .turnbar { display: none; }
 }
 
-/* ---------- v69: the lobby's title banner in the app looks like the browser's, kept compact ---------- */
-/* the logo and the "MEIOCG · Duel Arena" line come back; the banner starts below KodeX's buttons and stays small */
-.embed .hero-logo { display: block; width: 64px; height: 64px; margin: 0 auto 6px; }
-.embed .hero .kicker { display: inline-flex; font-size: .72rem; padding: 4px 12px; }
-.embed .hero { padding: calc(var(--kx-top, 50px) + 2px) 0 12px; }
-.embed .hero h1 { margin-top: 8px; font-size: clamp(1.6rem, 7.4vw, 2.2rem); }
-.embed .hero .sub { margin-top: 4px; font-size: .9rem; }
-@media (orientation: landscape) and (max-height: 520px) {
-  /* a phone on its side: one compact row of logo and title so the lobby keeps its room */
-  .embed .hero { padding: 8px calc(var(--kx-right, 150px) + 8px) 8px 12px; display: grid; grid-template-columns: auto 1fr; column-gap: 12px; text-align: left; }
-  .embed .hero-logo { width: 44px; height: 44px; margin: 0; grid-row: span 2; }
-  .embed .hero .kicker { justify-self: start; }
-  .embed .hero h1 { margin: 2px 0 0; font-size: 1.4rem; }
-  .embed .hero .sub, .embed .hero .motto { display: none; }
-  .embed .hero .combo-gen { grid-column: 1 / -1; justify-self: start; margin-top: 6px; }
+/* ---------- v70: the Arena's title banner in the app (portrait): fixed at the top and compact ---------- */
+/* one row beside KodeX's buttons (logo and title), the Combo Generator under it; it stays put while the lobby scrolls */
+@media (orientation: portrait) {
+  .embed #lobby { padding-top: 0; }
+  .embed .hero { position: sticky; top: 0; z-index: 30; margin: 0 -16px 10px; padding: 8px 14px;
+    display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 10px; row-gap: 6px; text-align: left;
+    background: linear-gradient(180deg, #0a0d1ef7 0%, #0a0d1eee 82%, #0a0d1e00 100%); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+  .embed .hero-logo { display: block; width: 34px; height: 34px; margin: 0; }
+  .embed .hero h1 { margin: 0 calc(var(--kx-right, 150px) - 8px) 0 0; font-size: clamp(.74rem, calc((100vw - var(--kx-right, 150px) - 70px) / 11.2), 1.3rem); line-height: calc(var(--kx-top, 50px) - 16px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .embed .hero .kicker, .embed .hero .sub, .embed .hero .motto, .embed .ticker { display: none; }
+  .embed .hero .combo-gen { grid-column: 1 / -1; margin: 0; justify-self: stretch; min-width: 0; }
+  .embed .hero .combo-gen span { flex: 1; }
+}
+/* the Combo Generator, compact in the app's banner */
+.embed .hero .combo-gen { min-height: 0; padding: 6px 8px; gap: 10px; border-radius: 14px; }
+.embed .hero .combo-gen i { width: 32px; height: 32px; border-radius: 9px; }
+.embed .hero .combo-gen em { padding: 6px 9px; }
+.embed .hero .combo-gen b { font-size: .92rem; }
+.embed .hero .combo-gen small { font-size: .74rem; }
+
+/* ---------- v70: the lobby on a phone or tablet turned sideways fits the screen ---------- */
+/* everything in the lobby is drawn at a size worked out from the screen height (--lz, set by app.js), so the deck,
+   Play and Offline panels fit any landscape screen without covering each other */
+@media (orientation: landscape) and (min-width: 640px) and (max-height: 1100px) and (max-width: 1499px) {
+  #lobby { zoom: var(--lz, 1); height: calc(100dvh / var(--lz, 1)) !important; }
+  .embed .hero { padding-right: calc((var(--kx-right, 150px) + 8px) / var(--lz, 1)); }
+  .embed .hero-logo { display: block; }
+  .embed .hero .combo-gen { margin-left: 8px; }
+  .deck-sum { padding: 8px 10px; gap: 6px; margin: 6px 0; }
+  .ds-mr small, .ds-mroles { display: none; }
 }
 
 /* ---------- v69: the finishing emote fills the field before the winning showdown ---------- */
