@@ -85,7 +85,7 @@ async function mediaSave() {
   await kv('put', 'm56_sounds', MEDIA.sounds);
   await kv('put', 'm56_voices', MEDIA.voices);
 }
-const IMG_MAX = 3.3e6,
+const IMG_MAX = 6e6, // HD animated GIFs up to 6 MB (a finishing emote can be one)
   SND_MAX = 650000;
 function fileToDataUrl(f) {
   return new Promise((ok, no) => {
@@ -208,11 +208,11 @@ function emotesOwn() {
   return MEDIA.emotes;
 }
 function finaleSection() {
-  return `<section class="sk-sec"><div class="sk-hd"><h4>Winning attack</h4></div><p class="note">A 3-second showdown before an attack that wins the duel. Everyone in the duel sees it.</p>${showTiles('finale', finaleStyle())}<button type="button" class="btn fin-pv" data-showpv="finale">Preview ${FINALE_T.find(x => x[0] === finaleStyle())[1]}</button></section><section class="sk-sec"><div class="sk-hd"><h4>Ace cards</h4></div><p class="note">Mark up to 12 of your signature cards as Ace cards (★ below). When one is summoned or activated it fills the screen before its effect resolves.</p>${showTiles('ace', aceStyle())}<button type="button" class="btn fin-pv" data-showpv="ace">Preview ${ACE_T.find(x => x[0] === aceStyle())[1]}</button></section>`;
+  return `<section class="sk-sec"><div class="sk-hd"><h4>Winning attack</h4></div><p class="note">A 3-second showdown before an attack that wins the duel. Everyone in the duel sees it.</p>${showTiles('finale', finaleStyle())}<button type="button" class="btn fin-pv" data-showpv="finale">Preview ${FINALE_T.find(x => x[0] === finaleStyle())[1]}</button>${finEmoteRow()}</section><section class="sk-sec"><div class="sk-hd"><h4>Ace cards</h4></div><p class="note">Mark up to 12 of your signature cards as Ace cards (★ below). When one is summoned or activated it fills the screen before its effect resolves.</p>${showTiles('ace', aceStyle())}<button type="button" class="btn fin-pv" data-showpv="ace">Preview ${ACE_T.find(x => x[0] === aceStyle())[1]}</button></section>`;
 }
 function emotesSection() {
   const a = MEDIA.emotes;
-  return `<section class="sk-sec"><div class="sk-hd"><h4>Emotes</h4></div><p class="note">Up to 8 of your own pictures to send at any time in a duel. HD animated GIFs welcome (up to 3.3 MB). Give one a sound with 🔊.</p><div class="em-row">${a.map(x => `<span class="em-t"><img src="${x.src}" alt="${esc(x.name)}"><i data-emdel="${esc(x.id)}" role="button" aria-label="Delete">×</i><b class="em-snd${x.snd ? ' on' : ''}" data-emsnd="${esc(x.id)}" role="button" aria-label="${x.snd ? 'Change the sound' : 'Add a sound'}">🔊</b></span>`).join('')}${a.length < 8 ? `<label class="em-t em-add" aria-label="Add an emote"><span>+</span><input type="file" accept="image/*" data-emadd hidden></label>` : ''}</div></section>`;
+  return `<section class="sk-sec"><div class="sk-hd"><h4>Emotes</h4></div><p class="note">Up to 8 of your own pictures to send at any time in a duel. HD animated GIFs welcome (up to 6 MB). Give one a sound with 🔊.</p><div class="em-row">${a.map(x => `<span class="em-t"><img src="${x.src}" alt="${esc(x.name)}"><i data-emdel="${esc(x.id)}" role="button" aria-label="Delete">×</i><b class="em-snd${x.snd ? ' on' : ''}" data-emsnd="${esc(x.id)}" role="button" aria-label="${x.snd ? 'Change the sound' : 'Add a sound'}">🔊</b></span>`).join('')}${a.length < 8 ? `<label class="em-t em-add" aria-label="Add an emote"><span>+</span><input type="file" accept="image/*" data-emadd hidden></label>` : ''}</div></section>`;
 }
 function soundsSection() {
   const a = MEDIA.sounds;

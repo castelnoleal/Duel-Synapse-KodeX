@@ -99,7 +99,10 @@ css.textContent = `
 .off-st{color:var(--muted);font-size:13px}
 .off-bar{height:5px;border-radius:3px;background:var(--line);overflow:hidden}
 .off-bar i{display:block;height:100%;width:0;background:var(--a);transition:width .15s}
-.off-banner{position:fixed;left:0;right:0;bottom:0;z-index:50;text-align:center;padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px));background:#2a2210;color:#f2c75c;font-size:13px}
+/* a small pill at the very top: it never covers the field, the hand or any button, and taps go through it */
+.off-banner{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 2px);transform:translateX(-50%);z-index:60;pointer-events:none;display:flex;align-items:center;gap:5px;padding:1px 9px;border-radius:99px;background:#2a2210e6;border:1px solid #f2c75c55;color:#f2c75c;font:700 10.5px/16px system-ui,sans-serif;letter-spacing:.04em}
+.off-banner::before{content:"";width:6px;height:6px;border-radius:50%;background:#f2c75c}
+.off-banner[hidden]{display:none}
 `;
 document.head.append(css);
 

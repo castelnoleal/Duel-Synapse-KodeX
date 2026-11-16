@@ -8,6 +8,8 @@ Premium KodeX pages and all app/src modules are inside.
 Created by Castel Noleal, creator of MEIOCG.
 """
 import base64, json, re, sys, pathlib
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from build_kodex import module_text  # modules shared with the Arena are read from there
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 man = json.loads((ROOT / "app/src/manifest.json").read_text("utf-8"))
 v = man["version"]
@@ -20,7 +22,7 @@ out = (tpl.replace("%%FREE_B64%%", base64.b64encode(free).decode())
           .replace("%%DEFAULT_BANNERS%%", banners.replace("</", "<\\/")))
 # the master tools: the source modules, and the tools' own markup, style and script
 src = {"manifest": man, "editions": json.loads((ROOT / "app/src/editions.json").read_text("utf-8")),
-       "files": {f["file"]: (ROOT / "app/src" / f["file"]).read_text("utf-8") for f in man["files"]}}
+       "files": {f["file"]: module_text(f) for f in man["files"]}}
 src_json = json.dumps(src, ensure_ascii=False).replace("<", "\\u003c")
 out = (out.replace("%%MASTER_HTML%%", (ROOT / "scripts/editor.master.html").read_text("utf-8"))
           .replace("%%MASTER_CSS%%", (ROOT / "scripts/editor.master.css").read_text("utf-8"))

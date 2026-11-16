@@ -177,6 +177,13 @@ function cbxWhen(cond, s, card, zone) {
   return { on: ['ns', 'ss', 'field'], t: 'while it is on the field' };
 }
 const CBX_ACT = { add: 'add', send: 'gy', 'special summon': 'ss', banish: 'ban', set: 'set' };
+/* Tributing, discarding and destroying are their own moves (a Tribute is not "send"): what each one takes */
+const CBX_TAKE = { tribute: 'trib', discard: 'dis', destroy: 'des' };
+const CBX_TAKE_RE =
+  /\b(Tribute|discard|destroy)\s+(?:up to\s+)?(\d+|an?|both|all)?\s*([^.;:]*?)(?=\s*(?:[.;:]|,\s*(?:then|and)\b|\band (?:if|then)\b|$))/gi;
+/** Does this text put the card, or the cards it moves, on (or take them from) the opponent's side? */
+const cbxOpp = t =>
+  /\byour opponent(?:'s)? (?:field|controls|hand|side|GY)|\bto your opponent's field|\bopponent's monsters?\b/i.test(t);
 /** Every play a card's text allows: what moves, from where, which cards qualify, and when. */
 function cbxPlays(card) {
   const out = [],
@@ -234,6 +241,7 @@ function cbxPlays(card) {
             out.push({
               act: 'ss',
               self: true,
+              opp: /to your opponent's field|on your opponent's field|your opponent controls/i.test(after + ' ' + body),
               when: {
                 on: src.includes('gy') ? ['gy'] : src.includes('ban') ? ['ban'] : ['hand', 'add'],
                 t: src.includes('gy')
@@ -242,7 +250,12 @@ function cbxPlays(card) {
                     ? 'while it is banished'
                     : 'from the hand'
               },
-              label: 'Special Summon itself' + (cond ? ' (' + cond.replace(/\s+/g, ' ').slice(0, 60) + ')' : ''),
+              label:
+                'Special Summon itself' +
+                (/to your opponent's field|on your opponent's field/i.test(after + ' ' + body)
+                  ? " to your opponent's field"
+                  : '') +
+                (cond ? ' (' + cond.replace(/\s+/g, ' ').slice(0, 60) + ')' : ''),
               zone
             });
             found++;
@@ -256,6 +269,7 @@ function cbxPlays(card) {
           when,
           zone,
           src,
+          opp: act === 'ss' && /^\s*(?:in \w+ position\s+)?to your opponent's field/i.test(after),
           n: m[2] || '',
           ph,
           filt: cbxFilter(ph, s),
@@ -268,6 +282,34 @@ function cbxPlays(card) {
             ' from the ' +
             where +
             (act === 'add' ? ' to the hand' : act === 'gy' ? ' to the GY' : '')
+        });
+        found++;
+      }
+      // Tribute, discard and destroy: they take cards instead of fetching them
+      CBX_TAKE_RE.lastIndex = 0;
+      let tm;
+      while ((tm = CBX_TAKE_RE.exec(body))) {
+        const act = CBX_TAKE[tm[1].toLowerCase()],
+          ph = tm[3].trim();
+        if (!ph || /^(this card|it|them|itself|that card)\b/i.test(ph) || ph.length > 70) continue;
+        const cost = semi >= 0 && tm.index < semi,
+          opp = cbxOpp(ph);
+        out.push({
+          act,
+          cost,
+          when,
+          zone,
+          src: act === 'dis' ? ['hand'] : /hand/i.test(ph) ? ['hand', 'field'] : ['field'],
+          opp,
+          n: tm[2] || '',
+          ph,
+          filt: cbxFilter(ph, s),
+          label:
+            (cost ? 'Cost: ' : '') +
+            { trib: 'Tribute', dis: 'Discard', des: 'Destroy' }[act] +
+            ' ' +
+            (tm[2] ? tm[2] + ' ' : '') +
+            ph
         });
         found++;
       }
@@ -350,7 +392,9 @@ function cbxPool(c, p, all) {
     wantX = p.src.includes('extra'),
     wantM = p.src.some(k => k !== 'extra');
   const locOk = x => (cbIsExtra(x) ? wantX || (!p.src.includes('deck') && wantM) : wantM || !p.src.length);
-  if (dk && !all) return dk.list.filter(e => locOk(e.card) && p.filt.test(e.card)).map(e => e.id);
+  // the opponent's cards are not in your deck: any card that fits
+  if (dk && !all && !(p.opp && p.act !== 'ss'))
+    return dk.list.filter(e => locOk(e.card) && p.filt.test(e.card)).map(e => e.id);
   if (p.filt.any) return [];
   const o = [];
   for (const x of cards) {
@@ -437,7 +481,12 @@ function cbNextStep(c, li, done) {
       return;
     }
     if (p.none || p.self) {
-      if (cbxPush(c, li, { cards: [{ c: id, a: p.self ? 'ss' : 'eff' }], note: p.none ? p.label.slice(0, 80) : '' }))
+      if (
+        cbxPush(c, li, {
+          cards: [Object.assign({ c: id, a: p.self ? 'ss' : 'eff' }, p.self && p.opp ? { o: 1 } : {})],
+          note: p.none ? p.label.slice(0, 80) : ''
+        })
+      )
         done();
       return;
     }
@@ -446,7 +495,8 @@ function cbNextStep(c, li, done) {
       g,
       p,
       pid => {
-        if (cbxPush(c, li, { cards: [{ c: String(pid), a: p.act }], note: '' })) done();
+        if (cbxPush(c, li, { cards: [Object.assign({ c: String(pid), a: p.act }, p.opp ? { o: 1 } : {})], note: '' }))
+          done();
       },
       total === 1
     );

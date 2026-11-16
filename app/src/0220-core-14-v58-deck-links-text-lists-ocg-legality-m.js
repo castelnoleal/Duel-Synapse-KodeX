@@ -207,7 +207,7 @@ function deckLegality(d) {
     if (e.n > max)
       issues.push(
         e.ban
-          ? `${e.name}: ${e.ban} in the OCG (${max} allowed, ${e.n} in deck)`
+          ? `${e.name}: ${e.ban} in the ${KX_BAN_NAME[kxBanList()]} list (${max} allowed, ${e.n} in deck)`
           : `${e.name}: ${e.n} copies (3 allowed)`
       );
   }
@@ -225,14 +225,14 @@ function legalityBar(d) {
   const ml = `<button type="button" class="btn dk-mlb" data-matchlog="${esc(d.id)}">${ic('chart', 16)}Match log</button>`;
   if (!deckTotal(d)) return `<div class="dk-lrow">${ml}</div>`;
   const r = deckLegality(d);
-  return `<div class="dk-lrow"><button type="button" class="dk-legal ${r.ok ? 'ok' : 'bad'}" data-legal="${esc(d.id)}">${r.ok ? `<b>✓ OCG legal</b><small>Current OCG Forbidden &amp; Limited list${r.lim ? ` · ${r.lim} limited card${r.lim === 1 ? '' : 's'}` : ''}</small>` : `<b>✕ Not OCG legal</b><small>${r.issues.length} problem${r.issues.length === 1 ? '' : 's'} · tap to see</small>`}</button>${ml}</div>`;
+  return `<div class="dk-lrow"><button type="button" class="dk-legal ${r.ok ? 'ok' : 'bad'}" data-legal="${esc(d.id)}">${r.ok ? `<b>✓ ${KX_BAN_NAME[kxBanList()]} legal</b><small>Current ${KX_BAN_NAME[kxBanList()]} Forbidden &amp; Limited list${r.lim ? ` · ${r.lim} limited card${r.lim === 1 ? '' : 's'}` : ''}</small>` : `<b>✕ Not ${KX_BAN_NAME[kxBanList()]} legal</b><small>${r.issues.length} problem${r.issues.length === 1 ? '' : 's'} · tap to see</small>`}</button>${ml}</div>`;
 }
 function legalityModal(id) {
   const d = deckById(id);
   if (!d) return;
   const r = deckLegality(d);
   openModal(
-    `<div class="dk-hd"><h3>OCG legality</h3><button class="ibtn" data-close aria-label="Close">${ic('x')}</button></div>${r.ok ? '<p>This deck follows the current OCG Forbidden &amp; Limited list and deck size rules.</p>' : `<ul class="lg-list">${r.issues.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`}<p class="lk" style="color:var(--muted)">Checked against the OCG list in KodeX's card database, which updates with each card data refresh. Always confirm with the official list before an event.</p>`
+    `<div class="dk-hd"><h3>${KX_BAN_NAME[kxBanList()]} legality</h3><button class="ibtn" data-close aria-label="Close">${ic('x')}</button></div>${r.ok ? `<p>This deck follows the current ${KX_BAN_NAME[kxBanList()]} Forbidden &amp; Limited list and deck size rules.</p>` : `<ul class="lg-list">${r.issues.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`}<p class="lk" style="color:var(--muted)">Checked against the ${KX_BAN_NAME[kxBanList()]} list in KodeX's card database (change it in the Banlist), which updates with each card data refresh. Always confirm with the official list before an event.</p>`
   );
 }
 const banBadge = c => {

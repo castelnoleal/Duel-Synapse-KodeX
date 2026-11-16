@@ -1,0 +1,631 @@
+/* KodeX 10.2 (v69): deck statistics, finishing emote, combo pages, help bubble, banners, NRS profile. */
+
+/* ---------- deck statistics ---------- */
+.ds {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  color: var(--text);
+}
+.ds-top {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ds-top b {
+  font-size: 18px;
+}
+.ds-top small,
+.ds .note {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.ds-tabs,
+.ds-seg {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  overflow-x: auto;
+}
+.ds-tabs button,
+.ds-seg button {
+  flex: 1 0 auto;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: 700 13px/1.2 inherit;
+  padding: 9px 12px;
+  border-radius: 9px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ds-tabs button[aria-selected='true'],
+.ds-seg button.on {
+  background: var(--accent);
+  color: #06101f;
+}
+.ds-body h6 {
+  margin: 16px 0 6px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.ds-rt {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ds-r {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 54px;
+  grid-template-areas: 'l e' 'b b' 's s';
+  gap: 4px 8px;
+  text-align: left;
+  border: 1px solid var(--line);
+  background: var(--panel2);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+.ds-r span {
+  grid-area: l;
+  font-weight: 700;
+  font-size: 14px;
+}
+.ds-r em {
+  grid-area: e;
+  text-align: right;
+  font-style: normal;
+  font-weight: 800;
+}
+.ds-r i {
+  grid-area: b;
+  height: 8px;
+  border-radius: 8px;
+  background: #ffffff14;
+  overflow: hidden;
+}
+.ds-r i b {
+  display: block;
+  height: 100%;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #3347f0, #8d99ff 60%, #f0b429);
+}
+.ds-r small {
+  grid-area: s;
+  color: var(--muted);
+  font-size: 12px;
+}
+.ds-kp {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+.ds-k {
+  border: 1px solid var(--line);
+  background: var(--panel2);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ds-k b {
+  font-size: 22px;
+}
+.ds-k small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.3;
+}
+.ds-k.bad b {
+  color: #ff8a9a;
+}
+.ds-k.big b {
+  font-size: 28px;
+  color: #f0b429;
+}
+.ds-ch {
+  width: 100%;
+  max-height: 220px;
+  color: var(--text);
+  overflow: visible;
+}
+.ds-hit {
+  cursor: pointer;
+  outline: none;
+}
+.ds-hit:focus-visible {
+  outline: 2px solid var(--accent);
+}
+.ds-tip {
+  min-height: 2.6em;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #3347f01f;
+  border: 1px solid #3347f055;
+  font-size: 13px;
+  line-height: 1.35;
+  position: sticky;
+  bottom: 0;
+}
+.ds-wi {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+  align-items: center;
+}
+.ds-wi label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 32px;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+}
+.ds-wi input {
+  width: 100%;
+  accent-color: var(--accent);
+}
+.ds-body select {
+  width: 100%;
+  padding: 9px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--panel2);
+  color: var(--text);
+}
+.ds-hb {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ds-hr {
+  display: grid;
+  grid-template-columns: minmax(90px, 34%) minmax(0, 1fr) 34px;
+  gap: 8px;
+  align-items: center;
+  border: 0;
+  background: none;
+  color: var(--text);
+  text-align: left;
+  padding: 2px 0;
+  font-size: 13px;
+}
+.ds-hr i {
+  height: 12px;
+  border-radius: 6px;
+  background: #ffffff10;
+  overflow: hidden;
+}
+.ds-hr i b {
+  display: block;
+  height: 100%;
+  border-radius: 6px;
+}
+.ds-hr em {
+  font-style: normal;
+  font-weight: 800;
+  text-align: right;
+}
+.ds-rl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px;
+  margin-top: 8px;
+  border-radius: 12px;
+  background: var(--panel2);
+  border: 1px solid var(--line);
+}
+.ds-rl > b {
+  width: 100%;
+  font-size: 13px;
+}
+.ds-c {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 99px;
+  padding: 6px 10px;
+  font-size: 12.5px;
+}
+.ds-c em {
+  font-style: normal;
+  color: var(--muted);
+}
+.ds-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+.ds-donut {
+  width: 150px;
+  height: 150px;
+  display: block;
+  margin: 0 auto;
+  color: var(--text);
+}
+.ds-w {
+  border-left: 4px solid #e0566b;
+  background: var(--panel2);
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+}
+.ds-w.imp {
+  border-left-color: #f0b429;
+}
+.ds-w b {
+  font-size: 14px;
+}
+.ds-w p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.ds-sg {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+}
+.ds-s {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-left: 4px solid #38c9a6;
+  background: var(--panel2);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 8px;
+}
+.ds-s img {
+  width: 40px;
+  border-radius: 4px;
+  flex: none;
+}
+.ds-s span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.ds-s small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* ---------- finishing emote picker (Premium Studio) ---------- */
+.fe-box {
+  margin-top: 14px;
+}
+.fe-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 2px 8px;
+}
+.fe-t {
+  flex: none;
+  width: 84px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--panel2);
+  color: var(--text);
+  font-size: 11.5px;
+}
+.fe-t img {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+.fe-t > span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fe-t:first-child {
+  justify-content: center;
+  min-height: 98px;
+}
+.fe-t.on {
+  border-color: #f0b429;
+  box-shadow: 0 0 0 2px #f0b42955;
+}
+
+/* ---------- combo sheet: square pages ---------- */
+.cbp-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  max-height: 64vh;
+  overflow: auto;
+  padding: 2px;
+}
+.cbp {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cbp-svg svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 10px;
+}
+.cbp figcaption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--muted);
+}
+.cbp figcaption .btn {
+  width: auto;
+}
+.ds-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  overflow: visible;
+}
+.ds-seg {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  overflow: visible;
+}
+.ds-tabs button,
+.ds-seg button {
+  white-space: normal;
+  padding: 8px 4px;
+  font-size: 12.5px;
+  line-height: 1.2;
+}
+.ds-leg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 12px;
+  color: var(--muted);
+  margin: 2px 0 4px;
+}
+.ds-leg i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 5px;
+  vertical-align: -1px;
+}
+.ds-ch {
+  max-height: 170px;
+}
+
+/* ---------- profile: uploaded banners and NRS ---------- */
+/* Premium: their own banner picture, moving the way they chose (Slide, Pan, Zoom, Glide like Synapse Grid, Still) */
+.pf-banner.up {
+  background: var(--pf-bimg) center / cover no-repeat;
+}
+.pf-banner.up.bfx-slide {
+  background-size: auto 150%;
+  animation: pfBSlide 16s linear infinite alternate;
+}
+.pf-banner.up.bfx-pan {
+  background-size: 170% auto;
+  animation: pfBPan 20s ease-in-out infinite alternate;
+}
+.pf-banner.up.bfx-zoom {
+  background: none;
+}
+.pf-banner.up.bfx-zoom i {
+  background: var(--pf-bimg) center / cover no-repeat;
+  animation: pfBZoom 9s ease-in-out infinite alternate;
+}
+.pf-banner.up.bfx-glide {
+  background-size: auto 140%;
+  animation: pfBSlide 12s linear infinite alternate;
+}
+.pf-banner.up.bfx-glide i {
+  background-image:
+    linear-gradient(#ffffff26 1px, transparent 1px), linear-gradient(90deg, #ffffff26 1px, transparent 1px);
+  background-size: 18px 18px;
+  animation: pfBGrid 3s linear infinite;
+}
+.pf-real {
+  font-size: 12px;
+  opacity: 0.8;
+}
+.pf-nrs {
+  background: linear-gradient(90deg, #f0b429, #ffe08a);
+  color: #1a1205;
+}
+@keyframes pfBSlide {
+  from {
+    background-position: 0% 50%;
+  }
+  to {
+    background-position: 100% 50%;
+  }
+}
+@keyframes pfBPan {
+  from {
+    background-position: 0% 0%;
+  }
+  to {
+    background-position: 100% 100%;
+  }
+}
+@keyframes pfBZoom {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.18) translateX(-3%);
+  }
+}
+@keyframes pfBGrid {
+  to {
+    background-position: 18px 18px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pf-banner.up,
+  .pf-banner.up i {
+    animation: none !important;
+  }
+}
+
+/* ---------- the help bubble glows so it is easy to find ---------- */
+.kx-help {
+  animation: kxHelpGlow 2.6s ease-in-out infinite;
+}
+.kx-help::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  border: 2px solid #8d99ff;
+  opacity: 0;
+  animation: kxHelpRing 2.6s ease-out infinite;
+  pointer-events: none;
+}
+@keyframes kxHelpGlow {
+  0%,
+  100% {
+    box-shadow:
+      0 6px 18px #0008,
+      0 0 0 0 #8d99ff00;
+  }
+  50% {
+    box-shadow:
+      0 6px 18px #0008,
+      0 0 18px 4px #8d99ff88;
+  }
+}
+@keyframes kxHelpRing {
+  0% {
+    opacity: 0.7;
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .kx-help,
+  .kx-help::after {
+    animation: none;
+  }
+}
+/* banlist chooser */
+.kb-lists {
+  display: flex;
+  gap: 6px;
+  margin: 0 0 10px;
+}
+.kb-lists button {
+  flex: 1;
+  border: 1px solid var(--line);
+  background: var(--panel2);
+  color: var(--muted);
+  border-radius: 10px;
+  padding: 8px 6px;
+  font-weight: 700;
+}
+.kb-lists button.on {
+  background: var(--accent);
+  color: #06101f;
+  border-color: transparent;
+}
+/* profile editor: banner upload, NRS */
+.pfe-th.pfe-bup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+.pfe-bfx {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+.pfe-bfx button {
+  border: 1px solid var(--line);
+  background: var(--panel2);
+  color: var(--text);
+  border-radius: 99px;
+  padding: 6px 12px;
+  font-size: 12.5px;
+}
+.pfe-bfx button.on {
+  border-color: #f0b429;
+  color: #f0b429;
+}
+.pfe-nrs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 12px;
+  background: var(--panel2);
+  border: 1px solid var(--line);
+}
+.pfe-nrs .row2 {
+  display: flex;
+  gap: 8px;
+}
+.pfe-nrs .row2 input {
+  flex: 1;
+}
+.pfe-nrs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 220px;
+  overflow: auto;
+}
+.pfe-nrs-list button {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  text-align: left;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+.pfe-nrs-list button b {
+  color: #f0b429;
+}
+.pfe-nrs-list button small {
+  color: var(--muted);
+}
+.pfe-nrs-on {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}

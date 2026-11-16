@@ -88,11 +88,20 @@ def split(page_path):
     print(f"split into {len(files)} files in {SRC}")
 
 
+def module_text(f):
+    """A module's text. An entry with "from" is shared with the Arena (for example duel/deckstats.js): it is read from
+    there, and its closing `export default X;` line (only the Arena loads it as a module) is left out."""
+    if f.get("from"):
+        t = (ROOT / f["from"]).read_text("utf-8")
+        return re.sub(r"\n?export default \w+;\s*$", "\n", t)
+    return (SRC / f["file"]).read_text("utf-8")
+
+
 def assemble():
     man = json.loads((SRC / "manifest.json").read_text("utf-8"))
     out = []
     for f in man["files"]:
-        out.append(f.get("open", "") + (SRC / f["file"]).read_text("utf-8") + f.get("close", ""))
+        out.append(f.get("open", "") + module_text(f) + f.get("close", ""))
     free = "".join(out)
     ed = json.loads((SRC / "editions.json").read_text("utf-8"))
     prem = free

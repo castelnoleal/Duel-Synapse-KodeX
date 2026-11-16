@@ -121,6 +121,10 @@ The Arena reads the same deck payload as `deck.html`: base64url of `{"n": name, 
 
 `sw.js` (scope `/duel/`) keeps the engine, card data, UI files, card scripts and card art on the device, so solo playtests against Synapse AI, the dummy and the random bot work without a connection. Online rooms always need the network.
 `offline.js` registers it and adds the **Offline play** panel to the lobby: **Save decks for offline** stores the scripts and art for every deck saved in the Arena.
+
+**Nearby duels with no internet** (`local.js`): two phones on the same Wi-Fi or hotspot connect directly with a WebRTC data channel and no server. The host's invite and the guest's answer are short codes (`DSN1|…`, only the connection fields: ICE user and password, the DTLS fingerprint and the local addresses), shown as QR codes made by `local.js` itself and read with the camera where the phone can read barcodes (or pasted). `LocalRoom` has the same shape as `Room` (`net.js`), so hosting, joining, chat, emotes and skins work as in an online room; messages over 60 KB go in pieces.
+
+**Deck statistics** (`deckstats.js`): exact chances from the deck list (hypergeometric and multivariate hypergeometric, no sampling): opening a starter, strong openings, hand traps and board breakers going second, bricks; roles from the card text; weak spots, improvements and suggestions. The lobby shows them for the chosen deck. KodeX builds the same file in (`app/src/manifest.json`, entry `0905-deck-stats.js` with `"from": "duel/deckstats.js"`).
 Scripts are pinned to a commit and never change. Bump `VERSION` in `sw.js` when the engine or data files change.
 
 From the KodeX app, `https://kodex.meiocg.org/duel/?app=1` opens the Arena (the `KodeX` links then return to the app) and `#prepare=<payload>` (`{"d":[<deck payload>, ...]}`, base64url) stores all of the app's decks and saves them for offline play.

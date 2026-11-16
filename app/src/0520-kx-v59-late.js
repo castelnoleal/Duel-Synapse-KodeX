@@ -75,6 +75,7 @@ const KXPF = (() => {
   const TIER_IDS = PROFILE_DATA.tiers.map(t => t[0]);
   const FRAME_IDS = ['none', ...TIER_IDS, 'premium'];
   const THEME_IDS = PROFILE_DATA.themes.map(t => t[0]);
+  const BFX = ['slide', 'pan', 'zoom', 'glide', 'still'];
   const tierName = id => (PROFILE_DATA.tiers.find(t => t[0] === id) || ['', 'Rookie'])[1];
 
   /** A preset icon as an SVG data URL. */
@@ -108,8 +109,26 @@ const KXPF = (() => {
         ? v.theme
         : 'default';
     const n = x => Math.max(0, Math.min(1e7, Math.floor(Number(x) || 0)));
+    // Premium: their own banner picture (GIFs move), with a motion
+    const bimg =
+      premium &&
+      typeof v.bimg === 'string' &&
+      v.bimg.length < 470000 &&
+      (!imgOk || imgOk(v.bimg)) &&
+      /^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(v.bimg)
+        ? v.bimg
+        : '';
+    // MEIOCG National Ranking System: rank, points and region; the real name only when the player shows it
+    const nr = v.nrs && typeof v.nrs === 'object' ? v.nrs : null;
+    const nrs =
+      nr && n(nr.rank)
+        ? { rank: n(nr.rank), pts: n(nr.pts), region: t(nr.region, 24), season: t(nr.season, 16), real: t(nr.real, 40) }
+        : null;
     return {
       name: t(v.name, 24) || 'Duelist',
+      bimg,
+      bfx: BFX.includes(v.bfx) ? v.bfx : 'slide',
+      nrs,
       title: t(v.title, 32),
       bio: t(v.bio, 140),
       icon,
@@ -138,15 +157,21 @@ const KXPF = (() => {
     const fr = (p && p.frame) || 'none';
     return `<span class="pf-av fr-${fr}"${size ? ` style="--pf:${size}px"` : ''}><img src="${esc(iconSrc(p, meiocgLogo))}" alt="" draggable="false"></span>`;
   }
+  /** The banner: a theme, or (Premium) their own picture moving the way they chose. */
+  function bannerHTML(p) {
+    return p && p.bimg
+      ? `<div class="pf-banner up bfx-${esc(p.bfx || 'slide')}" style="--pf-bimg:url('${esc(p.bimg)}')"><i></i></div>`
+      : '<div class="pf-banner"><i></i></div>';
+  }
   /** The profile card (opened by tapping a player's plate). */
   function cardHTML(p, meiocgLogo, opts = {}) {
     if (!p) return '';
     const s = p.stats || {},
       rate = s.duels ? Math.round((s.wins / s.duels) * 100) + '%' : '–';
     return `<div class="pf-card th-${esc(p.theme || 'default')}"${p.accent ? ` style="--pf-acc:${esc(p.accent)}"` : ''}>
-    <div class="pf-banner"><i></i></div>
-    <div class="pf-head">${avatarHTML(p, meiocgLogo, 84)}<div class="pf-who"><b>${esc(p.name)}</b>${p.title ? `<span>${esc(p.title)}</span>` : ''}
-      <div class="pf-tags"><em class="pf-tier t-${esc(p.tier)}">${esc(tierName(p.tier))}</em>${p.premium ? '<em class="pf-prem">PREMIUM</em>' : ''}${opts.ai ? '<em class="pf-ai">AI</em>' : ''}</div></div></div>
+    ${bannerHTML(p)}
+    <div class="pf-head">${avatarHTML(p, meiocgLogo, 84)}<div class="pf-who"><b>${esc(p.name)}</b>${p.nrs && p.nrs.real && p.nrs.real !== p.name ? `<span class="pf-real">${esc(p.nrs.real)}</span>` : ''}${p.title ? `<span>${esc(p.title)}</span>` : ''}
+      <div class="pf-tags"><em class="pf-tier t-${esc(p.tier)}">${esc(tierName(p.tier))}</em>${p.premium ? '<em class="pf-prem">PREMIUM</em>' : ''}${p.nrs ? `<em class="pf-nrs">NRS #${p.nrs.rank}${p.nrs.region ? ' · ' + esc(p.nrs.region) : ''}</em>` : ''}${opts.ai ? '<em class="pf-ai">AI</em>' : ''}</div></div></div>
     ${p.bio ? `<p class="pf-bio">${esc(p.bio)}</p>` : ''}
     ${opts.ai ? '' : `<div class="pf-stats"><div><b>${s.days || 0}</b><span>Days on KodeX</span></div><div><b>${s.duels || 0}</b><span>Duels</span></div><div><b>${rate}</b><span>Win rate</span></div><div><b>${s.points || 0}</b><span>Points</span></div></div>`}
   </div>`;
@@ -157,6 +182,8 @@ const KXPF = (() => {
     TIER_IDS,
     FRAME_IDS,
     THEME_IDS,
+    BFX,
+    bannerHTML,
     tierName,
     presetIcon,
     cleanProfile,
@@ -227,6 +254,9 @@ function kxProfile() {
     frame: r.frame == null ? (PREMIUM ? 'premium' : t[0]) : fr.has(r.frame) ? r.frame : t[0],
     theme: r.theme || 'default',
     accent: r.accent || '',
+    bimg: PREMIUM && r.theme === 'upload' ? kxpBanner() : '',
+    bfx: r.bfx || 'slide',
+    nrs: r.nrs ? { ...r.nrs, real: r.nick === false ? r.nrs.real : '' } : null,
     premium: PREMIUM,
     tier: t[0],
     stats: { points: pts, days: a.days, duels: a.duels, wins: a.wins }
@@ -481,8 +511,13 @@ function kxpEdit() {
     icon: r.icon || 'meiocg',
     frame: r.frame == null ? (PREMIUM ? 'premium' : kxpTier(pts)[0]) : fr.has(r.frame) ? r.frame : kxpTier(pts)[0],
     theme: r.theme || 'default',
-    accent: r.accent || '#8d99ff'
+    accent: r.accent || '#8d99ff',
+    bimg: kxpBanner(),
+    bfx: r.bfx || 'slide',
+    nrs: r.nrs || null,
+    nick: r.nick !== false
   };
+  if (st.theme === 'upload' && !(PREMIUM && st.bimg)) st.theme = 'default';
   if (st.icon === 'custom' && !(PREMIUM && img)) st.icon = 'meiocg';
   const icons = ['meiocg', ...Object.keys(D.icons)];
   const m = openModal(
@@ -501,8 +536,19 @@ function kxpEdit() {
    })
    .join('')}</div>
  <div class="pfv-sec">Banner${PREMIUM ? '' : ' <small>Animated banners come with KodeX Premium.</small>'}</div>
- <div class="pfe-grid th" id="pfeThemes">${D.themes.map(([id, l, pr]) => `<button type="button" class="pfe-th th-${id}${pr && !PREMIUM ? ' lock' : ''}" data-th="${id}"><span class="pf-card th-${id}"><span class="pf-banner"><i></i></span></span><small>${esc(l)}</small>${pr && !PREMIUM ? '<em>Premium</em>' : ''}</button>`).join('')}</div>
+ <div class="pfe-grid th" id="pfeThemes">${D.themes.map(([id, l, pr]) => `<button type="button" class="pfe-th th-${id}${pr && !PREMIUM ? ' lock' : ''}" data-th="${id}"><span class="pf-card th-${id}"><span class="pf-banner"><i></i></span></span><small>${esc(l)}</small>${pr && !PREMIUM ? '<em>Premium</em>' : ''}</button>`).join('')}<button type="button" class="pfe-th pfe-bup${PREMIUM ? '' : ' lock'}" data-th="upload">${PREMIUM && st.bimg ? `<span class="pf-card"><span class="pf-banner up bfx-still" style="--pf-bimg:url('${esc(st.bimg)}')"><i></i></span></span>` : ic('up', 22)}<small>Your picture</small><em>${PREMIUM ? 'Upload' : 'Premium'}</em></button><input type="file" id="pfeBFile" accept="image/png,image/jpeg,image/webp,image/gif" hidden></div>
+ <div class="pfe-bfx" id="pfeBfx"${PREMIUM && st.bimg ? '' : ' hidden'} role="radiogroup" aria-label="Banner motion">${[
+   ['slide', 'Slide'],
+   ['pan', 'Pan'],
+   ['zoom', 'Zoom'],
+   ['glide', 'Glide · grid'],
+   ['still', 'Still']
+ ]
+   .map(([k, l]) => `<button type="button" data-bfx="${k}">${l}</button>`)
+   .join('')}</div>
  ${PREMIUM ? `<label class="pfe-l row1">Accent colour<input type="color" id="pfeAcc" value="${esc(st.accent)}"></label>` : ''}
+ <div class="pfv-sec">MEIOCG National Ranking System (NRS)</div>
+ <div class="pfe-nrs" id="pfeNrs"></div>
  <label class="pfe-tg"><input type="checkbox" id="pfeList"${r.listed ? ' checked' : ''}><span><b>Show me on MEIOCG Players</b><small>meiocg.org/players lists active KodeX players. Only your name, title, about, preset icon, frame and activity counts are shared. Turn off to be removed.</small></span></label>
  <div class="dact"><button class="btn" data-close>Cancel</button><button class="btn p" id="pfeOk">Save</button></div>`,
     'big pfe-dlg'
@@ -518,6 +564,9 @@ function kxpEdit() {
       frame: st.frame,
       theme: st.theme,
       accent: PREMIUM ? st.accent : '',
+      bimg: st.theme === 'upload' ? st.bimg : '',
+      bfx: st.bfx,
+      nrs: st.nrs ? { ...st.nrs, real: st.nick ? '' : st.nrs.real } : null,
       premium: PREMIUM,
       tier: kxpTier(pts)[0],
       stats: kxProfile().stats
@@ -531,11 +580,35 @@ function kxpEdit() {
       b.querySelector('.pfe-fx').innerHTML = KXPF.avatarHTML({ ...p, frame: b.dataset.fr }, logo, 40);
     });
     m.querySelectorAll('[data-th]').forEach(b => b.classList.toggle('on', b.dataset.th === st.theme));
+    m.querySelectorAll('[data-bfx]').forEach(b => b.classList.toggle('on', b.dataset.bfx === st.bfx));
+    q('#pfeBfx').hidden = !(PREMIUM && st.bimg && st.theme === 'upload');
+    kxpNrsBox(q('#pfeNrs'), st, () => {
+      if (st.nrs && !st.nick && st.nrs.real) q('#pfeName').value = st.nrs.real.slice(0, 24);
+      paint();
+    });
   };
   m.addEventListener('input', paint);
   m.addEventListener('click', e => {
+    const bx = e.target.closest('[data-bfx]');
+    if (bx) {
+      st.bfx = bx.dataset.bfx;
+      paint();
+      return;
+    }
     const b = e.target.closest('[data-ic],[data-fr],[data-th]');
     if (!b) return;
+    if (b.dataset.th === 'upload') {
+      if (!PREMIUM) {
+        toast('Your own banner comes with KodeX Premium');
+        return;
+      }
+      if (!st.bimg || st.theme === 'upload') q('#pfeBFile').click();
+      else {
+        st.theme = 'upload';
+        paint();
+      }
+      return;
+    }
     if (b.dataset.ic) {
       if (b.dataset.ic === 'custom') {
         if (!PREMIUM) {
@@ -565,6 +638,19 @@ function kxpEdit() {
     }
     paint();
   });
+  q('#pfeBFile').onchange = async e => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    try {
+      st.bimg = await kxpBannerPicture(f);
+      st.theme = 'upload';
+      const u = q('.pfe-bup');
+      u.innerHTML = `<span class="pf-card"><span class="pf-banner up bfx-still" style="--pf-bimg:url('${esc(st.bimg)}')"><i></i></span></span><small>Your picture</small><em>Change</em>`;
+      paint();
+    } catch (x) {
+      toast(x.message || 'That picture could not be used');
+    }
+  };
   q('#pfeFile').onchange = async e => {
     const f = e.target.files && e.target.files[0];
     if (!f) return;
@@ -599,6 +685,14 @@ function kxpEdit() {
         return;
       }
     }
+    if (st.theme === 'upload' && st.bimg) {
+      try {
+        localStorage.setItem('kx_pf_bimg', st.bimg);
+      } catch (x) {
+        toast('Not enough space for that banner');
+        return;
+      }
+    }
     kxpSave({
       ...kxpRaw(),
       name: name.slice(0, 24),
@@ -608,6 +702,9 @@ function kxpEdit() {
       frame: st.frame,
       theme: st.theme,
       accent: PREMIUM ? st.accent : '',
+      bfx: st.bfx,
+      nrs: st.nrs,
+      nick: st.nick,
       listed
     });
     if (listed && !was) {
@@ -697,7 +794,20 @@ const KXH = [
       if (b) b.click();
     }
   ],
-  ['Forbidden & Limited list', 'banlist banned limited semi-limited ocg legality', () => kxBanlist()],
+  ['Forbidden & Limited list', 'banlist banned limited semi-limited ocg tcg goat legality format', () => kxBanlist()],
+  ['Combos', 'combo lines generator sheet image practice replay', () => kxCombos()],
+  [
+    'Deck statistics',
+    'deck stats statistics consistency odds probability charts weaknesses suggestions analyzer',
+    () => kxRun(() => $('nDeck').click())
+  ],
+  [
+    'Premium Studio',
+    'premium studio skins sleeves field showdown finisher emotes sounds finishing emote',
+    () => openSkins()
+  ],
+  ['Nearby duel (no internet)', 'nearby local wifi hotspot offline qr no internet', () => openArena('')],
+  ['Replays', 'replay recordings saved duels video', () => openArena('')],
   ['Decks', 'deck manager builder my decks', () => $('nDeck').click()],
   [
     'New deck',
@@ -811,10 +921,10 @@ function kxHelp() {
     idx = kxHelpIndex();
   const m = openModal(
     `<div class="dk-hd"><h3>Help &amp; quick settings</h3><button class="ibtn" data-close aria-label="Close">${ic('x')}</button></div>
- <div class="kh-s">${ic('search', 18)}<input id="khQ" type="search" placeholder="Find a feature or setting" autocomplete="off" aria-label="Find a feature or setting"></div>
+ <div class="kh-s">${ic('search', 18)}<input id="khQ" type="search" placeholder="Search cards, decks, combos, features, settings" autocomplete="off" aria-label="Search anything in KodeX"></div>
  <div id="khR" class="kh-r" hidden></div>
  <div id="khT" class="kh-t">
-  <button data-kh="ban">${ic('list', 22)}<b>Banlist</b><small>OCG Forbidden &amp; Limited</small></button>
+  <button data-kh="ban">${ic('list', 22)}<b>Banlist</b><small>${esc(KX_BAN_NAME[kxBanList()])} Forbidden &amp; Limited</small></button>
   <button data-kh="pf">${ic('star', 22)}<b>Profile</b><small>Icon, frame, banner</small></button>
   ${arena ? '' : `<button data-kh="fil">${ic('search', 22)}<b>Filters</b><small>Narrow the card list</small></button>`}
   <button data-kh="deck">${ic('deck', 22)}<b>Decks</b><small>Build, import, analyze</small></button>
@@ -836,7 +946,41 @@ function kxHelp() {
       return;
     }
     const w = s.split(/\s+/);
-    hits = idx.filter(o => w.every(x => o.k.includes(x))).slice(0, 14);
+    hits = idx.filter(o => w.every(x => o.k.includes(x))).slice(0, 10);
+    // and everything else in the app: your decks, your combos and the cards themselves
+    for (const d of deckStore())
+      if (
+        hits.length < 16 &&
+        w.every(x =>
+          String(d.name || '')
+            .toLowerCase()
+            .includes(x)
+        )
+      ) {
+        hits.push({
+          t: d.name,
+          g: 'Your deck',
+          f: () => {
+            $('nDeck').click();
+            setTimeout(() => showDeck(d.id), 250);
+          }
+        });
+        hits.push({ t: 'Statistics: ' + d.name, g: 'Your deck', f: () => openDeckStats(d.id) });
+      }
+    for (const c of typeof cbAll === 'function' ? cbAll() : [])
+      if (hits.length < 18 && w.every(x => cbTitle(c).toLowerCase().includes(x)))
+        hits.push({ t: cbTitle(c), g: 'Your combo', f: () => cbEdit(c) });
+    if (s.length >= 2) {
+      const ns = nt(s),
+        found = [];
+      for (const k of K) {
+        const sc = score(k, ns, ns.split(' ').filter(Boolean));
+        if (sc >= 5e4) found.push([sc, k.c]);
+      }
+      found.sort((a, b) => b[0] - a[0] || a[1].name.localeCompare(b[1].name));
+      for (const [, c] of found.slice(0, 6))
+        hits.push({ t: c.name, g: 'Card · ' + (c.type || ''), f: () => quickView(String(c.id)) });
+    }
     R.hidden = false;
     T.hidden = true;
     R.innerHTML = hits.length
@@ -876,7 +1020,13 @@ function kxBanlist() {
     ];
   let cur = 'Forbidden';
   const m = openModal(
-    `<div class="dk-hd"><h3>OCG Forbidden &amp; Limited</h3><button class="ibtn" data-close aria-label="Close">${ic('x')}</button></div>
+    `<div class="dk-hd"><h3>${esc(KX_BAN_NAME[kxBanList()])} Forbidden &amp; Limited</h3><button class="ibtn" data-close aria-label="Close">${ic('x')}</button></div>
+ <div class="kb-lists" role="radiogroup" aria-label="Which list">${Object.entries(KX_BAN_NAME)
+   .map(
+     ([k, l]) =>
+       `<button type="button" role="radio" data-kbl="${k}" aria-checked="${kxBanList() === k}" class="${kxBanList() === k ? 'on' : ''}">${esc(l)}</button>`
+   )
+   .join('')}</div>
  <div class="kb-tabs" role="tablist">${tabs.map(([k, l]) => `<button role="tab" data-kb="${k}" class="l${BANMAX[k]}">${l}<i>${g[k].length}</i></button>`).join('')}</div>
  <div class="kh-s">${ic('search', 18)}<input id="kbQ" type="search" placeholder="Search the list" autocomplete="off" aria-label="Search the list"></div>
  <div id="kbL" class="kb-l"></div><p class="kh-f">From KodeX's card database; it updates with each card data refresh.</p>`,
@@ -901,6 +1051,17 @@ function kxBanlist() {
       : '<p class="kh-none">No cards.</p>';
   };
   m.addEventListener('click', e => {
+    const bl = e.target.closest('[data-kbl]');
+    if (bl) {
+      // another list: the badges everywhere, the deck legality bar and the Arena follow it
+      S.s('banlist', bl.dataset.kbl);
+      kxApplyBanlist();
+      kxpBanToArena();
+      if (typeof home === 'function' && !q.value) home();
+      closeModal();
+      setTimeout(kxBanlist, 160);
+      return;
+    }
     const t = e.target.closest('[data-kb]');
     if (t) {
       cur = t.dataset.kb;

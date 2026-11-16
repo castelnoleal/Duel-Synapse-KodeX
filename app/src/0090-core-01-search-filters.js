@@ -142,8 +142,13 @@ function home() {
   else if (S.g('lh', true))
     show(
       cards
-        .filter(c => c.date)
-        .sort((a, b) => b.date.localeCompare(a.date) || Number(b.id) - Number(a.id))
+        .filter(c => (c.date || Number(c.id) >= 1e8) && !/token/i.test(c.type || ''))
+        .sort((a, b) => {
+          const na = !a.date && Number(a.id) >= 1e8,
+            nb = !b.date && Number(b.id) >= 1e8;
+          if (na !== nb) return na ? -1 : 1;
+          return (b.date || '').localeCompare(a.date || '') || Number(b.id) - Number(a.id);
+        })
         .slice(0, 50),
       'Search for a card'
     );

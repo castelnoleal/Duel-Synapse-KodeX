@@ -17,6 +17,8 @@ import { cleanProfile, avatarHTML, cardHTML } from "./profile.js";
 import { breakProfile, comeback } from "./ending.js";
 import { Clip, canRecord } from "./video.js";
 import { cleanCombo, comboPackets, lineText, replayTurns, comboFromReplay } from "./combo.js";
+import DeckStats from "./deckstats.js";
+import { LocalRoom, qrSvg, canScan, scanCode } from "./local.js";
 
 const M = C.MSG;
 const $ = (s) => document.querySelector(s);
@@ -197,7 +199,8 @@ function startWorker() {
 
 function options() {
   return { rule: Number($("#optRule").value), lp: Math.max(100, Number($("#optLP").value) || 8000),
-    start: Math.max(0, Number($("#optHand").value) || 0), draw: Math.max(0, Number($("#optDraw").value) || 0) };
+    // practising a combo: the opening hand is exactly the combo's hand (a 2-card combo starts with 2 cards)
+    start: S.practiceHand && S.testHand.size === S.practiceHand ? S.practiceHand : Math.max(0, Number($("#optHand").value) || 0), draw: Math.max(0, Number($("#optDraw").value) || 0) };
 }
 function rulesSummary() { const o = options(); $("#rulesSummary").textContent = `MR${o.rule} · ${o.lp} LP`; }
 
@@ -224,6 +227,8 @@ function useDeck(raw, remember) {
 function selectDeck(i) {
   const d = S.decks[i] || S.decks[0];
   if (!d) return;
+  // a deck saved before the Extra Deck check, or synced while the card data was loading: Extra Deck monsters go back to the Extra Deck
+  if (S.db) { const all = [...d.main, ...(d.extra || [])]; d.main = all.filter((n) => !S.db.isExtra(n)); d.extra = all.filter((n) => S.db.isExtra(n)).slice(0, 15); }
   S.deck = { ...d, missing: [] };
   save("duel:current", S.decks.indexOf(d));
   S.testHand.clear();
@@ -259,6 +264,31 @@ function renderSaved() {
   S.decks.forEach((d, i) => { if (!d.main || d.main.length < 20) return; const o = el("option", null, `Deck: ${d.name}`); o.value = "deck:" + i; o.dataset.deck = "1"; od.append(o); });
   if ([...od.options].some((o) => o.value === was)) od.value = was;
 }
+/** Exact odds for the deck in the lobby (the same numbers KodeX shows): ratings, then the key chances. */
+let atkPool = null;
+function deckSummary(d) {
+  const box = el("div", "deck-sum");
+  try {
+    if (!atkPool) { atkPool = []; for (const k of Object.keys(S.db.raw)) { const c = S.db.get(k); if (c && c.type & C.TYPE.MONSTER && !(c.type & C.TYPE.TOKEN) && c.atk >= 0) atkPool.push(c.atk); } atkPool.sort((a, b) => a - b); }
+    const conv = (code) => DeckStats.fromEngine(S.db.get(code) || { code }, C);
+    const A = DeckStats.analyze(d.main.map(conv), d.extra.map(conv), { atkPool });
+    const rows = el("div", "ds-mini");
+    for (const r of A.rating) {
+      const row = el("div", "ds-mr"); row.title = r.why;
+      const bar = el("i"); const fill = el("b"); fill.style.width = r.v + "%"; bar.append(fill);
+      row.append(el("span", null, r.label), bar, el("em", null, r.v + "%"), el("small", null, r.word));
+      rows.append(row);
+    }
+    const keys = el("div", "ds-mk");
+    for (const [l, v] of [["Starter going first", A.first.starter], ["Starter going second", A.second.starter], ["Hand trap going second", A.second.interact], ["Brick going first", A.first.brick]]) {
+      const k = el("div"); k.append(el("b", null, (v * 100).toFixed(1) + "%"), el("small", null, l)); keys.append(k);
+    }
+    const roles = el("p", "ds-mroles", A.ROLE_ORDER.filter((r) => A.roles[r]).map((r) => `${A.ROLE_NAME[r]} ${A.roles[r]}`).join(" · "));
+    box.append(el("h4", null, "Deck stats"), rows, keys, roles);
+    if (A.weak.length) box.append(el("p", "ds-mweak", "Weak to: " + A.weak.map((w) => w.t).join("; ")));
+  } catch (e) { box.append(el("p", "ds-mroles", "Stats are not available for this deck.")); }
+  return box;
+}
 function renderDeck() {
   const b = $("#deckBody");
   b.replaceChildren();
@@ -279,9 +309,16 @@ function renderDeck() {
     const w = el("div", "warn", "Not tournament-legal — fine for playtesting.");
     const ul = el("ul"); probs.slice(0, 6).forEach((p) => ul.append(el("li", null, p))); w.append(ul); b.append(w);
   }
+  // the deck's numbers first; the card list stays folded until asked for
+  b.append(deckSummary(d));
+  const showBtn = el("button", "btn ghost deck-show", S.showDeckCards ? "Hide the cards" : "Show the cards");
+  showBtn.type = "button"; showBtn.setAttribute("aria-expanded", String(!!S.showDeckCards));
+  const cardsBox = el("div", "deck-cards"); cardsBox.hidden = !S.showDeckCards;
+  showBtn.onclick = () => { S.showDeckCards = !S.showDeckCards; cardsBox.hidden = !S.showDeckCards; showBtn.textContent = S.showDeckCards ? "Hide the cards" : "Show the cards"; showBtn.setAttribute("aria-expanded", String(S.showDeckCards)); };
+  b.append(showBtn, cardsBox);
   for (const [label, list] of [["Main Deck", d.main], ["Extra Deck", d.extra], ["Side Deck", d.side || []]]) {
     if (!list.length) continue;
-    const sec = el("div", "deck-section"); sec.append(el("span", null, label), el("span", null, String(list.length))); b.append(sec);
+    const sec = el("div", "deck-section"); sec.append(el("span", null, label), el("span", null, String(list.length))); cardsBox.append(sec);
     const g = el("div", "deck-grid");
     list.forEach((code, i) => {
       const x = el("button", "deck-card"); x.type = "button"; x.setAttribute("aria-label", S.db.name(code));
@@ -290,7 +327,7 @@ function renderDeck() {
       peekable(x, code);
       g.append(x);
     });
-    b.append(g);
+    cardsBox.append(g);
   }
   const th = $("#testHand");
   th.replaceChildren();
@@ -319,6 +356,8 @@ function refreshButtons() {
   $("#soloStart").disabled = !ready;
   $("#hostOpen").disabled = !ready;
   $("#joinBtn").disabled = !(S.deck && S.db);
+  $("#nearbyHost").disabled = !ready;
+  $("#nearbyJoin").disabled = !(S.deck && S.db);
 }
 
 function setMode(m) {
@@ -357,6 +396,8 @@ function bindLobby() {
   $("#soloStart").addEventListener("click", startSolo);
   $("#hostOpen").addEventListener("click", openRoom);
   $("#hostClose").addEventListener("click", closeRoom);
+  $("#nearbyHost").addEventListener("click", nearbyHost);
+  $("#nearbyJoin").addEventListener("click", nearbyJoin);
   $("#hostStart").addEventListener("click", hostStartDuel);
   $("#copyInvite").addEventListener("click", () => copy(`${BUNDLED ? SITE + "/duel/" : location.origin + location.pathname}#join=${S.room.code}`, "Invite link copied."));
   $("#copyWatch").addEventListener("click", () => copy(`${BUNDLED ? SITE + "/duel/" : location.origin + location.pathname}#watch=${S.room.code}`, "Spectator link copied."));
@@ -578,6 +619,9 @@ function kxClear() {
   const items = [".duelist.op", "#comboGen", ".rb-cap", "#status"];
   for (const sel of items) { const e = document.querySelector(sel); if (e) { e.style.removeProperty("margin-top"); e.style.removeProperty("max-width"); } }
   if (!kxBox) return;
+  // the lobby's title banner starts below KodeX's buttons (and leaves room beside them on a phone turned sideways)
+  document.documentElement.style.setProperty("--kx-top", kxBox.h + 4 + "px");
+  document.documentElement.style.setProperty("--kx-right", kxBox.w + "px");
   const W = innerWidth, box = { l: W - kxBox.w, b: kxBox.h + 4 };
   for (const sel of items) {
     const e = document.querySelector(sel); if (!e || !e.offsetParent) continue;
@@ -896,6 +940,7 @@ function openRoom() {
 }
 function closeRoom() {
   if (S.room) S.room.close();
+  $("#copyInvite").hidden = $("#copyWatch").hidden = false;
   S.room = null; S.guest = null; S.mode = null;
   $("#hostIdle").hidden = false; $("#hostRoom").hidden = true; netStatus(null);
 }
@@ -969,6 +1014,74 @@ async function hostStartDuel(loserFirst) {
   Learning.stopPractice();
   S.worker.postMessage({ cmd: "start", decks, names, options: options(), bots: {}, ...learningFor(decks) });
 }
+
+// ----- nearby (no internet): two phones on the same Wi-Fi or hotspot, connected directly -----
+// The host shows an invite code, the guest scans it and shows an answer code, the host scans that: then the duel
+// goes on exactly like an online room (LocalRoom has the same shape as Room).
+const NB = { scan: null };
+function nbStep(steps, at) { $("#nbSteps").replaceChildren(...steps.map((t, i) => el("li", i < at ? "done" : i === at ? "on" : "", t))); }
+function nbShow(code) {
+  $("#nbShow").hidden = !code; if (!code) return;
+  $("#nbQr").innerHTML = qrSvg(code, Math.min(280, innerWidth - 80)); $("#nbQr").dataset.code = code;
+  $("#nbCopy").onclick = () => copy(code, "Code copied. Send it to the other phone.");
+}
+function nbRead(on, use) {
+  $("#nbRead").hidden = !on; if (!on) { if (NB.scan) NB.scan.stop(); NB.scan = null; return; }
+  $("#nbCode").value = ""; $("#nbCam").replaceChildren();
+  $("#nbScan").hidden = !canScan();
+  $("#nbScan").onclick = () => {
+    if (NB.scan) NB.scan.stop();
+    $("#nbStatus").textContent = "Point the camera at the code on the other phone.";
+    NB.scan = scanCode($("#nbCam"));
+    NB.scan.done.then((code) => { NB.scan = null; use(code); }, (e) => { NB.scan = null; if (e.message !== "stopped") $("#nbStatus").textContent = "The camera isn't available. Paste the code instead."; });
+  };
+  $("#nbUse").onclick = () => use($("#nbCode").value.trim());
+  if (!canScan()) $(".nb-paste").open = true;
+}
+function nbClose() { nbRead(false); const d = $("#nearbyDlg"); if (d.open) d.close(); }
+function nbOpen(title) { $("#nbTitle").textContent = title; $("#nbStatus").textContent = ""; nbShow(""); nbRead(false); const d = $("#nearbyDlg"); if (!d.open) d.showModal(); }
+async function nearbyHost() {
+  if (S.room) closeRoom();
+  S.mode = "host"; S.guest = null; S.specs = 0;
+  const steps = ["Your opponent scans this code", "You scan the code on their phone", "Duel!"];
+  nbOpen("Nearby duel"); nbStep(steps, 0);
+  $("#nbStatus").textContent = "Making your code…";
+  const room = new LocalRoom({ role: "host", name: myName(), onMessage: onHostMessage, onStatus: (s) => {
+    netStatus(s === "open" ? "open" : s === "reconnecting" ? "reconnecting" : null);
+    if (s === "open") { nbStep(steps, 3); $("#nbStatus").textContent = "Connected."; setTimeout(nbClose, 700); }
+  } });
+  S.room = room;
+  $("#roomCode").textContent = "NEARBY"; $("#hostIdle").hidden = true; $("#hostRoom").hidden = false;
+  $("#hostWaiting").hidden = false; $("#guestInfo").hidden = true; $("#hostStart").disabled = true;
+  $("#copyInvite").hidden = $("#copyWatch").hidden = true;
+  try {
+    nbShow(await room.invite());
+    $("#nbStatus").textContent = "When their phone shows a code, scan it here.";
+    nbRead(true, async (code) => {
+      try { await room.accept(code); nbRead(false); nbShow(""); nbStep(steps, 2); $("#nbStatus").textContent = "Connecting…"; }
+      catch (e) { $("#nbStatus").textContent = e.message || "That code didn't work."; }
+    });
+  } catch (e) { $("#nbStatus").textContent = e.message || "Nearby duels need Wi-Fi or a hotspot."; }
+}
+function nearbyJoin() {
+  if (S.room) { S.room.close(); S.room = null; }
+  const steps = ["Scan the code on the host's phone", "The host scans the code on your phone", "Duel!"];
+  nbOpen("Join a nearby duel"); nbStep(steps, 0);
+  nbRead(true, async function useInvite(invite) {
+    S.mode = "guest";
+    const room = new LocalRoom({ role: "guest", name: myName(), onMessage: onGuestMessage, onStatus: (s) => {
+      netStatus(s === "open" ? "open" : s === "reconnecting" ? "reconnecting" : null);
+      if (s === "open") {
+        room.send({ to: "host", m: { t: "hello", name: myName(), deck: { main: S.deck.main, extra: S.deck.extra, side: S.deck.side || [] } } }); sendSkin("others");
+        nbStep(steps, 3); $("#nbStatus").textContent = "Connected. Waiting for the host to start…"; $("#joinStatus").textContent = "Joined a nearby duel. Waiting for the host…"; setTimeout(nbClose, 900);
+      }
+    } });
+    S.room = room;
+    try { $("#nbStatus").textContent = "Making your answer…"; nbRead(false); nbShow(await room.answer(invite)); nbStep(steps, 1); $("#nbStatus").textContent = "Let the host scan this code."; }
+    catch (e) { $("#nbStatus").textContent = e.message || "That code didn't work."; if (S.room) S.room.close(); S.room = null; nbRead(true, useInvite); }
+  });
+}
+$("#nbClose").addEventListener("click", () => { nbClose(); if (S.room instanceof LocalRoom && !S.room.open) { if (S.mode === "host") closeRoom(); else { S.room.close(); S.room = null; S.mode = null; } } });
 
 // ----- online: guest / spectator -----
 function join(code) {
@@ -1408,9 +1521,9 @@ function effectFinale(p) {
   if (loser < 0 || battle) return false;
   const by = 1 - loser, code = src || S.lastBlowBy[by] || S.lastBlow;
   if (!code) return false;
-  const sh = finaleOf(by, code);
-  hold(sh.ms + 200); S.lastFinaleAt = Date.now() + sh.ms;
-  finale(sh.style, { ms: sh.ms, src: artUrl(code), title: name(code), line: `${name(code)} deals the final blow` });
+  const sh = finaleOf(by, code), em = finishEmote(by);
+  hold(em + sh.ms + 200); S.lastFinaleAt = Date.now() + em + sh.ms;
+  setTimeout(() => finale(sh.style, { ms: sh.ms, src: artUrl(code), title: name(code), line: `${name(code)} deals the final blow` }), em);
   return true;
 }
 /** A replay jumped (back, or ahead): show where it is now, without replaying the effects on the way. */
@@ -2923,10 +3036,10 @@ function bigFx(p) {
           const to = e.target ? document.querySelector(`#field .card[data-key="${key(e.target.controller, e.target.location, e.target.sequence)}"]`) : document.querySelector(`.duelist.${sideOf(1 - e.card.controller)}`);
           const lethal = lethalAttack(p, e, a);
           if (lethal) {
-            const sh = finaleOf(e.card.controller, a.code);
-            hold(sh.ms + 200); S.lastFinaleAt = Date.now() + sh.ms;
-            finale(sh.style, { ms: sh.ms, src: artUrl(a.code), title: name(a.code), line: e.target ? `${name(a.code)} attacks for the win` : `${name(a.code)} attacks directly for the win` })
-              .then(() => attack(st, from, to, { direct: !e.target }));
+            const sh = finaleOf(e.card.controller, a.code), em = finishEmote(e.card.controller);
+            hold(em + sh.ms + 200); S.lastFinaleAt = Date.now() + em + sh.ms;
+            setTimeout(() => finale(sh.style, { ms: sh.ms, src: artUrl(a.code), title: name(a.code), line: e.target ? `${name(a.code)} attacks for the win` : `${name(a.code)} attacks directly for the win` })
+              .then(() => attack(st, from, to, { direct: !e.target })), em);
           } else attack(st, from, to, { direct: !e.target });
         }
         break;
@@ -3022,7 +3135,7 @@ function saveFile(fileName, dataUrl) {
 if (window.parent === window) addEventListener("beforeunload", (e) => { if (S.active && S.packet && !S.packet.ended) { e.preventDefault(); e.returnValue = ""; } });
 
 window.__duel = S; // for automated tests and debugging
-window.__arena = { chainPrompt, toast, kxClear, kxBoxGet: () => kxBox, fxEvents: (p) => { fxEvents(p); try { bigFx(p); } catch (e) { console.warn(e); } return fxStart(); }, showReveal, toggleSide, watchCombo, restartDuel, tossShow };
+window.__arena = { finishEmote, options, chainPrompt, toast, kxClear, kxBoxGet: () => kxBox, fxEvents: (p) => { fxEvents(p); try { bigFx(p); } catch (e) { console.warn(e); } return fxStart(); }, showReveal, toggleSide, watchCombo, restartDuel, tossShow };
 window.__arenaFx = (p) => bigFx(p);
 window.__arenaCombo = (r) => rpToCombo(r || {});
 window.__arenaLeave = (fx, id, code) => { const z = document.getElementById(id), r = z && visRect(z.querySelector(".card") || z); if (r) flyRun([{ r, fx, code: code || 0, op: /^op/.test(id) }]); return !!r; };
@@ -3049,10 +3162,11 @@ function cleanFx(v) {
     entFx: perCard(v.entFx, ENTRANCES), atkFx: perCard(v.atkFx, ATTACKS),
     finale: SHOW_OK.includes(v.finale) ? v.finale : "menacing", aceStyle: SHOW_OK.includes(v.aceStyle) ? v.aceStyle : "spotlight",
     finaleMs: Math.round(clampN(v.finaleMs, SHOW_MIN, SHOW_MAX, 3300)), showFx: perCard(v.showFx, SHOW_OK),
-    aces: Array.isArray(v.aces) ? v.aces.map(Number).filter((n) => n > 0 && n < 1e10).slice(0, 12) : [] };
+    aces: Array.isArray(v.aces) ? v.aces.map(Number).filter((n) => n > 0 && n < 1e10).slice(0, 12) : [],
+    finEm: /^c[0-7]$/.test(String(v.finEm || "")) ? v.finEm : "" };
 }
 // KodeX Premium media: pictures up to ~4.5 MB (HD animated GIFs), sounds up to ~900 KB, only data: URLs.
-const MEDIA_IMG = 4.6e6, MEDIA_SND = 9e5;
+const MEDIA_IMG = 8.3e6, MEDIA_SND = 9e5;   // pictures up to 6 MB (an HD finishing emote), sounds up to ~650 KB
 const imgBig = (u) => typeof u === "string" && u.length < MEDIA_IMG && /^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(u);
 const sndOk = (u) => typeof u === "string" && u.length < MEDIA_SND && /^data:audio\/[a-z0-9.+-]+(;codecs=[a-z0-9.,"-]+)?;base64,[A-Za-z0-9+/=]+$/i.test(u);
 /** KodeX Premium emotes: up to 8 pictures, each with an optional sound. */
@@ -3096,7 +3210,7 @@ const ccKeys = (o) => { const out = {}; for (const [k, v] of Object.entries(o ||
 function fxOf(side) {
   const f = (sideSkins()[side] || {}).fx;
   return f ? { premium: true, finisher: f.finisher, signature: new Set(f.signature.map(cc)), sigFx: ccKeys(f.sigFx), entrance: f.entrance || "rise", attack: f.attack || "lunge", entFx: ccKeys(f.entFx), atkFx: ccKeys(f.atkFx),
-      finale: f.finale || "menacing", aceStyle: f.aceStyle || "spotlight", aces: new Set((f.aces || []).map(cc)), finaleMs: f.finaleMs || 3300, showFx: ccKeys(f.showFx) }
+      finale: f.finale || "menacing", aceStyle: f.aceStyle || "spotlight", aces: new Set((f.aces || []).map(cc)), finaleMs: f.finaleMs || 3300, showFx: ccKeys(f.showFx), finEm: f.finEm || "" }
     : { premium: false, finisher: "", signature: new Set(), sigFx: {}, entrance: "rise", attack: "lunge", entFx: {}, atkFx: {}, finale: "menacing", aceStyle: "spotlight", aces: new Set(), finaleMs: 3300, showFx: {} };
 }
 function applySkins() {
@@ -3134,6 +3248,8 @@ function sendSkin(to, skin = S.mySkin, of) {
   for (const k of PARTS) if (skin[k]) sendPart(to, k, skin[k], of);
   S.room.send({ to, m: { t: "skin", part: "done", have: PARTS.filter((k) => skin[k]), of } });
   // custom emotes already shown in this duel follow along for whoever joins later
+  // the finishing emote goes with the skin, so the opponent has it before the winning blow
+  if (skin === S.mySkin && skin.fx && skin.fx.finEm && !sentMedia.has(skin.fx.finEm)) sentMedia.add(skin.fx.finEm);
   if (skin === S.mySkin) for (const id of sentMedia) { const e = [...S.myEmotes, ...S.mySounds].find((x) => x.id === id); if (e) sendPart(to, "em", { id: e.id, name: e.name, src: e.src || "", snd: e.snd || "" }); }
   else if (skin.media) for (const e of Object.values(skin.media)) sendPart(to, "em", e, of);
 }
@@ -3173,6 +3289,7 @@ window.addEventListener("message", (e) => {
   S.sigFx = {};
   if (S.premium && d.sigFx && typeof d.sigFx === "object") for (const [k, v] of Object.entries(d.sigFx)) if (/^\d{3,10}$/.test(k) && STYLES.includes(v)) S.sigFx[Number(k)] = v;
   if (S.premium) S.mySkin.fx = cleanFx({ premium: true, finisher: S.finisher || "shatter", signature: [...S.signature], sigFx: S.sigFx, entrance: d.entrance, attack: d.attack, entFx: d.entFx, atkFx: d.atkFx, finale: d.finale, aces: d.aces, aceStyle: d.aceStyle, finaleMs: d.finaleMs, showFx: d.showFx });
+  if (S.mySkin.fx) S.mySkin.fx.finEm = Number.isInteger(d.finEmote) && d.finEmote >= 0 && d.finEmote < 8 ? "c" + d.finEmote : "";
   S.myEmotes = S.premium ? cleanEmotes(d.emotes) : [];
   S.mySounds = S.premium ? cleanSounds(d.sounds) : [];
   const vo = S.premium ? cleanVoices(d.voices) : null;
@@ -3196,7 +3313,8 @@ window.addEventListener("message", (e) => {
     const left = S.deck.main.slice(); S.testHand.clear();
     for (const c of d.hand.map(Number)) { const i = left.indexOf(c); if (i >= 0 && S.testHand.size < 10) { S.testHand.add(c); left.splice(i, 1); } }
     renderDeck(); const po = document.querySelector(".pt-opts"); if (po) po.open = true; ptSummary();
-    if (S.testHand.size) toast("Opening hand set from your combo");
+    S.practiceHand = S.testHand.size || 0;
+    if (S.testHand.size) toast(`Opening hand: the combo's ${S.testHand.size} card${S.testHand.size === 1 ? "" : "s"}`);
   }
   // the player's KodeX profile (free and Premium): name, icon, frame, banner; the opponent sees it too
   if (d && d.kx === "profile") {
@@ -3211,7 +3329,8 @@ window.addEventListener("message", (e) => {
     let changed = false;
     for (const x of d.decks.slice(0, 200)) {
       if (!x || typeof x.name !== "string" || !Array.isArray(x.main)) continue;
-      const clean = { name: x.name.slice(0, 60), main: x.main.map(Number).filter((n) => n > 0).slice(0, 60), extra: (x.extra || []).map(Number).filter((n) => n > 0).slice(0, 15), side: (x.side || []).map(Number).filter((n) => n > 0).slice(0, 15), kodex: true };
+      const both = [...x.main, ...(x.extra || [])].map(Number).filter((n) => n > 0), isX = (n) => S.db && S.db.isExtra(n);
+      const clean = { name: x.name.slice(0, 60), main: both.filter((n) => !isX(n)).slice(0, 60), extra: both.filter(isX).slice(0, 15), side: (x.side || []).map(Number).filter((n) => n > 0).slice(0, 15), kodex: true };;
       if (!clean.main.length) continue;
       const i = S.decks.findIndex((y) => y.name === clean.name);
       if (i < 0) { S.decks.push(clean); changed = true; }
@@ -3486,8 +3605,9 @@ function showEmote(side, id, role) {
   if (!(side === "op" && MUTE.voices)) { if (e.meme) Sound.meme(e.meme); else if (e.snd) Sound.clip(e.snd); }
 }
 function floatChat(side, who, text) {
-  const senderPremium = !!((sideSkins()[side] || {}).fx);
-  if (!(S.premium ? VIEW.floatChat : senderPremium)) return;
+  // every chat line shows on screen by the sender's plate (Settings can turn it off; anyone can mute the opponent's chat)
+  if (VIEW.floatChat === false) return;
+  if (side === "op" && (MUTE.opp || MUTE.chat)) return;
   const n = el("div", "say-chat"); n.append(el("b", null, who), el("span", null, String(text).slice(0, 120)));
   floatAt(side, n, 4200);
 }
@@ -3504,6 +3624,24 @@ function lethalAttack(p, e, a) {
 /** KodeX Premium Ace card: shown big before its effect resolves; everyone sees it. */
 /** The showdown a player gets before their winning blow: the card's own choice, else their default (which may be
  *  "random"; every screen picks the same one). KodeX free: Menacing, 3.3 s. */
+/** KodeX Premium finishing emote: the winner's chosen emote fills the field for a moment before the winning
+ *  showdown. Returns how long it shows (0 when there is none). */
+const FIN_EMOTE_MS = 1800;
+function finishEmote(controller) {
+  const side = sideOfTeam(controller), f = fxOf(side);
+  if (!f.premium || !f.finEm || reduceMotion()) return 0;
+  const role = side === "me" ? (S.mode === "guest" ? "guest" : "host") : (S.mode === "guest" ? "host" : "guest");
+  const e = side === "me" ? [...(S.myEmotes || [])].find((x) => x.id === f.finEm) : emoteFor(f.finEm, role);
+  if (!e || !e.src) return 0;
+  const field = $("#field"); if (!field) return 0;
+  const r = field.getBoundingClientRect(), n = el("div", "fin-emote");
+  Object.assign(n.style, { left: r.left + "px", top: r.top + "px", width: r.width + "px", height: r.height + "px" });
+  const img = el("img"); img.src = e.src; img.alt = e.name || ""; n.append(img);
+  document.body.append(n);
+  if (e.snd && !(side === "op" && MUTE.voices)) Sound.clip(e.snd);
+  setTimeout(() => { n.classList.add("out"); setTimeout(() => n.remove(), 320); }, FIN_EMOTE_MS - 300);
+  return FIN_EMOTE_MS;
+}
 function finaleOf(controller, code) {
   const f = fxOf(sideOfTeam(controller)), seed = Number(code) ^ ((S.packet && S.packet.turn) || 0) * 7919;
   if (!f.premium) return { style: "menacing", ms: 3300 };

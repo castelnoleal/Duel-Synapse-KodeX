@@ -93,6 +93,8 @@ function skinsToArena() {
         finaleMs: finaleMs(),
         showFx: pcKeys(sigShow()),
         emotes: MEDIA.emotes.map(x => ({ name: x.name, src: x.src, snd: x.snd || '' })),
+        // the emote shown over the field before the winning showdown (its place in the list), or -1 for none
+        finEmote: MEDIA.emotes.findIndex(x => x.id === S.g('fin_emote', '')),
         sounds: MEDIA.sounds.map(x => ({ name: x.name, snd: x.snd })),
         voices
       },

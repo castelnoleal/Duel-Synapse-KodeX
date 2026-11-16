@@ -1,7 +1,7 @@
 {
  "about": "KodeX source: files are joined in this order. 'open'/'close' are the <style>/<script> tags around a file. Created by Castel Noleal, creator of MEIOCG. See app/BLUEPRINT.md.",
- "version": 68,
- "build": "10.1",
+ "version": 69,
+ "build": "10.2",
  "files": [
   {
    "file": "0010-head.html",
@@ -401,6 +401,27 @@
   {
    "file": "0880-kx-v68-late.js",
    "open": "<script id=\"kx-v68-late\">",
+   "close": "</script>"
+  },
+  {
+   "file": "0890-kx-v69.css",
+   "open": "<style id=\"kx-v69\">",
+   "close": "</style>"
+  },
+  {
+   "file": "0895-html.html",
+   "open": "",
+   "close": ""
+  },
+  {
+   "file": "0905-deck-stats.js",
+   "from": "duel/deckstats.js",
+   "open": "<script id=\"kx-deck-stats\">",
+   "close": "</script>"
+  },
+  {
+   "file": "0900-kx-v69-late.js",
+   "open": "<script id=\"kx-v69-late\">",
    "close": "</script>"
   },
   {

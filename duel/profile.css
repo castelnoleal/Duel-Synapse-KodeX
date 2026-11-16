@@ -52,3 +52,19 @@
 .pf-stats div { display: grid; justify-items: center; gap: 2px; padding: 8px 4px; border-radius: 12px; background: #ffffff0a; border: 1px solid #ffffff12; text-align: center; }
 .pf-stats b { font-size: 16px; font-variant-numeric: tabular-nums; }
 .pf-stats span { font-size: 10px; color: #9aa3c7; line-height: 1.2; }
+
+/* Premium: their own banner picture, moving the way they chose (Slide, Pan, Zoom, Glide like Synapse Grid, Still) */
+.pf-banner.up { background: var(--pf-bimg) center / cover no-repeat; }
+.pf-banner.up.bfx-slide { background-size: auto 150%; animation: pfBSlide 16s linear infinite alternate; }
+.pf-banner.up.bfx-pan { background-size: 170% auto; animation: pfBPan 20s ease-in-out infinite alternate; }
+.pf-banner.up.bfx-zoom { background: none; }
+.pf-banner.up.bfx-zoom i { background: var(--pf-bimg) center / cover no-repeat; animation: pfBZoom 9s ease-in-out infinite alternate; }
+.pf-banner.up.bfx-glide { background-size: auto 140%; animation: pfBSlide 12s linear infinite alternate; }
+.pf-banner.up.bfx-glide i { background-image: linear-gradient(#ffffff26 1px, transparent 1px), linear-gradient(90deg, #ffffff26 1px, transparent 1px); background-size: 18px 18px; animation: pfBGrid 3s linear infinite; }
+.pf-real { font-size: 12px; opacity: .8; }
+.pf-nrs { background: linear-gradient(90deg, #f0b429, #ffe08a); color: #1a1205; }
+@keyframes pfBSlide { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
+@keyframes pfBPan { from { background-position: 0% 0%; } to { background-position: 100% 100%; } }
+@keyframes pfBZoom { from { transform: scale(1); } to { transform: scale(1.18) translateX(-3%); } }
+@keyframes pfBGrid { to { background-position: 18px 18px; } }
+@media (prefers-reduced-motion: reduce) { .pf-banner.up, .pf-banner.up i { animation: none !important; } }

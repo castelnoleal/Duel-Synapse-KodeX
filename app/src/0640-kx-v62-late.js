@@ -387,7 +387,7 @@ function cbEdit(c) {
     }
   };
   const chip = (x, l, n, i) =>
-    `<button class="cb-chip" data-chip="${l},${n},${i}">${cbThumb(x.c)}<span>${esc(cbName(x.c))}</span>${CB_SHORT[x.a] ? `<em>${CB_SHORT[x.a]}</em>` : ''}</button>`;
+    `<button class="cb-chip" data-chip="${l},${n},${i}">${cbThumb(x.c)}<span>${esc(cbName(x.c))}</span>${CB_SHORT[x.a] || x.o ? `<em>${[CB_SHORT[x.a], x.o ? 'Opp.' : ''].filter(Boolean).join(' · ')}</em>` : ''}</button>`;
   const draw = () => {
     const decks = deckStore().filter(d => deckTotal(d) > 0),
       used = cbUsed(c);
@@ -593,6 +593,7 @@ function cbChip(c, l, n, i, done) {
   const m = openModal(
     `<div class="dk-hd"><h3>${esc(cbName(x.c))}</h3><button class="ibtn" data-close aria-label="Close">${ic('x')}</button></div>
  <label class="cb-f"><span>What it does</span><select data-a>${CB_ACT.map(([k, t]) => `<option value="${k}"${x.a === k ? ' selected' : ''}>${t}${k === 'auto' ? ' (decided by where the card is)' : ''}</option>`).join('')}</select></label>
+ <label class="cb-f"><span>Whose side</span><select data-o><option value="">Yours</option><option value="1"${x.o ? ' selected' : ''}>Your opponent's (summoned to their field, or one of their cards)</option></select></label>
  <label class="cb-f"><span>Note for this step</span><input data-n maxlength="80" placeholder="Optional, e.g. search the Field Spell" value="${esc(nd.note || '')}"></label>
  <div class="dact"><button class="btn" data-view>Card</button><button class="btn dng" data-rm>Remove</button><button class="btn p" data-ok>Done</button></div>`,
     '',
@@ -600,6 +601,8 @@ function cbChip(c, l, n, i, done) {
   );
   m.querySelector('[data-ok]').onclick = () => {
     x.a = m.querySelector('[data-a]').value;
+    if (m.querySelector('[data-o]').value) x.o = 1;
+    else delete x.o;
     nd.note = m.querySelector('[data-n]').value.trim().slice(0, 80);
     closeModal();
     setTimeout(done, 60);
@@ -797,7 +800,7 @@ async function cbPayload(c) {
       .map(l =>
         l
           .map(n => ({
-            cards: n.cards.map(x => ({ c: pc(x.c), a: x.a, z: x.z, p: x.p, f: x.f, s: x.s })).filter(x => x.c),
+            cards: n.cards.map(x => ({ c: pc(x.c), a: x.a, z: x.z, p: x.p, f: x.f, s: x.s, o: x.o })).filter(x => x.c),
             note: n.note || ''
           }))
           .filter(n => n.cards.length)
@@ -858,6 +861,7 @@ function cbImage(ids) {
  <label><span>Subtitle</span><input data-pm="sub" maxlength="60" placeholder="e.g. deck or format" value="${esc((first.deckId && (deckById(first.deckId) || {}).name) || '')}"></label>
  <div class="di-2"><label><span>Player</span><input data-pm="player" maxlength="32" value="${esc(pm.player || (pf ? pf.name : ''))}"></label><label><span>Date</span><input data-pm="date" type="date" value="${diToday()}"></label></div>
  <label><span>Note</span><input data-pm="note" maxlength="80" placeholder="Optional"></label>
+ <label><span>Format</span><select data-pm="fmt"><option value="long"${pm.fmt !== 'square' && pm.fmt !== 'pages' ? ' selected' : ''}>Long sheet (grows with the combo)</option><option value="square"${pm.fmt === 'square' ? ' selected' : ''}>Big square (everything on one square)</option><option value="pages"${pm.fmt === 'pages' ? ' selected' : ''}>Square pages (for Facebook, Instagram and reels)</option></select></label>
  <label><span>Background</span><select data-bg><option value="">Plain</option>${cbUsed(first)
    .map(id => `<option value="${esc(id)}">${esc(cbName(id))}</option>`)
    .join(
@@ -892,7 +896,7 @@ function cbImage(ids) {
   const draw = () => {
     clearTimeout(tm);
     tm = setTimeout(() => {
-      box.innerHTML = buildComboSvg(chosen(), read(), bgUrl());
+      box.innerHTML = cbSheetSvg(chosen(), read(), bgUrl());
     }, 120);
   };
   m.querySelectorAll('[data-dsg]').forEach(
@@ -946,10 +950,10 @@ function cbImage(ids) {
     const o = read(),
       list = chosen(),
       bg = bgUrl();
-    S.s('combo_img', { design: o.design, player: o.player, profile: o.profile });
+    S.s('combo_img', { design: o.design, player: o.player, profile: o.profile, fmt: o.fmt });
     closeModal();
     setTimeout(async () => {
-      let svg = buildComboSvg(list, o, bg);
+      let svg = cbSheetSvg(list, o, bg);
       const name =
         (String(o.title)
           .replace(/[^\w -]/g, '')
@@ -971,7 +975,8 @@ function cbImage(ids) {
         const e = u.replace(/&/g, '&amp;');
         svg = svg.split(`href="${e}"`).join(`href="${v || artSrc(u).replace(/&/g, '&amp;')}"`);
       }
-      deckViewer(svg, name, null);
+      if (o.fmt === 'pages') cbPagesViewer(cbPages(svg, o, cbTitle(list[0])), name);
+      else deckViewer(svg, name, null);
       icWarm(urls);
     }, 140);
   };
