@@ -1,7 +1,6 @@
 // Arena v69: combos follow the rules on both sides (a card summoned to the opponent's field, the opponent discarding),
 // Extra Deck monsters never reach the hand, practice uses the combo's hand size, the finishing emote, chat on screen,
 // the small offline pill, the deck stats in the lobby, the title banner in the app, and nearby duels with no internet.
-// (v70: chat bubbles on the field are as before v69: Premium, or from a Premium player.)
 // usage: node tests/duel/ui-v69.mjs http://localhost:8787 [outdir]
 import fs from "node:fs";
 import { chromium } from "playwright";
@@ -121,6 +120,7 @@ function isXCheck(c) { return raw[c] ? isX(c) : false; }
   await G.evaluate(() => { const i = document.querySelector("#chatInput"); i.value = "gg nearby"; i.form.requestSubmit(); });
   await H.waitForTimeout(1200);
   ok(/gg nearby/.test(await H.evaluate(() => document.querySelector("#chatList").textContent)), "chat arrives over the nearby connection");
+  ok(/gg nearby/.test(await H.evaluate(() => [...document.querySelectorAll(".say-chat")].map((x) => x.textContent).join("|"))), "a free player sees the chat message on screen, by the sender's plate");
   await ctx.close();
 }
 // ---- v70: the lobby turned sideways fits the screen (phones and tablets)

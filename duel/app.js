@@ -3506,7 +3506,7 @@ function applyView() {
   document.querySelectorAll("#viewSeg [data-view]").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.view === VIEW.mode)));
   $("#viewCompactOp").checked = !!VIEW.compactOp;
   $("#viewFloatChat").checked = !!VIEW.floatChat;
-  $("#viewFloatChat").closest(".toggle").hidden = !S.premium;
+  // everyone can choose whether chat shows on the field (it does by default)
 }
 document.querySelectorAll("#viewSeg [data-view]").forEach((x) => x.addEventListener("click", () => { VIEW.mode = x.dataset.view; save("duel:view", VIEW); applyView(); }));
 $("#viewCompactOp").addEventListener("change", (e) => { VIEW.compactOp = e.target.checked; save("duel:view", VIEW); applyView(); });
@@ -3619,8 +3619,10 @@ function showEmote(side, id, role) {
   if (!(side === "op" && MUTE.voices)) { if (e.meme) Sound.meme(e.meme); else if (e.snd) Sound.clip(e.snd); }
 }
 function floatChat(side, who, text) {
-  const senderPremium = !!((sideSkins()[side] || {}).fx);
-  if (!(S.premium ? VIEW.floatChat : senderPremium)) return;
+  // every chat line shows on screen by the sender's plate, for free and Premium players alike (Settings can turn the
+  // bubbles off; muting the opponent's chat hides theirs)
+  if (VIEW.floatChat === false) return;
+  if (side === "op" && (MUTE.opp || MUTE.chat)) return;
   const n = el("div", "say-chat"); n.append(el("b", null, who), el("span", null, String(text).slice(0, 120)));
   floatAt(side, n, chatMs());
 }
