@@ -1341,7 +1341,7 @@ main {
   padding: 14px;
   overflow-y: auto;
   overscroll-behavior: contain;
-  max-height: calc(88dvh - 70px);
+  max-height: calc(88dvh - 70px - var(--adh, 0px));
 }
 
 .deck-card {
@@ -1681,7 +1681,8 @@ main {
 }
 .dlg {
   width: min(100%, 440px);
-  max-height: calc(100dvh - 20px - var(--sat) - var(--sab));
+  /* the free app's ad sits above every window (--adh), so a window is that much shorter */
+  max-height: calc(100dvh - var(--adh, 0px) - 20px - var(--sat) - var(--sab));
   overflow: auto;
   background: var(--panel);
   border: 1px solid var(--line);
@@ -1696,7 +1697,7 @@ main {
   width: min(100%, 520px);
 }
 .dlg.xl {
-  height: calc(100dvh - 20px - var(--sat) - var(--sab));
+  height: calc(100dvh - var(--adh, 0px) - 20px - var(--sat) - var(--sab));
 }
 .dlg h3 {
   margin: 0;
