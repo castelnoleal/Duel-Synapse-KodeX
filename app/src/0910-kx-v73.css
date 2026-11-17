@@ -1,0 +1,15 @@
+/* KodeX 10.3.4 (v73): with the Arena open, the free app's ad belongs to the Arena */
+/* the ad strip spans the whole top of the screen in the Arena's own colours, so nothing of KodeX (the side menu on a
+   phone turned sideways) shows beside it; --adh stays the same, so the Arena still starts right below it */
+body.arena-on .top-ad-safe-area {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 75;
+  background: linear-gradient(180deg, #0b0e22, #0a0d1e);
+  border-bottom: 1px solid #ffffff14;
+}
+body.arena-on .top-ad-slot {
+  background: #ffffff08;
+}

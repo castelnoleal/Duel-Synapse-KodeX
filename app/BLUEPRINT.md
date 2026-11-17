@@ -59,6 +59,7 @@ the main script (`core-…`) is cut at its section comments. Later modules may r
 | `0700`–`0720` | 9.7: button-shape fixes, Arena closes to the Test tab, combo plays read from card text (`cbxPlays`, `cbxOpen`, `cbNextStep`, `cbFirstStep`, `cbxPick`) |
 | `0740`–`0760` | 9.8: no zoom in the app (`kxInApp`), store link (`KX_STORE`), combo code in images (`cbqPack`, `cbqBand`, `cbqRead`), image import (`cbImportImage`), replay combos from the Arena (`comboNew`) |
 | `0780`–`0800` | 9.9: Combos only in the app (`kxComboAd` wraps every way into Combos in a browser); the Arena is told whether it is in the app (`{kx:"host"}`) |
+| `0910` | 10.3.4: with the Arena open, the free app's ad strip spans the top of the screen in the Arena's colours |
 | `0890`–`0905` | 10.2: deck statistics screen and image, finishing emote picker, combo sheet formats, uploaded banners, NRS link (`0900`); `0905-deck-stats.js` is not a file in `app/src`: its manifest entry has `"from": "duel/deckstats.js"`, so KodeX and the Arena share one copy of the statistics (the build leaves out its `export default` line) |
 | `0860`–`0880` | 10.1: button and spacing fixes (`0860`), KodeX button area sent to the Arena (`kxChromeToArena`, `{kx:"chrome"}`), screen checks used by the Master Editor (`kxDiagnose`) |
 | `0820`–`0840` | 10.0: combo sheet (`buildComboSvg`, `cbFinalBoard`), combo code v2 (`CBQ2`, `cbqPack`, `cbqRead`), placement on combo cards (`cbPlaceOf`), landscape rail, Combo Generator hand-off from the Arena (`{kx:"combos"}`) |
