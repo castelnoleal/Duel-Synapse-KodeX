@@ -69,7 +69,7 @@ for (const [w, h, tag] of [[412, 915, "p"], [915, 412, "l"]]) {
   const { page, f } = await open(w, h);
   await page.evaluate(() => { window.__got = []; addEventListener("message", (e) => { if (e.data && (e.data.kx === "combos" || e.data.kx === "comboAd")) window.__got.push(e.data.kx); }); });
   const lob = await f.evaluate(() => { const b = document.querySelector("#comboGen"), r = b.getBoundingClientRect(), t = [...document.querySelectorAll(".ticker li")].map((l) => l.textContent);
-    return { vis: r.width > 80 && r.height > 28 && r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight, top: document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2).closest("#comboGen") === b, long: t.filter((x) => x.length > 22).length, n: t.length, txt: b.textContent }; });
+    return { vis: r.width > 80 && r.height > 22 && r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight, top: document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2).closest("#comboGen") === b, long: t.filter((x) => x.length > 22).length, n: t.length, txt: b.textContent }; });
   ok(lob.vis && lob.top && /Combo Generator/.test(lob.txt), `lobby (${tag}): the Combo Generator button is on screen ` + JSON.stringify(lob));
   ok(lob.long === 0 && lob.n >= 6, `lobby (${tag}): the strip is short words, nothing explained at length`);
   if (shot) await page.screenshot({ path: `${out}/v67-lobby-${tag}.png` });

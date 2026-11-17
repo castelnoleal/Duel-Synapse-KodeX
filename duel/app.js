@@ -615,14 +615,30 @@ if (hostApp) lockZoom();
 // until it does, the usual place is assumed. Anything of ours that lands under them is moved clear.
 let kxBox = document.documentElement.classList.contains("embed") ? { w: 150, h: 50 } : null;
 addEventListener("message", (e) => { const d = e.data; if (d && d.kx === "chrome" && e.source === window.parent) { kxBox = d.w > 0 && d.h > 0 ? { w: Math.min(260, d.w), h: Math.min(90, d.h) } : null; kxClear(); } });
-/** The lobby's size on a screen turned sideways: drawn smaller on short screens so every panel fits (1 = as designed). */
+/** The lobby's size on a screen turned sideways: drawn just small enough that the Play panel's controls fit the
+ *  height there is (less in the free app, where the ad takes the top), and never smaller than 0.56 (1 = as designed). */
 function lobbyZoom() {
+  const root = document.documentElement;
   const land = innerWidth > innerHeight && innerWidth >= 640 && innerWidth < 1500 && innerHeight <= 1100;
-  const z = land ? Math.max(0.6, Math.min(1, innerHeight / 720, innerWidth / 1180)) : 1;
-  document.documentElement.style.setProperty("--lz", z.toFixed(3));
+  if (!land) { root.style.setProperty("--lz", "1"); return; }
+  let z = Math.min(1, innerHeight / 720, innerWidth / 1180);
+  const lobby = $("#lobby"), play = document.querySelector(".play-panel"), body = play && play.querySelector(".pane-body");
+  if (lobby && !lobby.hidden && body) {
+    // what the lobby needs at full size: its own height, plus whatever the Play panel would have to scroll
+    root.style.setProperty("--lz", "1");
+    const extra = Math.max(0, body.scrollHeight - body.clientHeight);
+    const need = lobby.getBoundingClientRect().height + extra;
+    if (need > 0) z = Math.min(z, innerHeight / need);
+  }
+  root.style.setProperty("--lz", Math.max(0.56, Math.min(1, z)).toFixed(3));
 }
 lobbyZoom();
 addEventListener("resize", lobbyZoom);
+// the Play panel changes (Solo, Host, Join, settings opened) and the lobby coming back after a duel: fit again
+{ let q = 0; const again = () => { if (!q) q = requestAnimationFrame(() => { q = 0; lobbyZoom(); }); };
+  const mo = new MutationObserver(again), pp = document.querySelector(".play-panel"), lb = $("#lobby");
+  if (pp) mo.observe(pp, { subtree: true, childList: true, attributes: true, attributeFilter: ["hidden", "open", "class"] });
+  if (lb) mo.observe(lb, { attributes: true, attributeFilter: ["hidden"] }); }
 addEventListener("orientationchange", () => setTimeout(lobbyZoom, 120));
 function kxClear() {
   // (the lobby's banner and its Combo Generator keep clear of KodeX's buttons by their own layout, in meiocg.css)

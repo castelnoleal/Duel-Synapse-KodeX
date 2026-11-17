@@ -12,7 +12,7 @@
 /* landscape phones and wide screens: nothing is cut off, panels use the width */
 @media (orientation: landscape) and (max-height: 520px) {
   .mdl {
-    max-height: 96vh;
+    max-height: calc(100dvh - var(--adh, 0px));
   }
   .mdl .dact {
     position: sticky;
