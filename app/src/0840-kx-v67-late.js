@@ -67,6 +67,7 @@ const cbPlaceOf = x => {
     if (Number.isInteger(v) && v >= min && v <= max) o[k] = v;
   }
   if (x && (x.o === 1 || x.o === true)) o.o = 1; // on the opponent's side (summoned there, or one of their cards)
+  if (x && (x.r === 'm' || x.r === 's')) o.r = x.r; // the row of z: Monster Zones or Spell & Trap Zones (a Pendulum Zone)
   return o;
 };
 /* ---------- the combo code, version 2: more steps, the new moves, and each card's placement ---------- */
@@ -426,8 +427,31 @@ function cbAdopt(raw, from) {
   });
   if (from) c.from = from;
   if (!cbHas(c)) return null;
+  // a combo read from a replay brings the table exactly as it stood at the end of that turn
+  const eb = cbBoardOf(raw.endBoard);
+  if (eb) c.endBoard = { sig: cbLinesSig(c.lines), b: eb };
   cbStore(c);
   return c;
+}
+/** The steps as a short fingerprint: the replay's real end board is used while the steps are still the ones it came with. */
+function cbLinesSig(lines) {
+  const t = JSON.stringify(
+    (lines || []).map(l => l.map(n => n.cards.map(x => [x.c, x.a, x.z, x.r, x.f, x.s, x.o ? 1 : 0, x.p])))
+  );
+  let h = 2166136261;
+  for (let i = 0; i < t.length; i++) h = Math.imul(h ^ t.charCodeAt(i), 16777619) >>> 0;
+  return h.toString(36) + ':' + t.length;
+}
+function cbBoardOf(b) {
+  if (!Array.isArray(b) || b.length !== 2) return null;
+  const z = v =>
+    v && /^\d{1,10}$/.test(String(v.id))
+      ? { id: String(v.id), pos: ['atk', 'def', 'down'].includes(v.pos) ? v.pos : 'atk' }
+      : null;
+  return b.map(sd => ({
+    m: Array.from({ length: 7 }, (_, i) => z(sd && sd.m && sd.m[i])),
+    s: Array.from({ length: 6 }, (_, i) => z(sd && sd.s && sd.s[i]))
+  }));
 }
 /* ---------- what is on the field after the combo (for the sheet's "Final board") ----------
    Each card is followed zone by zone on both sides of the table, the way the Arena plays it back: a card summoned to the
@@ -474,7 +498,10 @@ function cbWalk(c) {
   const place = (id, x, a) => {
     const sd = x.o ? 1 : 0,
       b = B[sd],
-      mon = isMon(id) && !(a === 'scale' || (a === 'act' && isPend(id)));
+      // a Pendulum Monster activated, set as a scale or placed by an effect goes to a Pendulum Zone; a combo from a
+      // replay says which row it really went to (r)
+      mon =
+        x.r === 'm' || (x.r !== 's' && isMon(id) && !(a === 'scale' || ((a === 'act' || a === 'put') && isPend(id))));
     const pos = x.p === 3 || (a === 'set' && mon) ? 'down' : x.p === 2 ? 'def' : 'atk';
     if (mon) {
       let z = x.z != null && x.z < 7 && !b.m[x.z] ? x.z : -1;
@@ -483,7 +510,7 @@ function cbWalk(c) {
       if (z >= 0) b.m[z] = { id: String(id), pos };
     } else {
       const field = /field/i.test(race(id)) && !isMon(id);
-      let z = field ? 5 : x.z != null && x.z < 5 && !b.s[x.z] ? x.z : -1;
+      let z = field ? 5 : x.z != null && x.z < 6 && x.r !== 'm' && !b.s[x.z] ? x.z : -1;
       if (z < 0) z = (a === 'scale' || isPend(id) ? [0, 4] : [2, 1, 3, 0, 4]).find(i => !b.s[i]) ?? -1;
       if (z >= 0) b.s[z] = { id: String(id), pos: a === 'set' || (a === 'put' && x.p === 3) ? 'down' : 'atk' };
     }
@@ -546,6 +573,14 @@ function cbWalk(c) {
 }
 const cbFinalBoard = c => {
   const w = cbWalk(c);
+  // from a replay, with its steps unchanged: the board exactly as the duel left it
+  if (c.endBoard && c.endBoard.b && c.endBoard.sig === cbLinesSig(c.lines)) {
+    const B = cbBoardOf(c.endBoard.b);
+    if (B) {
+      const ids = sd => [...B[sd].m, ...B[sd].s].filter(Boolean).map(z => z.id);
+      return { field: ids(0), hand: w.hand, opp: ids(1), board: B };
+    }
+  }
   return { field: w.field, hand: w.hand, opp: w.opp, board: w.board };
 };
 /* ---------- the combo sheet ---------- */

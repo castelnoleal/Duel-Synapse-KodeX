@@ -3,7 +3,7 @@
 // The Arena replays a file by re-running the duel on its own engine with the same seed, decks and answers, the way
 // those clients' classic replay mode does. Layout from gframe/replay.cpp (ReplayHeader / ExtendedReplayHeader).
 const YRP1 = 0x31707279, YRPX = 0x58707279;
-const F = { COMPRESSED: 0x1, TAG: 0x2, SINGLE: 0x8, NEWREPLAY: 0x20, HAND_TEST: 0x40, DUEL64: 0x100, EXT: 0x200 };
+const F = { COMPRESSED: 0x1, TAG: 0x2, SINGLE: 0x8, LUA64: 0x10, NEWREPLAY: 0x20, HAND_TEST: 0x40, DUEL64: 0x100, EXT: 0x200 };
 const OLD_REPLAY_MODE = 231;
 
 // ---- LZMA ("LZMA1", as written by LzmaLib's LzmaCompress: 5 property bytes kept in the header, no size field)
@@ -166,17 +166,28 @@ export function readReplay(buf) {
   const r = reader(body(buf, h));
   const n = names(r, h);
   if (h.flag & F.DUEL64) r.u64(); else r.u32();
+  // Every packet is kept as well: the desktop client plays this kind of file by showing these recorded messages, which
+  // shows the duel exactly as it happened even when card scripts have changed since (see stream.js).
   let inner = null, turns = 0;
+  const stream = [];
   while (r.left >= 5) {
     const msg = r.u8(), len = r.u32();
     if (len > r.left) break;
     const data = r.bytes(len);
     if (msg === 40) turns++;                                    // MSG_NEW_TURN
-    if (msg === OLD_REPLAY_MODE && !inner) inner = data;
+    if (msg === OLD_REPLAY_MODE) { if (!inner) inner = data; continue; }
+    stream.push({ msg, data });
   }
-  if (!inner) throw new Error("This replay has no recorded answers in it (it was saved without the classic replay), so it can't be re-run.");
-  const out = readYrp1(inner);
-  if (n.names.length === out.names.length) out.names = n.names;   // the newer file keeps full names
-  out.kind = "yrpX"; out.turns = turns;
+  // written before 64-bit card messages (no LUA64 flag), or by a core older than 10 (32-bit races in card data)
+  const legacy = !(h.flag & F.LUA64) || ((h.version >>> 16) & 0xff) < 10;
+  let out = null;
+  try { out = inner ? readYrp1(inner) : null; } catch (e) { out = null; if (!stream.length) throw e; }
+  if (!out) {
+    if (!stream.length || legacy) throw new Error("This replay has no recorded answers in it (it was saved without the classic replay), so it can't be re-run.");
+    out = { kind: "yrpX", seed: null, time: h.timestamp, names: n.names, params: null, decks: [{ main: [], extra: [] }, { main: [], extra: [] }], rules: [], responses: [], noRerun: true };
+  }
+  if (n.names.length === out.names.length || out.noRerun) out.names = n.names;   // the newer file keeps full names
+  if (n.home !== 1 || n.opp !== 1) { out.tag = true; out.names = [n.names.slice(0, n.home).join(" & "), n.names.slice(n.home).join(" & ")]; }
+  out.kind = "yrpX"; out.turns = turns; out.stream = stream; out.legacy = legacy;
   return out;
 }

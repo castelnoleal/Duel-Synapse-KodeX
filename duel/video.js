@@ -644,23 +644,54 @@ export class Clip {
       g.globalAlpha = 1;
     }
   }
-  /** Start recording; resolves to { blob, mime, ext } when stop() is called. */
+  /** Start recording; resolves to { blob, mime, ext, part } when stop() is called.
+   *  With o.maxBytes, a long clip is written as several complete files of at most about that size: when one is nearly
+   *  full a new recorder takes over the same picture (no frame is lost) and the full one goes to o.onPart(result).
+   *  (The phone app hands a file to Android in one piece, which has a size limit.) */
   start() {
     const mime = bestMime(); if (!mime) throw new Error("This device can't record video here.");
-    const fps = this.o.fps || 30, br = { 1080: 12e6, 1440: 20e6, 2160: 40e6 }[this.o.size] || 12e6;
+    const fps = this.o.fps || 30, br = { 1080: 8e6, 1440: 14e6, 2160: 28e6 }[this.o.size] || 8e6;
     this.frame();
     this.stream = this.cv.captureStream(fps);
     // the duel's own sounds go into the clip; if this device can't mix them in, the clip is recorded without sound
-    const opt = { mimeType: mime, videoBitsPerSecond: br * (fps > 30 ? 1.5 : 1) };
+    const opt = { mimeType: mime, videoBitsPerSecond: br * (fps > 30 ? 1.4 : 1) };
     this.sound = false;
+    const make = (stream, o) => new MediaRecorder(stream, o);
+    let rec = null, recOpt = opt;
     if (this.o.audio) {
-      try { const st = new MediaStream([...this.stream.getVideoTracks(), this.o.audio]); this.rec = new MediaRecorder(st, { ...opt, audioBitsPerSecond: 160000 }); this.stream = st; this.sound = true; }
-      catch { try { const m2 = mime.split(";")[0]; const st = new MediaStream([...this.stream.getVideoTracks(), this.o.audio]); this.rec = new MediaRecorder(st, { ...opt, mimeType: m2, audioBitsPerSecond: 160000 }); this.stream = st; this.sound = true; } catch { this.rec = null; } }
+      try { const st = new MediaStream([...this.stream.getVideoTracks(), this.o.audio]); recOpt = { ...opt, audioBitsPerSecond: 160000 }; rec = make(st, recOpt); this.stream = st; this.sound = true; }
+      catch { try { const st = new MediaStream([...this.stream.getVideoTracks(), this.o.audio]); recOpt = { ...opt, mimeType: mime.split(";")[0], audioBitsPerSecond: 160000 }; rec = make(st, recOpt); this.stream = st; this.sound = true; } catch { rec = null; recOpt = opt; } }
     }
-    if (!this.rec) this.rec = new MediaRecorder(this.stream, opt);
-    const parts = []; this.rec.ondataavailable = (e) => { if (e.data && e.data.size) parts.push(e.data); };
-    this.done = new Promise((ok) => { this.rec.onstop = () => ok({ blob: new Blob(parts, { type: mime.split(";")[0] }), mime, ext: mime.startsWith("video/mp4") ? "mp4" : "webm" }); });
-    this.rec.start(1000);
+    if (!rec) rec = make(this.stream, opt);
+    const type = mime.split(";")[0], ext = mime.startsWith("video/mp4") ? "mp4" : "webm", max = Number(this.o.maxBytes) || 0;
+    let part = 0, finish = null;
+    this.done = new Promise((ok) => { finish = ok; });
+    // how big a part has grown: what the recorder has handed over, or (some recorders hand nothing over until they
+    // stop) what the bit rate says it has written by now
+    let rate = (recOpt.videoBitsPerSecond + (recOpt.audioBitsPerSecond || 0)) / 8;
+    const run = (r) => {
+      const parts = []; let size = 0; const n = ++part, t0 = performance.now();
+      r.ondataavailable = (e) => { if (e.data && e.data.size) { parts.push(e.data); size += e.data.size; } };
+      r.onstop = () => {
+        const res = { blob: new Blob(parts, { type }), mime, ext, part: n };
+        // the real bytes a second of the part just closed (picture with little movement packs far below the bit rate)
+        const secs = (performance.now() - t0) / 1000;
+        if (secs > 2 && res.blob.size) rate = Math.max(rate / 6, (res.blob.size / secs) * 1.25);
+        if (this.rec === r) finish(res); else if (this.o.onPart) this.o.onPart(res);
+      };
+      r.onerror = () => { try { if (r.state !== "inactive") r.stop(); } catch { /* already stopped */ } };
+      r.full = () => (size ? size : ((performance.now() - t0) / 1000) * rate) > max * 0.9;
+    };
+    // nearly full: a fresh recorder carries on with the same picture, the full one is closed as a complete file
+    if (max) this.roll = setInterval(() => {
+      const r = this.rec;
+      if (!r || this.stopping || r.state === "inactive" || !r.full()) return;
+      let next = null; try { next = make(this.stream, recOpt); } catch { next = null; }
+      if (!next) return;
+      this.rec = next; run(next); next.start(1000); r.stop();
+    }, 500);
+    this.rec = rec; run(rec);
+    rec.start(1000);
     this.t0 = performance.now();
     const loop = () => { if (!this.rec || this.rec.state === "inactive") return; this.frame(); this.raf = requestAnimationFrame(loop); };
     this.raf = requestAnimationFrame(loop);
@@ -669,5 +700,11 @@ export class Clip {
     return this.done;
   }
   elapsed() { return this.t0 ? (performance.now() - this.t0) / 1000 : 0; }
-  stop() { cancelAnimationFrame(this.raf); clearInterval(this.tick); if (this.rec && this.rec.state !== "inactive") this.rec.stop(); if (this.stream) this.stream.getTracks().forEach((t) => t.stop()); return this.done; }
+  stop() {
+    this.stopping = true; cancelAnimationFrame(this.raf); clearInterval(this.tick); clearInterval(this.roll);
+    if (this.rec && this.rec.state !== "inactive") this.rec.stop();
+    // the tracks stop once the recorder has handed over its last data
+    const st = this.stream; setTimeout(() => { if (st) st.getTracks().forEach((t) => t.stop()); }, 400);
+    return this.done;
+  }
 }

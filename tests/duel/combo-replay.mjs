@@ -54,5 +54,22 @@ ok(def && def.state.teams[0].mzone[0].position === C.POS_FACEUP_DEFENSE, "a Defe
 // an old combo (no placement) still plays
 const old = cleanCombo({ title: "old", hand: [1, 2], lines: [[{ cards: [{ c: 1, a: "ns" }] }, { cards: [{ c: 5, a: "add" }] }]] });
 ok(comboPackets(old, db).length === 3, "combos without placement still play");
+// cards placed in the Spell & Trap Zones by an effect: a Pendulum Monster into the right Pendulum Zone, and a monster
+// placed as a Continuous Spell; the real table at the end of the turn travels with the combo
+{
+  const ev2 = [{ type: M.NEW_TURN, player: 0 }, mv(5, L(H, 0), L(MZ, 2)), { type: M.SUMMONING, code: 5, controller: 0 },
+    { type: M.CHAINING, code: 5, controller: 0, location: MZ, sequence: 2, chain_size: 1 }, { type: M.CHAIN_SOLVING, chain_size: 1 },
+    mv(1, L(DK, 0), L(SZ, 4), R.EFFECT), mv(7, L(DK, 0), L(SZ, 1), R.EFFECT), { type: M.CHAIN_SOLVED }, { type: M.CHAIN_END }, { type: M.NEW_TURN, player: 1 }];
+  const card = (code, position = C.POS_FACEUP_ATTACK) => ({ code, position });
+  const board = [{ m: [null, null, card(5), null, null, null, null], s: [null, card(7), null, null, card(1), null, null, null] }, { m: [null, null, null, null, null, card(9, C.POS_FACEDOWN_DEFENSE), null], s: Array(8).fill(null) }];
+  const scan2 = { names: ["Mei", "Opp"], decks: [{ main: 40, extra: [] }, { main: 40, extra: [] }], steps: [{ turn: 1, tp: 0, events: ev2.slice(0, 1), hands: [[5], []], board }, { turn: 1, tp: 0, events: ev2.slice(1, -1), hands: [[], []], board }, { turn: 2, tp: 1, events: ev2.slice(-1), hands: [[], []], board: null }] };
+  const c2 = comboFromReplay(scan2, 1, db);
+  const put = c2.lines.flat().flatMap((n) => n.cards).filter((x) => x.a === "put");
+  ok(put.length === 2 && put.every((x) => x.r === "s") && put[0].z === 4 && put[1].z === 1, "placed cards keep their row and zone " + JSON.stringify(put));
+  const e2 = comboPackets(cleanCombo(JSON.parse(JSON.stringify(c2))), db).pop().state.teams[0];
+  ok(at(e2.szone) === "0,7,0,0,1,0,0,0" && at(e2.mzone) === "0,0,5,0,0,0,0", "the Pendulum Monster stands in its Pendulum Zone, the placed monster in a Spell & Trap Zone: " + at(e2.szone) + " / " + at(e2.mzone));
+  const eb = cleanCombo(JSON.parse(JSON.stringify(c2))).endBoard;
+  ok(eb && eb[0].s[4] && eb[0].s[4].id === "1" && eb[0].s[1].id === "7" && eb[0].m[2].id === "5" && eb[1].m[6] && eb[1].m[6].pos === "down", "the real end board comes with it (the opponent's Extra Monster Zone seen from our side) " + JSON.stringify(eb));
+}
 if (bad) { console.log(bad + " failed"); process.exit(1); }
 console.log("OK: replay to combo keeps the table");

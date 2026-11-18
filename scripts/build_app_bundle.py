@@ -14,7 +14,18 @@ DUEL = os.path.join(ROOT, "duel")
 KEEP = re.compile(r"^(?:[a-z0-9-]+\.(?:js|css|html)|assets/[a-z0-9-]+\.(?:png|webp)|assets/fonts/[a-z0-9-]+\.(?:woff|txt)|engine/[a-z0-9-]+\.(?:js|wasm)|engine/build/[a-z0-9_-]+\.(?:cpp|sh)|data/(?:cards|strings|scripts)\.json)$")
 
 def cardscripts(commit, repo, given):
-    if given: return given
+    if given:
+        # the packed scripts must be the ones duel/data/scripts.json pins: other scripts make replays go out of step
+        # (and new cards in the data would have no effects). A git checkout of CardScripts is moved to that commit.
+        head = subprocess.run(["git", "-C", given, "rev-parse", "HEAD"], capture_output=True, text=True)
+        if head.returncode == 0 and head.stdout.strip() != commit:
+            r = subprocess.run(["git", "-C", given, "checkout", "-q", commit], capture_output=True, text=True)
+            if r.returncode != 0:
+                r = subprocess.run(["git", "-C", given, "fetch", "-q", "--depth", "1", "origin", commit], capture_output=True, text=True)
+                r = subprocess.run(["git", "-C", given, "checkout", "-q", commit], capture_output=True, text=True) if r.returncode == 0 else r
+            if r.returncode != 0: sys.exit(f"{given} is at {head.stdout.strip()[:7]}, not the pinned {commit[:7]}, and could not be moved there: {r.stderr.strip()}")
+            print(f"card scripts: moved {given} to the pinned commit {commit[:7]}")
+        return given
     d = tempfile.mkdtemp(prefix="cardscripts-")
     run = lambda *a: subprocess.run(["git", "-C", d, *a], check=True, capture_output=True)
     run("init", "-q"); run("remote", "add", "o", f"https://github.com/{repo}")
