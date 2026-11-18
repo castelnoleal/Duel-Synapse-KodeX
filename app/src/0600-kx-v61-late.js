@@ -25,9 +25,31 @@ addEventListener('message', e => {
       .slice(0, 80) +
     '.' +
     ext;
-  toast('Saving the clip…');
-  saveFile(new Blob([buf], { type: mime }), nm, mime).catch(() => toast('That clip could not be saved'));
+  toast(d.part ? `Saving part ${d.part} of the clip…` : 'Saving the clip…');
+  kxSaveVideo(new Blob([buf], { type: mime }), nm, mime).catch(() => toast('That clip could not be saved'));
 });
+/** A clip straight to the phone's Downloads (the app's bridge takes one piece of up to about 30 MB; the Arena splits
+ *  longer clips into parts), else to KodeX's own folder on the phone, else the usual way of saving a file. */
+async function kxSaveVideo(blob, name, mime) {
+  const A = window.CastelApp,
+    F = window.CastelFiles;
+  if (A && typeof A.saveBase64File === 'function' && blob.size <= 29e6) {
+    const b64 = await blobB64(blob);
+    A.saveBase64File('data:' + mime + ';base64,' + b64, name);
+    return;
+  }
+  if (F && typeof F.writeBase64 === 'function' && blob.size <= 58e6) {
+    const b64 = await blobB64(blob);
+    try {
+      if (F.ensure) F.ensure('KodeX/Videos');
+    } catch (e) {}
+    if (F.writeBase64('KodeX/Videos/' + name, b64)) {
+      toast('Saved to KodeX/Videos on your phone: ' + name);
+      return;
+    }
+  }
+  await saveFile(blob, name, mime);
+}
 
 /* ---------- Deck image: square, dated, with the MEIOCG profile and an editable preset ---------- */
 const DI_SIZE = 1600;

@@ -551,7 +551,7 @@ async function rpOpenLib() {
     const t = el("div", "rp-t"); t.append(el("b", null, r.title), el("small", null, `${d.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })} · ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}${r.how ? " · " + r.how : ""}`));
     if (r.combo) t.querySelector("b").prepend(el("i", "rp-tag", "Combo"));
     const play = el("button", "btn primary", "Watch"); play.type = "button"; play.onclick = () => { $("#rpLib").close(); if (r.combo) watchCombo(r.combo); else watchReplay(r.bytes.slice().buffer); };
-    const file = el("button", "btn ghost", "File"); file.type = "button"; file.setAttribute("aria-label", "Save as a .yrp file"); file.onclick = () => saveFile(`${r.title.replace(/[^\w-]+/g, "_").slice(0, 40)}.yrp`, "data:application/octet-stream;base64," + b64(r.bytes));
+    const file = el("button", "btn ghost", "File"); file.type = "button"; file.setAttribute("aria-label", "Save as a .yrp file"); file.onclick = () => saveFile(`${r.title.replace(/[^\w-]+/g, "_").slice(0, 40)}.${r.bytes && r.bytes[3] === 0x58 ? "yrpX" : "yrp"}`, "data:application/octet-stream;base64," + b64(r.bytes));
     const del = el("button", "icon", "🗑"); del.type = "button"; del.setAttribute("aria-label", "Delete " + r.title); del.onclick = async () => { await RPDB.del(r.id); rpOpenLib(); rpBadge(); };
     const cb = el("button", "btn ghost", "Combo"); cb.type = "button"; cb.setAttribute("aria-label", "Turn " + r.title + " into a combo"); cb.onclick = () => rpToCombo(r, cb);
     const ac = el("div", "rp-ac"); if (r.combo) ac.append(play, del); else ac.append(play, cb, file, del);
@@ -892,10 +892,13 @@ $("#recGo").addEventListener("click", () => {
   const cb = S.replay.combo || null;
   const intro = cb && cb.intro.ms ? { ms: cb.intro.ms, title: cb.title, sub: cb.sub || cb.deck, by: (S.packet && S.packet.names[0]) || cb.by, bg: cb.intro.bg || (cb.intro.art || cb.intro.key ? artUrl(cb.intro.art || cb.intro.key) : ""), bgCard: !cb.intro.bg, card: cb.intro.key ? artUrl(cb.intro.key) : "" } : null;
   const tap = cfg.sound ? Sound.tap() : null, ft = fieldTheme();
+  S.recStamp = "";
   const clip = new Clip({ format: fmt, size: Number(cfg.size), fps: Number(cfg.fps), watermark: cfg.mark, intro,
     feed: cfg.feed, details: cfg.info, title: cfg.title, info: recCardInfo, audio: tap && tap.track, theme: { me: ft.me, op: ft.op, acc: ft.acc, a: ft.a, b: ft.b, e: ft.e },
     packet: () => S.packet, team: () => S.team, art: (code) => artUrl(code), name: (code) => name(Number(code)), kind: cardKind,
-    profile: (team) => profileOf(team === S.team ? "me" : "op"), logo: LOGO, aces: (team) => fxOf(sideOfTeam(team)).aces });
+    profile: (team) => profileOf(team === S.team ? "me" : "op"), logo: LOGO, aces: (team) => fxOf(sideOfTeam(team)).aces,
+    // in the app a file is handed to the phone in one piece, which has a size limit: a long clip comes as several files
+    maxBytes: S.recMax || (window.parent !== window ? 26e6 : 0), onPart: (r) => recSave(r, r.part, true) });
   let done;
   try { done = clip.start(); } catch (e) { if (tap) tap.close(); toast(e.message || "Could not start recording"); return; }
   S.rec = { clip, cfg, tap, turn: S.packet ? S.packet.turn : 0, t0: Date.now() };
@@ -932,13 +935,16 @@ function recStop(keep) {
   $("#recBox").hidden = true; r.clip.cv.remove();
   if (keep) toast("Saving the video…");
 }
-async function recSave(r) {
-  if (!S.recKeep || !r || !r.blob || !r.blob.size) return;
+async function recSave(r, part, more) {
+  if (!r || !r.blob || !r.blob.size) { if (!more && S.recKeep) toast("The video came out empty: nothing was recorded. Try a smaller size or 30 fps."); return; }
+  if (!more && !S.recKeep) return;
+  if (!more) part = r.part > 1 ? r.part : 0;          // a clip split into parts: the last part keeps its number
   const n = S.packet ? S.packet.names : ["Duelist", "Opponent"], safe = (x) => String(x || "").replace(/[^\w-]+/g, "_").slice(0, 20);
   const d = new Date(), z = (x) => String(x).padStart(2, "0"), cbo = S.replay && S.replay.combo;
-  const fileName = `KodeX_${cbo ? "Combo_" + String(cbo.title).replace(/[^\w-]+/g, "_").slice(0, 40) : safe(n[0]) + "_vs_" + safe(n[1])}_${d.getFullYear()}${z(d.getMonth() + 1)}${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}.${r.ext}`;
+  if (!S.recStamp) S.recStamp = `${d.getFullYear()}${z(d.getMonth() + 1)}${z(d.getDate())}-${z(d.getHours())}${z(d.getMinutes())}`;
+  const fileName = `KodeX_${cbo ? "Combo_" + String(cbo.title).replace(/[^\w-]+/g, "_").slice(0, 40) : safe(n[0]) + "_vs_" + safe(n[1])}_${S.recStamp}${part ? "_part" + part : ""}.${r.ext}`;
   const buf = await r.blob.arrayBuffer();
-  if (window.parent !== window) { window.parent.postMessage({ kx: "saveVideo", name: fileName, mime: r.mime.split(";")[0], buf }, "*", [buf]); toast(`Video ready (${(r.blob.size / 1048576).toFixed(1)} MB)`); return; }
+  if (window.parent !== window) { window.parent.postMessage({ kx: "saveVideo", name: fileName, mime: r.mime.split(";")[0], buf, part: part || 0, last: !more }, "*", [buf]); toast(`Video${part ? " part " + part : ""} ready (${(r.blob.size / 1048576).toFixed(1)} MB)`); return; }
   const url = URL.createObjectURL(r.blob), a = el("a"); a.href = url; a.download = fileName; document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 60000);
   toast(`Video saved (${(r.blob.size / 1048576).toFixed(1)} MB, ${r.ext.toUpperCase()})`);
@@ -1161,7 +1167,7 @@ function onWorker(m) {
     if (S.mode === "host" && m.team !== S.hostTeam) { S.room.send({ to: "guest", m: { t: "error", error: m.error } }); return; }
     toast(m.error); return;
   }
-  if (m.t === "replayinfo") { S.replayInfo = m; addLog(`Replay: ${m.names.join(" vs ")} · ${m.answers} answers${m.turns ? ` · ${m.turns} turns` : ""}${m.unknown ? ` · ${m.unknown} cards this Arena doesn't know yet` : ""}`, "sys"); return; }
+  if (m.t === "replayinfo") { S.replayInfo = m; addLog(`Replay: ${m.names.join(" vs ")} · ${m.mode === "recorded" ? "played as recorded" : `${m.answers} answers`}${m.turns ? ` · ${m.turns} turns` : ""}${m.unknown ? ` · ${m.unknown} cards this Arena doesn't know yet` : ""}`, "sys"); return; }
   if (m.t === "replaypos") { if (S.replay) { S.replay.i = m.i; S.replay.n = m.n; if (m.turns) S.replay.turns = m.turns; replayBarState(); } return; }
   if (m.t === "replayerr") { toast(m.error, 6000); leaveTable(); return; }
   if (m.t !== "packet") return;

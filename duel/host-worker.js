@@ -8,6 +8,7 @@ import { observe } from "./engine/smart.js";
 import { Book, Recorder, comboHints } from "./engine/learn.js";
 import { practice } from "./engine/trainer.js";
 import { readReplay } from "./engine/replayfile.js";
+import { StreamHost, streamUsable } from "./engine/stream.js";
 
 let core, db, store, host, bots = {}, mems = {}, retries = {}, lastReplay = null, lastNames = null;
 // Synapse AI learning: the play book for this duel's decks, card-text combo links, and a recorder for people's plays.
@@ -71,6 +72,32 @@ async function init(base) {
 }
 
 // Replay files: the recorded answers are fed back one at a time, at the chosen speed.
+// A desktop client's .yrpX holds every message of the duel as it was played: it is shown as recorded (StreamHost), the
+// way that client plays it, so it never goes out of step and every card is where it really was. Older .yrp files only
+// hold the answers, so those (and our own) re-run the duel on this engine (DuelHost in replay mode).
+function openReplay(bytes) {
+  const r = readReplay(bytes);
+  r.decks = r.decks.map((d) => ({ main: d.main, extra: d.extra }));
+  r.streamed = r.kind === "yrpX" && streamUsable(r);
+  if (r.noRerun && !r.streamed) throw new Error("This replay can't be played: it holds neither the recorded duel nor the answers.");
+  if (r.streamed) {
+    r.answers = r.responses.length;
+    const n = new StreamHost({ r, db, emit: () => {} }).steps.length;
+    r.responses = Array.from({ length: Math.max(0, n - 1) }, () => null);
+  }
+  return r;
+}
+function replayHost(r, emitTo) {
+  if (r.streamed) return new StreamHost({ r, db, names: r.names, emit: emitTo });
+  return new DuelHost({ core, db, scripts: store, decks: r.decks, names: r.names, options: { replay: r }, emit: emitTo });
+}
+async function replayScripts(r, progress) {
+  if (r.streamed) return;                                       // nothing is run: no card scripts needed (works offline)
+  const codes = [...r.rules, ...r.decks.flatMap((d) => [...d.main, ...d.extra])];
+  core.missing.clear();
+  await store.preload(codes.filter((c) => db.has(c)), progress);
+}
+
 const soon = (f) => { const ch = new MessageChannel(); ch.port1.onmessage = () => { ch.port1.close(); f(); }; ch.port2.postMessage(0); };   // next task, without the 4 ms timer floor
 let rp = null;
 function replayStep() {
@@ -82,7 +109,7 @@ function replayStep() {
     if (!rp || !host || host.ended || rp.paused || !host.pending) return;
     if (rp.i >= rp.r.responses.length) { host.finish(-1, "End of the replay", []); return; }
     host.respondRaw(rp.r.responses[rp.i++]);
-  }, rp.once ? 0 : Math.round((C_PROMPT_DELAY[host.pending.msg.type] || 520) / rp.speed));
+  }, rp.once ? 0 : Math.round((host.pending.delay || C_PROMPT_DELAY[host.pending.msg.type] || 520) / rp.speed));
   rp.once = false;
 }
 const C_PROMPT_DELAY = { 11: 900, 10: 800, 16: 380, 12: 420, 13: 420 };   // idle and battle commands linger a little longer
@@ -106,7 +133,7 @@ function emit(viewer, packet) {
     // a rejected answer in an older replay: the engine asks again and the next recorded answer is the one it took
     if (packet.events.some((e) => e.type === 1)) {
       rp.retries = (rp.retries || 0) + 1;
-      if (rp.retries > 8) { host.finish(-1, "The replay went out of step here: it was recorded with different card scripts.", []); return; }
+      if (rp.retries > 8) { host.finish(-1, rp.r.kind === "yrpX" ? "The replay went out of step here: it was recorded with different card scripts." : `The replay went out of step on turn ${host.turn}: it was recorded with card scripts that differ from this Arena's. Save the replay as .yrpX to play it exactly as recorded.`, []); return; }
     } else rp.retries = 0;
     post({ t: "replaypos", i: rp.i, n: rp.r.responses.length, turns: rp.turnAt });
     replayStep();
@@ -162,15 +189,13 @@ self.onmessage = async (ev) => {
       if (host) { host.destroy(); host = null; }
       bots = {}; mems = {}; retries = {}; rec = null;
       let r;
-      try { r = readReplay(new Uint8Array(m.bytes)); } catch (e) { post({ t: "replayerr", error: String(e.message || e) }); return; }
-      r.decks = r.decks.map((d) => ({ main: d.main, extra: d.extra }));
+      try { r = openReplay(new Uint8Array(m.bytes)); } catch (e) { post({ t: "replayerr", error: String(e.message || e) }); return; }
       const codes = [...r.rules, ...r.decks.flatMap((d) => [...d.main, ...d.extra])];
       const unknown = [...new Set(codes)].filter((c) => !db.has(c));
-      core.missing.clear();
-      await store.preload(codes.filter((c) => db.has(c)), (done, total) => post({ t: "progress", done, total }));
+      await replayScripts(r, (done, total) => post({ t: "progress", done, total }));
       rp = { r, i: 0, speed: m.speed || 1, paused: false, timer: 0, turnAt: [], turnSeen: 0, seek: null };
-      post({ t: "replayinfo", names: r.names, kind: r.kind, turns: r.turns || 0, answers: r.responses.length, unknown: unknown.length, time: r.time });
-      host = new DuelHost({ core, db, scripts: store, decks: r.decks, names: r.names, options: { replay: r }, emit });
+      post({ t: "replayinfo", names: r.names, kind: r.kind, mode: r.streamed ? "recorded" : "rerun", turns: r.turns || 0, answers: r.streamed ? r.answers : r.responses.length, steps: r.responses.length, unknown: r.streamed ? 0 : unknown.length, time: r.time });
+      host = replayHost(r, emit);
       host.start();
     } else if (m.cmd === "replayScan") {
       // run a replay from start to end without showing it and hand back what happened, step by step (the Arena
@@ -178,24 +203,22 @@ self.onmessage = async (ev) => {
       if (host && !host.ended && !rp) { post({ t: "replayscan", id: m.id, error: "Finish the duel first." }); return; }
       if (host) { host.destroy(); host = null; } if (rp) { clearTimeout(rp.timer); rp = null; }
       let r;
-      try { r = readReplay(new Uint8Array(m.bytes)); } catch (e) { post({ t: "replayscan", id: m.id, error: String(e.message || e) }); return; }
-      r.decks = r.decks.map((d) => ({ main: d.main, extra: d.extra }));
-      const codes = [...r.rules, ...r.decks.flatMap((d) => [...d.main, ...d.extra])];
-      core.missing.clear();
-      await store.preload(codes.filter((c) => db.has(c)), () => {});
+      try { r = openReplay(new Uint8Array(m.bytes)); } catch (e) { post({ t: "replayscan", id: m.id, error: String(e.message || e) }); return; }
+      await replayScripts(r, () => {});
       const steps = [];
       let h = null, i = 0, guard = 0, bad = 0;
       try {
-        h = new DuelHost({ core, db, scripts: store, decks: r.decks, names: r.names, options: { replay: r }, emit: (viewer, p) => {
+        h = replayHost(r, (viewer, p) => {
           if (viewer !== 3 || !p.state) return;
           if (p.events.some((e) => e.type === 1)) bad++; else bad = 0;
-          steps.push({ turn: p.turn, tp: p.turnPlayer, events: p.events, hands: p.state.teams.map((t) => t.hand.map((c) => c.code || 0)) });
-        } });
+          steps.push({ turn: p.turn, tp: p.turnPlayer, events: p.events, hands: p.state.teams.map((t) => t.hand.map((c) => c.code || 0)),
+            board: p.state.teams.map((t) => ({ m: t.mzone.map((c) => (c ? { code: c.code, position: c.position } : null)), s: t.szone.map((c) => (c ? { code: c.code, position: c.position } : null)) })) });
+        });
         h.start();
         while (h.pending && !h.ended && i < r.responses.length && guard++ < 40000 && bad <= 8) h.respondRaw(r.responses[i++]);
       } catch (e) { /* what was read so far is still useful */ }
       try { if (h) h.destroy(); } catch { /* already gone */ }
-      post({ t: "replayscan", id: m.id, names: r.names, decks: r.decks.map((d) => ({ main: d.main.length, extra: d.extra })), steps });
+      post({ t: "replayscan", id: m.id, names: r.names, mode: r.streamed ? "recorded" : "rerun", decks: r.decks.map((d) => ({ main: d.main.length, extra: d.extra })), steps });
     } else if (m.cmd === "replaySeek") {
       // go to a move (an answer number) or the start of a turn: back means re-running the duel from the start, fast
       if (!rp || !host) return;
@@ -207,7 +230,7 @@ self.onmessage = async (ev) => {
       if (back || host.ended) {
         host.destroy();
         rp.i = 0; rp.turnSeen = 0; rp.retries = 0;
-        host = new DuelHost({ core, db, scripts: store, decks: rp.r.decks, names: rp.r.names, options: { replay: rp.r }, emit });
+        host = replayHost(rp.r, emit);
         host.start();
       } else if (host.pending && !host.ended) {
         rp.turnSeen = rp.turnSeenNow || 0;
