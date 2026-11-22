@@ -71,5 +71,19 @@ ok(comboPackets(old, db).length === 3, "combos without placement still play");
   const eb = cleanCombo(JSON.parse(JSON.stringify(c2))).endBoard;
   ok(eb && eb[0].s[4] && eb[0].s[4].id === "1" && eb[0].s[1].id === "7" && eb[0].m[2].id === "5" && eb[1].m[6] && eb[1].m[6].pos === "down", "the real end board comes with it (the opponent's Extra Monster Zone seen from our side) " + JSON.stringify(eb));
 }
+// an effect that Tributes as its cost and then Special Summons into the zone that frees (Trias Hierarchia Tributing
+// Diviner of the Herald in zone 3 and taking that zone): the Tribute comes first in the combo, so the summon lands in
+// the same zone as in the duel, not in the middle
+{
+  const ev3 = [{ type: M.NEW_TURN, player: 0 }, mv(7, L(H, 0), L(MZ, 3)), { type: M.SUMMONING, code: 7, controller: 0 },
+    { type: M.CHAINING, code: 5, controller: 0, location: H, sequence: 0, chain_size: 1 }, mv(7, L(MZ, 3), L(GY, 0), R.RELEASE | R.COST),
+    { type: M.CHAIN_SOLVING, chain_size: 1 }, mv(5, L(H, 0), L(MZ, 3), R.EFFECT), { type: M.SPSUMMONING, code: 5, controller: 0 }, { type: M.CHAIN_SOLVED }, { type: M.CHAIN_END },
+    { type: M.NEW_TURN, player: 1 }];
+  const sc3 = { names: ["Mei", "Opp"], decks: [{ main: 40, extra: [] }, { main: 40, extra: [] }], steps: [{ turn: 1, tp: 0, events: ev3.slice(0, 1), hands: [[7, 5], []] }, { turn: 1, tp: 0, events: ev3.slice(1), hands: [[], []] }] };
+  const c3 = comboFromReplay(sc3, 1, db);
+  console.log(c3.lines.map((l) => l.map((n) => n.cards.map((x) => `${x.c}:${x.a}${x.z != null ? "@" + x.z : ""}`).join("+")).join(">")));
+  const e3 = comboPackets(cleanCombo(JSON.parse(JSON.stringify(c3))), db).pop().state.teams[0];
+  ok(at(e3.mzone) === "0,0,0,5,0,0,0" && e3.grave.map((x) => x.code).join() === "7", "a summon after a Tribute cost takes the freed zone: " + at(e3.mzone));
+}
 if (bad) { console.log(bad + " failed"); process.exit(1); }
 console.log("OK: replay to combo keeps the table");

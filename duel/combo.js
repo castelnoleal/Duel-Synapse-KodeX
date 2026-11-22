@@ -268,7 +268,7 @@ export function comboFromReplay(scan, turnNo, db) {
   const T = C.TYPE, R = C.REASON, info = (c) => db.get(c) || { type: 0 };
   const turns = replayTurns(scan), tinfo = turns[turnNo - 1]; if (!tinfo) return null;
   const P = tinfo.tp, lines = [], stUp = new Set();
-  let t = 0, hand = null, prevHands = null, line = null, res = null, mats = [], solving = false, actCard = 0, pend = null, endBoard = null;
+  let t = 0, hand = null, prevHands = null, line = null, res = null, mats = [], solving = false, actCard = 0, pend = null, endBoard = null, activating = false;
   const chainBy = [];                                     // who activated each link of the chain now building
   const myLink = () => !chainBy.length || chainBy[chainBy.length - 1] === P;
   const base = (l) => l & ~C.LOCATION_OVERLAY;
@@ -299,7 +299,9 @@ export function comboFromReplay(scan, turnNo, db) {
       const c = Number(e.code) || 0;
       const mv = pend && pend.c === c ? pend : null;
       if (e.type === M.CHAINING) chainBy.push(e.controller);
-      if (e.type === M.CHAIN_SOLVING) { flush(); solving = true; }
+      if (e.type === M.CHAIN_SOLVING) { flush(); solving = true; activating = false; }
+      if ((e.type === M.SUMMONING || e.type === M.SPSUMMONING || e.type === M.FLIPSUMMONING) && !solving) activating = false;
+      if (e.type === M.CHAINING && e.controller !== P) activating = false;
       else if (e.type === M.CHAIN_SOLVED || e.type === M.CHAIN_END) { flush(); solving = false; if (e.type === M.CHAIN_END) chainBy.length = 0; else chainBy.pop(); }
       else if (e.type === M.CHAINING && e.controller === P && c) {
         const d = info(c), loc = base(e.location);
@@ -308,6 +310,7 @@ export function comboFromReplay(scan, turnNo, db) {
         else if (d.type & T.PENDULUM && mv && base(mv.to.location) === C.LOCATION_SZONE) { a = "scale"; stUp.add(c); }
         if (mv) pend = null; else flush();
         begin(c, a, mv || { f: srcOf({ location: e.location }) });
+        activating = true;                                   // its cost is paid now, before it resolves
       } else if (e.type === M.SUMMONING && e.controller === P && c) { if (mv) pend = null; else flush(); begin(c, "ns", mv); }
       else if (e.type === M.FLIPSUMMONING && e.controller === P && c) { flush(); begin(c, "eff", { f: 6 }); }
       else if (e.type === M.SPSUMMONING && e.controller === P && c) { if (mv) pend = null; else flush(); if (solving && hand) result(c, "ss", mv); else begin(c, "ss", mv); }
@@ -324,6 +327,12 @@ export function comboFromReplay(scan, turnNo, db) {
         if (tl === C.LOCATION_MZONE || tl === C.LOCATION_SZONE) {
           if (fl === C.LOCATION_HAND && e.to.position & C.POS_FACEDOWN && !solving) { begin(c, "set", m); continue; }
           pend = m; continue;                                    // a summon or an activation usually follows
+        }
+        // the cost of an effect being activated (Tributing, banishing, sending): part of that play, so the card has
+        // left its zone before what the effect summons takes it
+        if (activating && line && !solving && e.reason & R.COST && fl !== C.LOCATION_DECK) {
+          const how = e.reason & R.RELEASE ? "trib" : e.reason & R.DISCARD ? "dis" : tl === C.LOCATION_REMOVED ? "ban" : tl === C.LOCATION_HAND ? "add" : tl === C.LOCATION_EXTRA ? "ex" : tl === C.LOCATION_DECK ? "deck" : "gy";
+          result(c, how, m); continue;
         }
         if ((e.reason & R.MATERIAL || (e.reason & R.RELEASE && e.reason & R.SUMMON)) && !solving && (tl === C.LOCATION_GRAVE || tl === C.LOCATION_EXTRA || tl === C.LOCATION_REMOVED)) { mats.push(card(c, tl === C.LOCATION_REMOVED ? "ban" : "mat", m)); continue; }
         // a Spell or Trap going to the GY after it resolved is part of playing it, not a result
