@@ -115,6 +115,10 @@ Object.assign(SFX, {
   flip(t) { sweep(t, 1400, 3800, 0.1, 0.18, 1.5); tone(740, t + 0.05, { type: "triangle", d: 0.1, peak: 0.1 }); },
   heal(t) { [784, 987.8, 1318.5].forEach((f, i) => bell(f, t + i * 0.08, 0.1, 0.8)); },
   reveal(t) { bell(1568, t, 0.1, 0.5); bell(2093, t + 0.07, 0.07, 0.5); },
+  // a lock-on: two quick rising blips
+  target(t) { tone(880, t, { type: "square", d: 0.06, peak: 0.05 }); tone(1320, t + 0.08, { type: "square", d: 0.08, peak: 0.05 }); },
+  // something comes back from the GY: a soft upward sweep
+  revive(t) { tone(330, t, { type: "triangle", d: 0.28, peak: 0.08, glide: 3 }); bell(1760, t + 0.2, 0.08, 0.6); },
   cutin(t) { sweep(t, 400, 5200, 0.34, 0.26, 0.8); tone(92, t + 0.26, { d: 0.35, peak: 0.4, glide: 0.6 }); noise(t + 0.26, { d: 0.2, peak: 0.2, type: "lowpass", f: 1400, f2: 200 }); },
   counter(t) { tone(988, t, { type: "triangle", d: 0.09, peak: 0.1 }); tone(1318.5, t + 0.06, { type: "triangle", d: 0.12, peak: 0.1 }); },
   // entrances

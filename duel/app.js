@@ -936,7 +936,11 @@ function recStop(keep) {
   if (keep) toast("Saving the video…");
 }
 async function recSave(r, part, more) {
-  if (!r || !r.blob || !r.blob.size) { if (!more && S.recKeep) toast("The video came out empty: nothing was recorded. Try a smaller size or 30 fps."); return; }
+  // stopping right after a long clip moved on to a new part can leave that last part empty: the parts before it are the clip
+  if (!r || !r.blob || !r.blob.size) {
+    if (!more && r && r.part > 1) { if (window.parent !== window) window.parent.postMessage({ kx: "saveVideo", name: "", mime: r.mime.split(";")[0], buf: new ArrayBuffer(0), part: r.part, last: true }, "*"); return; }
+    if (!more && S.recKeep) toast("The video came out empty: nothing was recorded. Try a smaller size or 30 fps."); return;
+  }
   if (!more && !S.recKeep) return;
   if (!more) part = r.part > 1 ? r.part : 0;          // a clip split into parts: the last part keeps its number
   const n = S.packet ? S.packet.names : ["Duelist", "Opponent"], safe = (x) => String(x || "").replace(/[^\w-]+/g, "_").slice(0, 20);
@@ -948,6 +952,22 @@ async function recSave(r, part, more) {
   const url = URL.createObjectURL(r.blob), a = el("a"); a.href = url; a.download = fileName; document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 60000);
   toast(`Video saved (${(r.blob.size / 1048576).toFixed(1)} MB, ${r.ext.toUpperCase()})`);
+  offerShare(new File([r.blob], fileName, { type: r.mime.split(";")[0] }));
+}
+/** In a browser that can share files (phones): a Share button for a few seconds after a clip is saved, to send it to
+ *  other apps and social media. (Inside KodeX, KodeX offers it after saving.) */
+function offerShare(file) {
+  try { if (!navigator.canShare || !navigator.canShare({ files: [file] })) return; } catch { return; }
+  let b = $("#shareFx");
+  if (!b) { b = el("div", "share-fx"); b.id = "shareFx"; b.setAttribute("role", "status"); document.body.append(b); }
+  b.replaceChildren();
+  const go = el("button", "btn", "Share the clip"); go.type = "button";
+  const x = el("button", "share-x", "×"); x.type = "button"; x.setAttribute("aria-label", "Close");
+  b.append(el("span", null, file.name), go, x);
+  const hide = () => b.classList.remove("on");
+  go.onclick = () => { hide(); navigator.share({ files: [file], title: file.name, text: "Made with Duel Synapse: KodeX" }).catch(() => {}); };
+  x.onclick = hide;
+  b.classList.add("on"); clearTimeout(offerShare.t); offerShare.t = setTimeout(hide, 9000);
 }
 // the controls fade while the replay plays (clean video) and come back on any touch
 let rbIdle = 0;
@@ -1233,8 +1253,7 @@ function bindTable() {
     const text = $("#chatInput").value.trim();
     if (!text) return;
     $("#chatInput").value = "";
-    addChat(myName(), text, false, "me");
-    if (S.room) S.room.send({ to: "all", m: { t: "chat", text } });
+    sendChatText(text);
   });
   $("#surrenderBtn").addEventListener("click", surrender);
   $("#exportBtn").addEventListener("click", () => {
@@ -1682,6 +1701,9 @@ function render(p) {
   $("#phases").title = `Turn ${p.turn}`;
   const mine = p.waitingFor === me && S.mode !== "spec" && S.mode !== "replay";
   $("#quickBtn").hidden = S.mode === "replay" || S.mode === "spec" || !!p.ended;
+  placeQuick();
+  if (p.ended || !S.chainLinks.length && !(p.events || []).some((e) => e.type === M.BECOME_TARGET)) { if (S.targets.size && !fxQueue.length && !fxBusy) S.targets.clear(); }
+  applyTargets();
   const st2 = $("#status");
   st2.classList.toggle("mine", mine);
   { const cap = $("#rbCap"); if (cap) { const on = S.mode === "replay" && !!p.combo; cap.hidden = !on; if (on) cap.textContent = `${p.combo.what || p.combo.caption || ""}${p.combo.note ? " · " + p.combo.note : ""}`; } }
@@ -1965,6 +1987,15 @@ function showMenu(anchor, c, acts) {
   m.querySelector("button").focus();
 }
 function hideMenu() { $("#menu").hidden = true; }
+/** A button for an action on a card in a list: "Activate" in bold with the effect in small print under it (3 lines;
+ *  the whole text shows when it is pressed and held, and in Card details) so long effects don't make a tall pill. */
+function actBtn(label) {
+  const b = el("button", "btn small act-b"); b.type = "button"; b.title = label;
+  const m = String(label).match(/^([^:]{1,24}):\s+(.+)$/);
+  if (m) { b.append(el("b", null, m[1]), el("small", null, m[2])); b.setAttribute("aria-label", label); }
+  else b.textContent = label;
+  return b;
+}
 
 function openPile(team, kind) {
   const st = S.packet && S.packet.state;
@@ -1986,7 +2017,7 @@ function openPile(team, kind) {
     const acts = S.actions && S.actions.get(key(team, loc, i));
     if (acts) {
       d.classList.add("act");
-      for (const a of acts) { const b = el("button", "btn small", a.label); b.type = "button"; b.onclick = () => { $("#pile").close(); a.run(); }; o.append(b); }
+      for (const a of acts) { const b = actBtn(a.label); b.onclick = () => { $("#pile").close(); a.run(); }; o.append(b); }
     }
     body.append(o);
   }
@@ -2546,6 +2577,10 @@ function feed(text, code, cls) {
   f.prepend(d);
   while (f.children.length > 60) f.lastChild.remove();
 }
+function sendChatText(text) {
+  addChat(myName(), text, false, "me");
+  if (S.room) S.room.send({ to: "all", m: { t: "chat", text } });
+}
 function addChat(who, text, fromOther, side) {
   if (fromOther && (MUTE.chat || (MUTE.opp && side === "op"))) { S.mutedChat = (S.mutedChat || 0) + 1; return; }
   const li = el("li"); li.append(el("b", null, who + ": "), String(text).slice(0, 200));
@@ -2739,11 +2774,32 @@ function fxEvents(p) {
       if (last && last.kind === "solve" && last.n === e.chain_size) { fxEndAt += ms - last.ms; last.kind = "negate"; last.ms = ms; }
       else fxPush({ kind: "negate", n: e.chain_size, link: S.chainLinks[e.chain_size - 1], total: S.chainLinks.length }, ms);
       if (!base) soundOnce("negate");
-    } else if (e.type === M.CHAIN_END) { S.chainLinks = []; fxPush({ kind: "end" }, 0); }
+    } else if (e.type === M.CHAIN_END) { S.chainLinks = []; fxPush({ kind: "end" }, 0); beat(0, () => { S.targets.clear(); applyTargets(); }); }
+    // cards targeted by an effect carry a target mark until that effect has fully resolved
+    else if (e.type === M.BECOME_TARGET) {
+      const link = Math.max(1, S.chainLinks.length), ks = (e.cards || []).map((c) => key(c.controller, c.location, c.sequence));
+      beat(0, () => { for (const k of ks) S.targets.set(k, link); applyTargets(ks); if (ks.length) soundOnce("target"); });
+    } else if (e.type === M.CHAIN_SOLVED) { const n = e.chain_size; beat(0, () => { for (const [k, l] of S.targets) if (l >= n) S.targets.delete(k); applyTargets(); }); }
+    else if (e.type === M.MOVE && e.from && S.targets.size) { const k = key(e.from.controller, e.from.location, e.from.sequence); beat(0, () => { if (S.targets.delete(k)) applyTargets(); }); }
   });
   fxEv = p.events.length;
   if (shown.length) beat(base ? Math.min(1400, PREF.fxMs + 200) : 0, () => { showReveal(shown, p); soundOnce("reveal"); });
   return 0;
+}
+S.targets = new Map();          // card key → the chain link that targets it
+/** Puts the target marks on the cards being targeted (fresh: the ones just targeted, which get a lock-on). */
+function applyTargets(fresh = []) {
+  for (const d of document.querySelectorAll(".card.tgt-on")) if (!S.targets.has(d.dataset.key)) { d.classList.remove("tgt-on", "tgt-new"); d.querySelector(".tgt-ret")?.remove(); }
+  for (const [k, link] of S.targets) {
+    const d = document.querySelector(`#field .card[data-key="${k}"], .hand .card[data-key="${k}"]`);
+    if (!d) continue;
+    d.classList.add("tgt-on");
+    let r = d.querySelector(".tgt-ret");
+    if (!r) { r = el("i", "tgt-ret"); r.setAttribute("aria-hidden", "true"); r.append(el("b", null, String(link))); d.append(r); }
+    else if (r.firstChild && r.firstChild.textContent !== String(link)) r.firstChild.textContent = String(link);
+    d.title = `Targeted by Chain Link ${link}`;
+    if (fresh.includes(k)) { d.classList.remove("tgt-new"); void d.offsetWidth; d.classList.add("tgt-new"); }
+  }
 }
 /** After fxEvents and bigFx have queued this step: order it, start it, and say how long it takes. */
 function fxStart() { fxOrder(); runFx(); return fxLeft(); }
@@ -2910,7 +2966,9 @@ function flyCapture(p) {
       const R = C.REASON, onField = fl === C.LOCATION_MZONE || fl === C.LOCATION_SZONE;
       const fx = tl === C.LOCATION_REMOVED ? "banish" : tl === C.LOCATION_GRAVE && e.reason & R.DESTROY ? (e.reason & R.BATTLE ? "battle" : "destroy") : onField && e.reason & R.RELEASE && !(e.reason & R.DESTROY) ? "release" : "";
       if (fx && (onField || fl === C.LOCATION_HAND || fx === "banish")) { out.push({ r, fx, code: e.code && !hiddenTo ? e.code : 0, op: e.from.controller !== me }); continue; }
-      out.push({ r, to: e.to, code: e.code && !hiddenTo ? e.code : 0, op: e.to.controller !== me });
+      // back from the GY (or from banishment): Special Summoned, Set or added to the hand, it rises in a column of light
+      const rise = (fl === C.LOCATION_GRAVE || fl === C.LOCATION_REMOVED) && !!(tl & (C.LOCATION_MZONE | C.LOCATION_SZONE | C.LOCATION_HAND)) ? (fl === C.LOCATION_GRAVE ? "gy" : "ban") : "";
+      out.push({ r, to: e.to, code: e.code && !hiddenTo ? e.code : 0, op: e.to.controller !== me, rise, summon: rise && tl === C.LOCATION_MZONE });
     } else if (e.type === M.DRAW && e.drawn && e.drawn.length) {
       const r = visRect(placeEl({ controller: e.player, location: C.LOCATION_DECK, sequence: 0 })); if (!r) continue;
       e.drawn.slice(0, 6).forEach((d, i) => out.push({ r, draw: e.player, back: e.drawn.length - 1 - i, code: e.player === me || S.mode === "replay" ? d.code : 0, op: e.player !== me }));
@@ -2929,7 +2987,7 @@ function flyRun(list) {
     const d = visRect(dest); if (!d) return;
     const dx = d.left - it.r.left, dy = d.top - it.r.top, sx = d.width / it.r.width, sy = d.height / it.r.height;
     if (Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
-    const g = el("div", "fly-card card" + (it.code ? "" : " back" + (it.op ? " op-back" : "")));
+    const g = el("div", "fly-card card" + (it.code ? "" : " back" + (it.op ? " op-back" : "")) + (it.rise ? " rise rise-" + it.rise : ""));
     if (it.op) g.dataset.side = "op";
     if (it.code) g.append(cardImg(it.code, ""));
     Object.assign(g.style, { left: it.r.left + "px", top: it.r.top + "px", width: it.r.width + "px", height: it.r.height + "px" });
@@ -2943,10 +3001,24 @@ function flyRun(list) {
       { transform: `translate(${dx * .5}px, ${dy * .5 - 14}px) scale(${(1 + sx) / 2 * lift}, ${(1 + sy) / 2 * lift})`, opacity: 1, offset: .5 },
       { transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`, opacity: 1, offset: 1 },
     ], { duration: T, delay, easing: "cubic-bezier(.3,.7,.2,1)", fill: "both" });
+    if (it.rise) riseFx(L, it, d, delay, T);
     let done = false;
     const end = () => { if (done) return; done = true; g.remove(); if (real) real.style.visibility = ""; };
     a.onfinish = end; a.oncancel = end; setTimeout(end, T + delay + 120);
   });
+}
+/** A card coming back from the GY (or from banishment): a column of light and rising motes where it leaves the pile,
+ *  and a ring of light where it lands (a wider burst when it is Special Summoned). */
+function riseFx(L, it, d, delay, T) {
+  soundOnce("revive", 400);
+  const at = (r, cls) => { const n = el("div", cls); Object.assign(n.style, { left: r.left + "px", top: r.top + "px", width: r.width + "px", height: r.height + "px" }); L.append(n); return n; };
+  const src = at(it.r, "rise-src rise-" + it.rise);
+  for (let k = 0; k < 7; k++) { const m = el("i", "rise-mote"); m.style.left = 12 + ((k * 37) % 76) + "%"; m.style.animationDelay = delay + k * 60 + "ms"; src.append(m); }
+  src.animate([{ opacity: 0 }, { opacity: 1, offset: .2 }, { opacity: 0 }], { duration: 900, delay, fill: "both" });
+  setTimeout(() => src.remove(), delay + 1000);
+  const land = at(d, "rise-land rise-" + it.rise + (it.summon ? " big" : ""));
+  land.animate([{ opacity: 0, transform: "scale(.5)" }, { opacity: 1, transform: "scale(1)", offset: .35 }, { opacity: 0, transform: `scale(${it.summon ? 1.9 : 1.4})` }], { duration: it.summon ? 720 : 520, delay: delay + T - 60, easing: "ease-out", fill: "both" });
+  setTimeout(() => land.remove(), delay + T + 800);
 }
 /** A card leaving play, shown where it stood. destroy/battle: it cracks and bursts into shards; banish: it is
  *  squeezed into a line of light and drawn upward; release: it fades into rising motes. */
@@ -3167,7 +3239,7 @@ function saveFile(fileName, dataUrl) {
 if (window.parent === window) addEventListener("beforeunload", (e) => { if (S.active && S.packet && !S.packet.ended) { e.preventDefault(); e.returnValue = ""; } });
 
 window.__duel = S; // for automated tests and debugging
-window.__arena = { finishEmote, options, chainPrompt, toast, kxClear, kxBoxGet: () => kxBox, fxEvents: (p) => { fxEvents(p); try { bigFx(p); } catch (e) { console.warn(e); } return fxStart(); }, showReveal, toggleSide, watchCombo, restartDuel, tossShow };
+window.__arena = { fly: (p) => { const l = flyCapture(p); if (l) flyRun(l); return l; }, actBtn, applyTargets, finishEmote, options, chainPrompt, toast, kxClear, kxBoxGet: () => kxBox, fxEvents: (p) => { fxEvents(p); try { bigFx(p); } catch (e) { console.warn(e); } return fxStart(); }, showReveal, toggleSide, watchCombo, restartDuel, tossShow };
 window.__arenaFx = (p) => bigFx(p);
 window.__arenaCombo = (r) => rpToCombo(r || {});
 window.__arenaLeave = (fx, id, code) => { const z = document.getElementById(id), r = z && visRect(z.querySelector(".card") || z); if (r) flyRun([{ r, fx, code: code || 0, op: /^op/.test(id) }]); return !!r; };
@@ -3563,6 +3635,8 @@ function bindPrefs() {
   if (cs) { cs.value = String(chatMs()); if (!cs.value) cs.value = "8400"; cs.addEventListener("change", () => { PREF.chatMs = Number(cs.value) || 8400; save("duel:pref", PREF); }); }
   const cm = $("#prefChainMs");
   if (cm) { cm.value = String(PREF.chainMs == null ? 900 : PREF.chainMs); if (!cm.value) cm.value = "900"; cm.addEventListener("change", () => { PREF.chainMs = Math.max(0, Math.min(3000, Number(cm.value) || 0)); save("duel:pref", PREF); }); }
+  const qb = $("#prefQuickBar");
+  if (qb) { qb.checked = PREF.quickBar === true; qb.addEventListener("change", () => { PREF.quickBar = qb.checked; save("duel:pref", PREF); placeQuick(); }); }
   const po = $("#prefOpening"); po.checked = PREF.opening !== false; po.addEventListener("change", () => { PREF.opening = po.checked; save("duel:pref", PREF); });
   const to = $("#prefTapOut"), vb = $("#vibeOn");
   if (to) { to.checked = PREF.tapOut !== false; to.addEventListener("change", () => { PREF.tapOut = to.checked; save("duel:pref", PREF); }); }
@@ -3588,7 +3662,22 @@ function renderEmotes() {
   const box = $("#emotePick");
   if (!box) return;
   box.replaceChildren();
-  const btn = (id, label, kids, cls = "") => { const b = el("button", "em " + cls); b.type = "button"; b.title = label; b.setAttribute("aria-label", label); b.dataset.id = id; b.append(...kids); box.append(b); return b; };
+  box.classList.toggle("q-edit", !!S.qEdit);
+  const btn = (id, label, kids, cls = "") => { const b = el("button", "em " + cls); b.type = "button"; b.title = label; b.setAttribute("aria-label", label); b.dataset.id = id; b.append(...kids); box.append(b);
+    if (S.qEdit && !id.startsWith("t:")) { const on = quickList().includes(id); b.classList.toggle("q-on", on); b.setAttribute("aria-pressed", String(on)); }
+    return b; };
+  // quick reactions: the player's own short list (emotes, sounds and phrases), also shown as buttons when they want
+  const qh = el("div", "em-sep q-head"); qh.append(el("span", null, S.qEdit ? "Quick reactions · tap to pick (up to 6)" : "Quick reactions"));
+  const qe = el("button", "q-editbtn", S.qEdit ? "Done" : "Edit"); qe.type = "button"; qe.dataset.qedit = "1"; qh.append(qe); box.append(qh);
+  const ql = quickList();
+  if (!ql.length && !S.qEdit) box.append(el("div", "em-sep q-none", "None yet: tap Edit to choose your reactions"));
+  for (const id of ql) { const q = quickLook(id); if (!q) continue; const b = btn(id, q.name, q.kids, "q " + q.cls); if (S.qEdit) { b.classList.add("q-on", "q-del"); b.title = "Remove " + q.name; } }
+  if (S.qEdit) {
+    const f = el("form", "q-add"); const i = el("input"); i.maxLength = 40; i.placeholder = "Add a phrase (sent as chat)"; i.setAttribute("aria-label", "Quick phrase");
+    const go = el("button", "btn", "Add"); go.type = "submit"; f.append(i, go); box.append(f);
+    f.addEventListener("submit", (e) => { e.preventDefault(); const t = i.value.trim().slice(0, 40); if (!t) return; quickToggle("t:" + t); renderEmotes(); });
+  }
+  box.append(el("div", "em-sep", "Emotes"));
   for (const [id, t, n] of BASE_EMOTES) btn(id, n, [t]);
   box.append(el("div", "em-sep", "Sounds"));
   for (const [id, t, n, prem] of SOUND_EMOTES) {
@@ -3601,6 +3690,51 @@ function renderEmotes() {
     for (const e of S.mySounds) btn(e.id, e.name, [el("span", null, "🔊"), el("i", null, e.name)], "snd");
   } else if (!S.premium) box.append(el("div", "em-sep up", "More sounds, your own emotes, HD GIFs and sounds: KodeX Premium"));
 }
+function quickList() { const a = Array.isArray(PREF.quick) ? PREF.quick : ["gg", "nice", "wow", "think"]; return a.filter((x) => typeof x === "string").slice(0, 6); }
+function quickToggle(id) {
+  const a = quickList(), i = a.indexOf(id);
+  if (i >= 0) a.splice(i, 1); else if (a.length >= 6) { toast("Up to 6 quick reactions"); return; } else a.push(id);
+  PREF.quick = a; save("duel:pref", PREF); placeQuick();
+}
+/** What a quick reaction looks like on its button. */
+function quickLook(id) {
+  if (id.startsWith("t:")) { const t = id.slice(2); return { name: t, kids: [el("span", "q-txt", t)], cls: "txt" }; }
+  const e = emoteFor(id);
+  if (!e) return null;
+  if (e.src) { const i = el("img"); i.src = e.src; i.alt = ""; return { name: e.name, kids: [i], cls: "img" }; }
+  return { name: e.name, kids: id.startsWith("s:") || e.text === "🔊" ? [el("span", null, e.text), el("i", null, e.name)] : [e.text], cls: id.startsWith("s:") || e.text === "🔊" ? "snd" : "" };
+}
+function sendQuick(id) {
+  if (id.startsWith("t:")) { const now = Date.now(); if (now - emoteAt < 1200) return; emoteAt = now; sendChatText(id.slice(2)); return; }
+  const lock = SOUND_EMOTES.find((x) => "s:" + x[0] === id && x[3]);
+  if (lock && !S.premium) return;
+  sendEmote(id);
+}
+/** The quick-reaction buttons beside the emote button (Settings: Quick reaction buttons). */
+function placeQuick() {
+  let bar = $("#quickBar");
+  const fab = $("#emoteBtn");
+  const on = PREF.quickBar === true && fab && !$("#table").hidden && S.mode !== "replay" && S.mode !== "spec" && !(S.packet && S.packet.ended) && quickList().length;
+  if (!on) { if (bar) bar.hidden = true; return; }
+  if (!bar) {
+    bar = el("div", "quick-bar"); bar.id = "quickBar"; bar.setAttribute("role", "toolbar"); bar.setAttribute("aria-label", "Quick reactions");
+    bar.addEventListener("click", (e) => { const b = e.target.closest("[data-q]"); if (!b) return; Sound.unlock(); sendQuick(b.dataset.q); b.classList.remove("hit"); void b.offsetWidth; b.classList.add("hit"); });
+    document.body.append(bar);
+  }
+  const key = quickList().join("|");
+  if (bar.dataset.k !== key) {
+    bar.dataset.k = key; bar.replaceChildren();
+    for (const id of quickList()) { const q = quickLook(id); if (!q) continue; const b = el("button", "qb " + q.cls); b.type = "button"; b.dataset.q = id; b.title = q.name; b.setAttribute("aria-label", q.name); b.append(...q.kids.map((k) => (typeof k === "string" ? el("span", null, k) : k))); bar.append(b); }
+  }
+  bar.hidden = false;
+  const r = fab.getBoundingClientRect();
+  if (!r.width) { bar.hidden = true; return; }
+  // beside the button when there is room, else just above it
+  const w = bar.offsetWidth || 260;
+  if (r.right + 8 + w < innerWidth - 8) Object.assign(bar.style, { left: Math.round(r.right + 8) + "px", top: Math.round(r.top + r.height / 2 - bar.offsetHeight / 2) + "px" });
+  else Object.assign(bar.style, { left: Math.round(Math.max(8, Math.min(r.left, innerWidth - w - 8))) + "px", top: Math.round(r.top - bar.offsetHeight - 8) + "px" });
+}
+addEventListener("resize", () => { clearTimeout(placeQuick.t); placeQuick.t = setTimeout(placeQuick, 120); });
 /** Sends one of my custom emotes / sounds to the room before its first use. */
 function shareMedia(id) {
   if (!S.room || S.mode === "spec" || sentMedia.has(id)) return;
@@ -3762,7 +3896,12 @@ $("#emoteBtn").addEventListener("click", (e) => {
   p.hidden = !on; $("#emoteBtn").setAttribute("aria-expanded", String(on));
   if (on) { const r = $("#emoteBtn").getBoundingClientRect(); p.style.left = Math.max(8, Math.min(r.left, innerWidth - 300)) + "px"; p.style.bottom = Math.round(innerHeight - r.top + 8) + "px"; p.style.maxHeight = Math.round(r.top - 16) + "px"; }
 });
-$("#emotePick").addEventListener("click", (e) => { const b = e.target.closest("[data-id]"); if (!b || b.disabled) return; Sound.unlock(); sendEmote(b.dataset.id); $("#emotePick").hidden = true; $("#emoteBtn").setAttribute("aria-expanded", "false"); });
-document.addEventListener("click", (e) => { if (!e.target.closest("#emotePick, #emoteBtn")) { $("#emotePick").hidden = true; $("#emoteBtn").setAttribute("aria-expanded", "false"); } });
+$("#emotePick").addEventListener("click", (e) => {
+  if (e.target.closest("[data-qedit]")) { S.qEdit = !S.qEdit; renderEmotes(); return; }
+  const b = e.target.closest("[data-id]"); if (!b || b.disabled) return;
+  if (S.qEdit) { quickToggle(b.dataset.id); renderEmotes(); return; }
+  Sound.unlock(); sendQuick(b.dataset.id); $("#emotePick").hidden = true; $("#emoteBtn").setAttribute("aria-expanded", "false");
+});
+document.addEventListener("click", (e) => { if (!e.target.closest("#emotePick, #emoteBtn") && e.target.isConnected) { if (S.qEdit && !$("#emotePick").hidden) { S.qEdit = false; renderEmotes(); } $("#emotePick").hidden = true; $("#emoteBtn").setAttribute("aria-expanded", "false"); } });
 renderEmotes();
 if (window.parent !== window) window.parent.postMessage({ kx: "ready" }, "*");

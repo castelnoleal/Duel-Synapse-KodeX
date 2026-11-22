@@ -12,6 +12,8 @@ addEventListener('message', e => {
     return;
   }
   const buf = d.buf;
+  // the end of a clip saved in parts, with nothing left in the last part: the parts are already saved
+  if (d.last && d.part > 1 && buf instanceof ArrayBuffer && !buf.byteLength) return;
   if (!(buf instanceof ArrayBuffer) || buf.byteLength < 1000 || buf.byteLength > 4e8) {
     toast('That clip could not be saved');
     return;

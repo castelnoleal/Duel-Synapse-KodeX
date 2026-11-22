@@ -1,0 +1,49 @@
+/* KodeX 10.3.6 (v75): the Share button after a picture, PDF or clip is saved; Add to deck copies */
+#kxShareBar {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--nav, 64px) + 70px + var(--sab, 0px));
+  transform: translate(-50%, 24px);
+  z-index: 91;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(460px, calc(100vw - 24px));
+  padding: 8px 8px 8px 16px;
+  border-radius: 18px;
+  background: #151b3d;
+  border: 1px solid #3b4aa055;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5);
+  color: #e9eefc;
+  font-size: 0.84rem;
+  font-weight: 600;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+}
+#kxShareBar.on {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+}
+#kxShareBar span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#kxShareBar .btn {
+  flex: none;
+  min-height: 40px;
+  padding: 0 14px;
+}
+#kxShareBar .ibtn {
+  flex: none;
+}
+.pk-steps .stp span small {
+  color: #f0b429;
+  font-weight: 700;
+}

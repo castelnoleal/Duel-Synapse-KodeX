@@ -15,9 +15,18 @@ const view0 = (n, on) => {
       if (b) b.focus();
     }, 60);
   if (n === 'detail') {
+    // the results keep their place: back from a card returns to where the list was, not to the top
+    if (on && !list.hidden) view0.listTop = $('main').scrollTop;
     detail.hidden = !on;
     list.hidden = on;
     if (on) $('main').scrollTop = 0;
+    else if (view0.listTop) {
+      const y = view0.listTop;
+      $('main').scrollTop = y;
+      requestAnimationFrame(() => {
+        if (!list.hidden) $('main').scrollTop = y;
+      });
+    }
   } else $('L' + n).classList.toggle('open', on);
 };
 

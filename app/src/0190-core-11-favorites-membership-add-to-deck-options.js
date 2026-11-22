@@ -49,18 +49,28 @@ function addCardToDeck(c) {
   }
   addPicker(c);
 }
+// Pick a deck, then add or take away copies right here (Main / Extra / Side): the window stays open until Done,
+// so a playset goes in without coming back to the card each time.
 function addPicker(c, pre) {
   const secs = secsFor(c),
     first = deckStore().find(d => copiesOf(d, c) < 3) || deckStore()[0];
-  let dk = pre || first.id,
-    sc = secs[0];
+  let dk = pre || first.id;
   const m = openModal('', 'big', 'pk');
   const draw = () => {
     const ds = deckStore(),
       d = ds.find(x => x.id === dk) || ds[0],
-      n = d ? copiesOf(d, c) : 0,
-      full = d && cnt(d, sc) >= CAP[sc],
-      blocked = n >= 3 || full;
+      tot = d ? copiesOf(d, c) : 0;
+    const ks = d
+      ? [...new Set([...secs, ...d.cards.filter(x => String(x.id) === String(c.id)).map(x => x.section)])]
+      : secs;
+    const rows = ks
+      .map(k => {
+        const e = d && d.cards.find(x => String(x.id) === String(c.id) && x.section === k),
+          q = e ? e.qty : 0,
+          full = d && cnt(d, k) >= CAP[k];
+        return `<div class="stp"><span>${SEC[k]}${full ? ' <small>(full)</small>' : ''}</span><button class="ibtn" data-pkstep="${k}:-1" aria-label="Take one out of ${SEC[k]}"${q ? '' : ' disabled'}>−</button><b>${q}</b><button class="ibtn" data-pkstep="${k}:1" aria-label="Add one to ${SEC[k]}"${tot >= 3 || full ? ' disabled' : ''}>+</button></div>`;
+      })
+      .join('');
     m.firstChild.innerHTML = `<div class="dk-hd"><h3>Add to deck</h3><button class="ibtn" data-close aria-label="Close">${ic('x')}</button></div><p class="pk-card">${esc(c.name)}</p><div class="pk-l">Deck</div><div class="dk-pickl">${ds
       .map(x => {
         const k = copiesOf(x, c);
@@ -68,7 +78,7 @@ function addPicker(c, pre) {
       })
       .join(
         ''
-      )}</div><div class="pk-l">Section</div><div class="seg-w">${secs.map(k => `<button class="seg${k === sc ? ' on' : ''}" data-pksec="${k}">${SEC[k]}</button>`).join('')}</div><div class="dact"><button class="btn" data-pknew>${ic('plus', 18)}New deck</button><button class="btn p" data-pkgo${blocked ? ' disabled' : ''}>${n >= 3 ? 'Maximum 3 copies' : full ? SEC[sc] + ' deck is full' : 'Add to ' + SEC[sc]}</button></div>`;
+      )}</div><div class="pk-l">Copies in ${esc(d ? d.name : 'this deck')}</div><div class="qv-steps pk-steps">${rows}<small class="stp-t">${tot} of 3 copies</small></div><div class="dact"><button class="btn" data-pknew>${ic('plus', 18)}New deck</button><button class="btn p" data-close>Done</button></div>`;
   };
   draw();
   m.addEventListener('click', ev => {
@@ -76,9 +86,6 @@ function addPicker(c, pre) {
     if (!b) return;
     if (b.dataset.pkdeck) {
       dk = b.dataset.pkdeck;
-      draw();
-    } else if (b.dataset.pksec) {
-      sc = b.dataset.pksec;
       draw();
     } else if (b.hasAttribute('data-pknew')) {
       deckForm(null, (n, i) => {
@@ -88,22 +95,25 @@ function addPicker(c, pre) {
           draw();
         }
       });
-    } else if (b.hasAttribute('data-pkgo')) {
-      const a = deckStore(),
+    } else if (b.dataset.pkstep) {
+      const [k, dl] = b.dataset.pkstep.split(':'),
+        a = deckStore(),
         d = a.find(x => x.id === dk);
       if (!d) return;
-      const r = addCopy(d, c, sc);
-      if (r !== 'ok') {
-        toast(r);
-        return;
-      }
+      if (+dl > 0) {
+        const r = addCopy(d, c, k);
+        if (r !== 'ok') {
+          toast(r);
+          return;
+        }
+      } else dropCopy(d, c.id, k);
       saveDecks(a);
-      closeModal();
-      toast(`Added · ${d.name} · ${SEC[sc]}`);
-      setTimeout(() => {
-        refreshMemb();
-        refreshDecksOpen();
-      }, 140);
+      draw();
+      toast(
+        `${+dl > 0 ? 'Added' : 'Removed'} · ${d.name} · ${SEC[k]} ×${(d.cards.find(x => String(x.id) === String(c.id) && x.section === k) || { qty: 0 }).qty}`
+      );
+      refreshMemb();
+      refreshDecksOpen();
     }
   });
 }

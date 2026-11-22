@@ -31,7 +31,9 @@ await page.waitForTimeout(9000);
 await f.evaluate(() => document.querySelector("#recStop").click());
 await page.waitForFunction(() => window.__videos.some((v) => v.last), null, { timeout: 20000 }).catch(async () => console.log("no last part", errors, await f.evaluate(() => ({ rec: !!window.__duel.rec, keep: window.__duel.recKeep }))));
 await page.waitForTimeout(1500);
-const vids = (await page.evaluate(() => window.__videos)).sort((a, b) => a.part - b.part);
+// an empty last part (stopped right after a new part began) only marks the end
+const vids = (await page.evaluate(() => window.__videos)).sort((a, b) => a.part - b.part).filter((v, i, a) => v.size || i < a.length - 1);
+if (vids.length && !vids[vids.length - 1].last && (await page.evaluate(() => window.__videos.some((v) => v.last && !v.size)))) vids[vids.length - 1].last = true;
 console.log(vids.map((v) => `${v.name} ${v.size} part ${v.part}${v.last ? " last" : ""}`).join("\n"));
 const playable = (v) => (v.head[0] === 0x1a && v.head[1] === 0x45 && v.head[2] === 0xdf && v.head[3] === 0xa3) || String.fromCharCode(...v.head.slice(4, 8)) === "ftyp";
 ok(vids.length >= 2, `the clip came as ${vids.length} files`);
