@@ -1241,3 +1241,57 @@ body:has(#table[hidden]) .quick-bar, body:has(#sheet:not([hidden])) .quick-bar, 
 .share-fx.on { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
 .share-fx span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .share-fx .share-x { border: 0; background: none; color: #c9d0f2; font-size: 20px; width: 32px; height: 32px; cursor: pointer; }
+/* v76: card details beside the field in landscape: a compact layout (small picture, stats in one row, smaller
+   print), scaled back when the phone uses large text; the panel's tabs and buttons glow so they are easy to find */
+@media (orientation: landscape) and (min-width: 640px) {
+  #info > .info-body { padding: 8px 10px 12px; }
+  #info > .info-body > .info-img, #info > .info-body > .info-art { width: 30%; max-width: 86px; margin: 0 10px 6px 0; }
+  #info > .info-body > .info-name { font-size: 14px; line-height: 1.2; }
+  #info > .info-body > .pills { margin: 5px 0 0; gap: 3px; }
+  #info > .info-body > .pills .pill { font-size: 10px; padding: 2px 7px; }
+  #info > .info-body > .stats { clear: both; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 5px; margin-top: 8px; overflow: visible; }
+  #info > .info-body > .stats .stat { padding: 4px 7px; font-size: 12.5px; gap: 1px; border-radius: 8px; }
+  #info > .info-body > .stats .stat b { font-size: 8.5px; }
+  #info > .info-body > .info-text { font-size: 11.5px; line-height: 1.45; margin-top: 8px; }
+  #info > .info-body .rl, #info > .info-body .rulings { font-size: 12px; }
+  html.tz-big #info > .info-body { zoom: calc(1 / var(--tz, 1)); }
+  #info .dock-tabs button { position: relative; color: #c9d1f5; border-radius: 10px 10px 0 0; transition: color .15s, box-shadow .2s, background .2s; }
+  #info .dock-tabs button[aria-selected="true"] { color: #fff; background: linear-gradient(180deg, #5b6cff33, transparent); box-shadow: inset 0 -2px 0 #8d9bff, 0 0 14px #6d7cff55; text-shadow: 0 0 10px #9aa7ff99; }
+  #info .dock-tabs button:not([aria-selected="true"]) { box-shadow: inset 0 -1px 0 #8d9bff33; }
+  #info .dock-tabs button:hover, #info .dock-tabs button:focus-visible { color: #fff; box-shadow: inset 0 -2px 0 #8d9bff88, 0 0 10px #6d7cff44; outline: none; }
+  #info > .info-body .btn, #info > .side-actions .btn, #info > .side-actions button.chip { box-shadow: 0 0 0 1px #8d9bff44, 0 0 12px #6d7cff33; }
+  #info > .info-body .btn:hover, #info > .side-actions .btn:hover { box-shadow: 0 0 0 1px #8d9bff99, 0 0 16px #6d7cff66; }
+}
+/* v76: Settings › Quick reactions (fits landscape) and the chooser */
+.quick-set { flex: 1 1 100%; display: grid; gap: 8px; }
+.quick-set .vo-l { font-size: 12px; color: var(--muted); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+.qs-row { display: flex; flex-wrap: wrap; gap: 6px; min-height: 34px; align-items: center; }
+.qs-chip { display: inline-grid; place-items: center; min-width: 34px; height: 34px; padding: 0 8px; border-radius: 999px; background: #1b2150; border: 1px solid #8d99ff44; font-size: 17px; color: #fff; overflow: hidden; }
+.qs-chip.txt { font-size: 11.5px; font-weight: 700; max-width: 150px; }
+.qs-chip.snd i { display: none; }
+.qs-chip.img { padding: 0; width: 34px; }
+.qs-chip.img img { width: 100%; height: 100%; object-fit: cover; }
+.qs-none { color: var(--muted); font-size: 12.5px; }
+.quick-dlg { width: min(560px, calc(100vw - 20px)); max-height: calc(100dvh - 20px); display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+.quick-dlg[open] { display: flex; }
+.quick-dlg .pile-head { flex: none; padding: 12px 14px 6px; }
+.quick-dlg .qd-note { margin: 0 14px 8px; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+.quick-dlg .qd-now { flex: none; display: flex; flex-wrap: wrap; gap: 6px; margin: 0 14px; padding: 8px; border-radius: 14px; background: #0f1430; border: 1px dashed #8d99ff55; min-height: 52px; align-items: center; }
+.quick-dlg .qd-add { flex: none; display: flex; gap: 6px; margin: 10px 14px 4px; }
+.quick-dlg .qd-add input { flex: 1; min-width: 0; border-radius: 10px; border: 1px solid #3a4590; background: #0f1430; color: #fff; padding: 9px 11px; font: inherit; font-size: 13.5px; }
+.quick-dlg .qd-all { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 4px 14px 10px; overscroll-behavior: contain; }
+.quick-dlg .qd-h { font-size: 11.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #9aa6e8; margin: 10px 0 6px; }
+.quick-dlg .qd-g { display: grid; grid-template-columns: repeat(auto-fill, minmax(54px, 1fr)); gap: 6px; }
+.quick-dlg .qd-t { position: relative; min-height: 50px; border-radius: 12px; border: 1px solid #8d99ff33; background: #161c45; color: #fff; font-size: 22px; display: grid; place-items: center; cursor: pointer; padding: 4px; overflow: hidden; }
+.quick-dlg .qd-t.snd { font-size: 18px; } .quick-dlg .qd-t.snd i { font-size: 9px; font-style: normal; color: #b9c2ee; display: block; line-height: 1.1; }
+.quick-dlg .qd-t.txt { font-size: 11.5px; font-weight: 700; padding: 4px 10px; }
+.quick-dlg .qd-t.img { padding: 0; } .quick-dlg .qd-t.img img { width: 100%; height: 100%; object-fit: cover; }
+.quick-dlg .qd-t.on:not(.picked) { box-shadow: inset 0 0 0 2px #f0b429, 0 0 12px #f0b42955; }
+.quick-dlg .qd-t.on:not(.picked)::after { content: "★"; position: absolute; top: 2px; right: 5px; font-size: 11px; color: #f0b429; }
+.quick-dlg .qd-t.picked { min-height: 40px; min-width: 44px; font-size: 19px; }
+.quick-dlg .qd-t.picked::after { content: "×"; position: absolute; top: -1px; right: 4px; font-size: 13px; color: #ff9b9b; font-weight: 800; }
+.quick-dlg .qd-foot { flex: none; display: flex; gap: 8px; justify-content: flex-end; padding: 10px 14px 14px; border-top: 1px solid #ffffff12; }
+@media (orientation: landscape) and (max-height: 520px) { .quick-dlg .qd-note { display: none; } .quick-dlg .qd-g { grid-template-columns: repeat(auto-fill, minmax(48px, 1fr)); } .quick-dlg .qd-t { min-height: 42px; font-size: 19px; } }
+body.cbfx-shake #table { animation: cbfxShake .45s cubic-bezier(.36,.07,.19,.97); }
+@keyframes cbfxShake { 10%, 90% { transform: translate(-2px, 1px); } 20%, 80% { transform: translate(4px, -2px); } 30%, 50%, 70% { transform: translate(-7px, 3px); } 40%, 60% { transform: translate(7px, -3px); } }
+@media (prefers-reduced-motion: reduce) { body.cbfx-shake #table { animation: none; } .cbfx-layer { display: none; } }

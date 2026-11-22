@@ -1,0 +1,349 @@
+/* KodeX 10.3.7 (v76): Duelist Studio for everyone (locked Premium parts), quick reactions, combo settings, Combos on the Premium page */
+.studio.st-free .st-lock {
+  position: relative;
+}
+.studio .st-lock > :not(.st-hd):not(.sk-hd) {
+  opacity: 0.45;
+  filter: saturate(0.4);
+  pointer-events: none;
+}
+.studio .st-lock .st-hd,
+.studio .st-lock .sk-hd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+.st-lockb {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid #f0b42977;
+  background: #f0b4291a;
+  color: #ffd77a;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font: 700 0.72rem/1 inherit;
+  cursor: pointer;
+}
+.st-tabs [data-stab].st-tpro::after {
+  content: '★';
+  margin-left: 4px;
+  color: #f0b429;
+  font-size: 0.7em;
+  vertical-align: super;
+}
+.qk-card .qk-now {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 14px;
+  border: 1px dashed #6d7cff66;
+  min-height: 52px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.qk-none {
+  color: var(--muted, #9aa3c7);
+  font-size: 0.82rem;
+}
+.qk-card .qk-add {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.qk-card .qk-add .fld {
+  flex: 1;
+  min-width: 0;
+}
+.qk-h {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9aa6e8;
+  margin: 10px 0 6px;
+}
+.qk-g {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
+  gap: 6px;
+}
+.qk-t {
+  position: relative;
+  min-height: 48px;
+  border-radius: 12px;
+  border: 1px solid #6d7cff33;
+  background: #161c45;
+  color: #fff;
+  font-size: 1.35rem;
+  display: grid;
+  place-items: center;
+  padding: 4px;
+  cursor: pointer;
+  overflow: hidden;
+}
+.qk-t.txt {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 10px;
+}
+.qk-t img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.qk-t.on:not(.picked) {
+  box-shadow:
+    inset 0 0 0 2px #f0b429,
+    0 0 12px #f0b42955;
+}
+.qk-t.on:not(.picked)::after {
+  content: '★';
+  position: absolute;
+  top: 2px;
+  right: 5px;
+  font-size: 0.65rem;
+  color: #f0b429;
+}
+.qk-t.picked {
+  min-width: 46px;
+  min-height: 40px;
+}
+.qk-t.picked::after {
+  content: '×';
+  position: absolute;
+  top: -1px;
+  right: 4px;
+  font-size: 0.8rem;
+  color: #ff9b9b;
+  font-weight: 800;
+}
+.cb-setb {
+  white-space: nowrap;
+}
+.cbs-sec {
+  padding: 4px 0 14px;
+  border-bottom: 1px solid #ffffff12;
+  margin-bottom: 12px;
+}
+.cbs-sec h4 {
+  margin: 0 0 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cbs-l {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #c9d1f5;
+}
+.cbs-l input[disabled],
+.cbs-th button[disabled] {
+  opacity: 0.5;
+}
+.cbs-pro {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-style: normal;
+  font-size: 0.66rem;
+  font-weight: 800;
+  color: #ffd77a;
+  background: #f0b4291a;
+  border: 1px solid #f0b42966;
+  border-radius: 999px;
+  padding: 2px 7px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.cbs-th {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.cbs-tc {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #ffffff22;
+  background: #121735;
+  color: #e9eefc;
+  border-radius: 999px;
+  padding: 6px 12px 6px 6px;
+  font: 700 0.78rem/1 inherit;
+  cursor: pointer;
+}
+.cbs-tc i {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--c);
+  box-shadow: 0 0 10px var(--c);
+}
+.cbs-tc.on {
+  border-color: var(--c);
+  box-shadow: 0 0 0 1px var(--c) inset;
+}
+.cbs-pv {
+  margin-top: 10px;
+}
+.cbs-pvi {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  text-align: center;
+  padding: 18px 12px;
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--c) 22%, transparent), transparent 70%), #070914;
+  border: 1px solid color-mix(in srgb, var(--c) 40%, transparent);
+}
+.cbs-pvi b {
+  font-size: 1.05rem;
+  font-style: italic;
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 0 14px var(--c);
+  margin-bottom: 6px;
+}
+.cbs-pvi small {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--c);
+  margin-top: 4px;
+}
+.cbs-pvi strong {
+  font-size: 0.95rem;
+  color: #fff;
+}
+.cbs-pvi em {
+  color: var(--c);
+  font-style: normal;
+  font-weight: 700;
+  margin-top: 4px;
+}
+.cbs-pvi i {
+  color: #c9d0f2;
+  font-size: 0.8rem;
+}
+.cbs-pvi hr {
+  width: 60%;
+  border: 0;
+  border-top: 1px solid var(--c);
+  margin: 10px 0 6px;
+}
+.cbs-pvi span {
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #fff;
+}
+.cbs-pvi span.g {
+  color: var(--c);
+}
+.cbs-fx {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+.cbs-f {
+  display: grid;
+  gap: 3px;
+  text-align: left;
+  border: 1px solid #6d7cff33;
+  background: linear-gradient(160deg, #1a2050, #0e1230);
+  color: #fff;
+  border-radius: 14px;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+.cbs-f b {
+  font-size: 0.9rem;
+}
+.cbs-f small {
+  font-size: 0.72rem;
+  color: #aeb7e6;
+  line-height: 1.35;
+}
+.cbs-f.on {
+  border-color: #f0b429;
+  box-shadow:
+    0 0 0 1px #f0b429 inset,
+    0 0 18px #f0b42944;
+}
+.cbs-up {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  background: #f0b42912;
+  border: 1px solid #f0b42955;
+  font-size: 0.84rem;
+}
+.pz-cb {
+  margin: 14px 0;
+  padding: 14px;
+  border-radius: 18px;
+  background: linear-gradient(160deg, #19204f, #0d1130);
+  border: 1px solid #6d7cff44;
+}
+.pz-cb h4 {
+  margin: 0 0 2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #ffd77a;
+}
+.pz-cb ul {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0;
+  display: grid;
+  gap: 6px;
+}
+.pz-cb li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: #ffffff08;
+}
+.pz-cb li span {
+  flex: 1;
+  display: grid;
+  gap: 2px;
+}
+.pz-cb li b {
+  font-size: 0.86rem;
+}
+.pz-cb li small {
+  font-size: 0.74rem;
+  color: #aeb7e6;
+}
+.pz-cb li em {
+  flex: none;
+  font-style: normal;
+  font-size: 0.68rem;
+  font-weight: 800;
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+.pz-cb li em.f {
+  color: #8ff0c0;
+  background: #2ad48a1f;
+  border: 1px solid #2ad48a55;
+}
+.pz-cb li em.p {
+  color: #ffd77a;
+  background: #f0b4291a;
+  border: 1px solid #f0b42966;
+}
