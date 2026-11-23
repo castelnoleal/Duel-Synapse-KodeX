@@ -751,18 +751,27 @@ function comboShow(i, quiet) {
   const r = S.replay; if (!r || !r.combo) return;
   r.i = Math.max(0, Math.min(r.n, i));
   const p = structuredClone(r.packets[r.i]);
-  if (quiet) applyQuiet(p); else { onPacket(p); replayBarState(); comboDrama(p, r.combo); }
+  if (quiet) applyQuiet(p); else { onPacket(p); replayBarState(); }
 }
-/** KodeX Premium: the combo's dramatic effect on each summon and activation, and "COMBO COMPLETE" at the end. */
-function comboDrama(p, c) {
-  if (!c || !c.fx || !S.premium || reduceMotion() || document.hidden) return;
-  const e = (p.events || []).find((x) => x.type === M.SPSUMMONING || x.type === M.SUMMONING || x.type === M.FLIPSUMMONING || x.type === M.CHAINING);
-  if (e) {
-    const w = e.type === M.CHAINING ? { controller: e.controller, location: e.location, sequence: e.sequence } : { controller: e.controller, location: e.location, sequence: e.sequence };
-    const r = visRect(placeEl(w));
-    setTimeout(() => playFx(c.fx, r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null, { size: r ? Math.max(r.width, r.height) : 0 }), 120);
-  }
-  if (p.combo && p.combo.last) setTimeout(() => playFx(c.fx, null, { finale: true, title: c.title }), e ? 1500 : 300);
+/** KodeX Premium: a light effect on each summon and activation of a combo, queued with the step's other animations
+ *  (it plays once the card has landed, or after its chain link has shown, and the next animation waits for it), and a
+ *  "COMBO COMPLETE" title after everything else in the last step. */
+function comboFx(p, flew) {
+  const c = S.mode === "replay" && S.replay && S.replay.combo;
+  if (!c || !c.fx || !p.combo || p.seek || !S.premium || reduceMotion() || document.hidden) return;
+  const sp = Math.max(.5, S.replay.speed || 1), evs = p.events || [];
+  let n = 0;
+  evs.forEach((e, i) => {
+    const sum = e.type === M.SPSUMMONING || e.type === M.SUMMONING || e.type === M.FLIPSUMMONING;
+    if (n >= 2 || !(sum && e.location === C.LOCATION_MZONE) && e.type !== M.CHAINING) return;
+    n++; fxEv = i;
+    const land = sum && flew ? Math.round(480 / sp) : 0, w = { controller: e.controller, location: e.location, sequence: e.sequence };
+    beat(land + Math.round(650 / sp), () => setTimeout(() => {
+      const r = visRect(placeEl(w));
+      playFx(c.fx, r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null, { size: r ? Math.max(r.width, r.height) : 0 });
+    }, land));
+  });
+  if (p.combo.last) { fxEv = evs.length; beat(Math.round(1600 / sp), () => playFx(c.fx, null, { finale: true, title: c.title })); }
 }
 /** The step of a combo, on screen the whole time it plays (above the field, where the opponent's plate would be). */
 function cbStep(c) {
@@ -1692,6 +1701,7 @@ function applyPacket(p) {
   if (p.seek) { fxQueue.length = 0; fxEndAt = 0; }
   fxEvents(p);
   bigFx(p);
+  comboFx(p, !!fly);
   const wait = p.seek ? 0 : fxStart();
   // a chain link plays out before anything else can be activated: the next step and the next question wait for it
   if (wait > 60) { hold(wait); S.actions = null; closeSheet(); setTimeout(() => { if (S.packet === p) handlePrompt(p); }, wait); }

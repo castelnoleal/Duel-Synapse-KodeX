@@ -164,7 +164,7 @@ export class Clip {
       }
       if (this.o.comboFx && p.combo && !this.cbFxAt && (e.type === M.CHAINING || e.type === M.SUMMONING || e.type === M.SPSUMMONING || e.type === M.FLIPSUMMONING)) {
         this.cbFxAt = true;
-        this.fx.push({ k: "cbfx", style: this.o.comboFx, at: this.slot(e.controller, e.location, e.sequence), seed: Math.floor(Math.random() * 1e6), t0: now + 120, d: FX_MS });
+        this.fx.push({ k: "cbfx", style: this.o.comboFx, at: this.slot(e.controller, e.location, e.sequence), seed: Math.floor(Math.random() * 1e6), t0: now + (e.type === M.CHAINING ? 700 : 450), d: FX_MS });
       }
       if (e.type === M.CHAINING) {
         const ace = this.o.aces && this.o.aces(e.controller).has(Number(e.code));
@@ -482,7 +482,7 @@ export class Clip {
     this.fx = this.fx.filter((f) => now - f.t0 < f.d);
     for (const f of this.fx) {
       const t = (now - f.t0) / f.d; if (t < 0) continue;
-      if (f.k === "cbfx") { comboFxDraw(g, f.style, t, f.at || { x: W / 2, y: H / 2 }, Math.max(this.L.cw, this.L.ch) * 3.4, f.seed); continue; }
+      if (f.k === "cbfx") { comboFxDraw(g, f.style, t, f.at || { x: W / 2, y: H / 2 }, Math.max(this.L.cw, this.L.ch) * 2.8, f.seed); continue; }
       if (f.k === "cbfin") { drawFinale(g, W, H, f.style, t, f.seed, u * 1.6, (this.o.intro && this.o.intro.title) || (this.o.credits && this.o.credits.title) || ""); continue; }
       if (f.k === "fly") {
         const e = ease(t), lift = 1 + .16 * Math.sin(Math.PI * t), w = this.L.cw * lift, h = this.L.ch * lift;

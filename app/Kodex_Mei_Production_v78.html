@@ -25051,7 +25051,7 @@ window.kxShareFile = kxShareFile;
   padding: 7px 13px;
 }
 </style><script type="module" id="kx-cbfx">// Combo effects (KodeX Premium): drawn on a 2D canvas, the same way on screen (a layer over the Arena) and in a
-// recorded video (video.js). Each one plays for about a second around the card that was summoned or activated, in a
+// recorded video (video.js). Each one plays lightly for under a second around the card that was summoned or activated, in a
 // soft circle around it (never over the whole screen, no flashes, nothing shakes); the last step of a combo ends with
 // a "COMBO COMPLETE" title in the same colours.
 // Created by Castel Noleal, creator of MEIOCG. A project of Meta Insider OCG since 2023.
@@ -25065,7 +25065,7 @@ export const FX_STYLES = [
   ["eclipse", "Eclipse", "A black sun rises behind the card and glows"],
   ["random", "Random", "A different one every time"],
 ];
-export const FX_MS = 1100;
+export const FX_MS = 900;
 const PAL = {
   shockwave: ["#ffffff", "#9fd3ff", "#5b7cff"],
   lightning: ["#ffffff", "#8fd8ff", "#3a7bff"],
@@ -25200,7 +25200,7 @@ function canvasOf(w, h, which) {
  * The gentle effect used in combos: drawn in a box of size S around the card, faded out towards the box's edge and
  * at partial strength, so the table stays readable. res: pixels per unit of g (a sharper picture on a dense screen).
  */
-export function drawFxLocal(g, style, k, at, S, seed = 1, res = 1, alpha = .78) {
+export function drawFxLocal(g, style, k, at, S, seed = 1, res = 1, alpha = .6) {
   const s = Math.max(8, Math.round(S * res)), [c, x] = canvasOf(s, s, 0);
   drawFx(x, s, s, style, k, { x: s / 2, y: s / 2 }, seed, s / 900, true);
   x.globalCompositeOperation = "destination-in";
@@ -25223,7 +25223,7 @@ export function drawFinale(g, W, H, style, k, seed = 1, u = 1, title = "") {
   const P = PAL[style] || PAL.shockwave;
   g.save();
   const inK = ease(clamp(k / .18)), out = clamp((k - .82) / .18), a = (1 - out);
-  g.fillStyle = `rgba(3,4,14,${.28 * a * inK})`; g.fillRect(0, 0, W, H);
+  g.fillStyle = `rgba(3,4,14,${.18 * a * inK})`; g.fillRect(0, 0, W, H);
   // a band of light across the screen
   const bh = 150 * u * inK, by = H / 2 - bh / 2, band = g.createLinearGradient(0, by, 0, by + bh);
   band.addColorStop(0, P[2] + "00"); band.addColorStop(.5, P[2] + "55"); band.addColorStop(1, P[2] + "00");
@@ -25257,7 +25257,7 @@ export function playFx(style, at, opts = {}) {
   document.body.append(cv);
   const g = cv.getContext("2d"); g.scale(dpr, dpr);
   const seed = opts.seed || Math.floor(Math.random() * 1e6), ms = opts.finale ? 1900 : FX_MS, t0 = performance.now();
-  const S = Math.max(150, Math.min(Math.min(W, H) * .62, (opts.size || Math.min(W, H) * .14) * 3.4)), pt = at || { x: W / 2, y: H / 2 };
+  const S = Math.max(120, Math.min(Math.min(W, H) * .5, (opts.size || Math.min(W, H) * .14) * 2.8)), pt = at || { x: W / 2, y: H / 2 };
   return new Promise((done) => {
     const step = (now) => {
       const k = (now - t0) / ms;
