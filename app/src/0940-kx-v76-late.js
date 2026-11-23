@@ -189,6 +189,16 @@ const CB_FX = [
   ['eclipse', 'Eclipse', 'A black sun rises behind the card, then bursts'],
   ['random', 'Random', 'A different one every time']
 ];
+const CB_OPENINGS = [
+  ['', 'Classic', 'The picture clears, the title lands and the key card slides in'],
+  ['thunder', 'Thunderstrike', 'Darkness, then bolts strike down and the key card crashes in with a shockwave'],
+  ['inferno', 'Inferno Rise', 'The screen catches fire and the key card rises out of the flames'],
+  ['warp', 'Cosmic Warp', 'Warp-speed starlight; the key card flies out of the void'],
+  ['shatter', 'Shatter', 'The screen cracks and explodes into shards to reveal the combo'],
+  ['eclipse', 'Eclipse Summon', 'A summoning circle turns under a black sun and the key card rises from it'],
+  ['cutin', 'Anime Cut-in', 'Speed lines, impact frames and a slanted cut-in of the key card'],
+  ['random', 'Random', 'A different opening every time']
+];
 const CB_THEMES = [
   ['gold', 'Gold', '#f0b429'],
   ['neon', 'Neon', '#2ef2ff'],
@@ -205,7 +215,8 @@ function cbSet() {
     line: String(v.line || '').slice(0, 90),
     theme: CB_THEMES.some(t => t[0] === v.theme) ? v.theme : 'gold',
     secs: Math.max(3, Math.min(8, Number(v.secs) || 4.5)),
-    fx: CB_FX.some(t => t[0] === v.fx) ? v.fx : ''
+    fx: CB_FX.some(t => t[0] === v.fx) ? v.fx : '',
+    opening: CB_OPENINGS.some(t => t[0] === v.opening) ? v.opening : ''
   };
 }
 function cbSettings() {
@@ -223,7 +234,9 @@ function cbSettings() {
   <div class="cbs-l">Colours ${pro}<div class="cbs-th" role="radiogroup" aria-label="Credit colours">${CB_THEMES.map(([k, l, c]) => `<button type="button" role="radio" class="cbs-tc${s.theme === k ? ' on' : ''}" data-cbth="${k}" aria-checked="${s.theme === k}" style="--c:${c}"${lock}><i></i>${l}</button>`).join('')}</div></div>
   <label class="cbs-l">Length <output data-cbsecs>${s.secs.toFixed(1)} s</output><input type="range" min="3" max="8" step="0.5" value="${s.secs}" data-cbs="secs"${lock}></label>
   <div class="cbs-pv" data-cbspv aria-label="Preview of the end credits"></div></section>
- <section class="cbs-sec"><h4>Dramatic effects ${pro}</h4><p class="note">Played on every summon and activation of a combo, on screen and in its video, and the combo ends with a <b>COMBO COMPLETE</b> slam. Tap one to see it.</p>
+ <section class="cbs-sec"><h4>Opening ${pro}</h4><p class="note">How every combo video starts: the dramatic title sequence that features the combo, its key card and its title before the first step (also when it plays on screen). Tap one to see it.</p>
+  <div class="cbs-fx">${CB_OPENINGS.map(([k, l, d]) => `<button type="button" class="cbs-f${s.opening === k ? ' on' : ''}" data-cbop="${k}" aria-pressed="${s.opening === k}"><b>${l}${k ? '' : ' <small class="cbs-free">Free</small>'}</b><small>${d}</small></button>`).join('')}</div></section>
+ <section class="cbs-sec"><h4>Effects during the combo ${pro}</h4><p class="note">Played on every summon and activation, on screen and in the video, and the combo ends with a <b>COMBO COMPLETE</b> slam. Tap one to see it.</p>
   <div class="cbs-fx">${CB_FX.map(([k, l, d]) => `<button type="button" class="cbs-f${s.fx === k ? ' on' : ''}" data-cbfx="${k}" aria-pressed="${s.fx === k}"><b>${l}</b><small>${d}</small></button>`).join('')}</div></section>
  ${PREMIUM ? '' : `<div class="cbs-up"><span>Your own credits and the dramatic effects come with <b>KodeX Premium</b>. Free combo videos end with the standard MEIOCG credits.</span><button class="btn p" data-gp>See KodeX Premium</button></div>`}
  </div><div class="dact"><button class="btn p" data-close>Done</button></div>`,
@@ -281,6 +294,21 @@ function cbSettings() {
         });
       })
   );
+  m.querySelectorAll('[data-cbop]').forEach(
+    b =>
+      (b.onclick = () => {
+        const k = b.dataset.cbop;
+        if (k) cbOpeningPreview(k);
+        if (!PREMIUM) return;
+        const v = cbSet();
+        v.opening = k;
+        S.s('cb_set', v);
+        m.querySelectorAll('[data-cbop]').forEach(x => {
+          x.classList.toggle('on', x === b);
+          x.setAttribute('aria-pressed', String(x === b));
+        });
+      })
+  );
   const gp = m.querySelector('[data-gp]');
   if (gp)
     gp.onclick = () => {
@@ -288,15 +316,65 @@ function cbSettings() {
       setTimeout(openPremiumInfo, 250);
     };
 }
-/** A preview of a dramatic effect, drawn over KodeX (the Arena's own drawing code, loaded on demand). */
+/** The Arena's drawing code for the effects and openings: built into KodeX (window.KXFX), else loaded from the Arena. */
+async function kxFxMod() {
+  if (window.KXFX) return window.KXFX;
+  const f = $('arenaFrame'),
+    src = (f && f.getAttribute('src')) || 'duel/index.html',
+    base = new URL(src.split('#')[0], location.href);
+  return import(new URL('cbfx.js', base).href);
+}
+/** A preview of a dramatic effect, drawn over KodeX. */
 async function cbFxPreview(style) {
   try {
-    const f = $('arenaFrame'),
-      src = (f && f.getAttribute('src')) || 'duel/index.html',
-      base = new URL(src.split('#')[0], location.href);
-    const mod = await import(new URL('cbfx.js', base).href);
+    const mod = await kxFxMod();
     await mod.playFx(style, { x: innerWidth / 2, y: innerHeight * 0.45 });
     await mod.playFx(style, null, { finale: true, title: 'Preview' });
+  } catch (e) {
+    toast('The preview could not start here');
+  }
+}
+/** A preview of an opening: a combo of yours with a key card (or a sample) and its picture. */
+async function cbOpeningPreview(style) {
+  try {
+    const mod = await kxFxMod();
+    const list = typeof cbStore === 'function' ? Object.values(S.g('combos', {}) || {}) : [];
+    const c = list.find(x => x && x.intro && x.intro.key) || list[0] || null;
+    const key =
+      c && c.intro && (c.intro.key || c.intro.art)
+        ? cbCard(c.intro.key || c.intro.art)
+        : cards.find(x => /monster/i.test(x.type || ''));
+    const pic = src =>
+      new Promise(ok => {
+        if (!src) return ok(null);
+        const im = new Image();
+        im.crossOrigin = /^data:|^blob:/.test(src) ? null : 'anonymous';
+        const t = setTimeout(() => ok(null), 2500);
+        im.onload = () => {
+          clearTimeout(t);
+          ok(im);
+        };
+        im.onerror = () => {
+          clearTimeout(t);
+          ok(null);
+        };
+        im.src = src;
+      });
+    const imgOf = x => (x ? x.img || x.sm || '' : '');
+    const [card, logo, bg] = await Promise.all([
+      pic(imgOf(key)),
+      pic(document.querySelector('link[rel~="icon"]')?.href || ''),
+      pic((c && c.intro && c.intro.bg) || imgOf(key))
+    ]);
+    const by = typeof kxpRaw === 'function' ? kxpRaw().name || '' : '';
+    await mod.playOpening(style, {
+      title: (c && c.title) || 'Your Combo',
+      sub: [(c && cbDeck(c) && cbDeck(c).name) || '', by ? 'by ' + by : ''].filter(Boolean).join(' · '),
+      bg,
+      bgCard: !(c && c.intro && c.intro.bg),
+      card,
+      logo
+    });
   } catch (e) {
     toast('The preview could not start here');
   }
@@ -317,6 +395,7 @@ async function cbFxPreview(style) {
       custom: !!PREMIUM
     };
     p.fx = PREMIUM ? s.fx : '';
+    p.opening = PREMIUM ? s.opening : '';
     return p;
   };
   // Combos: a Settings button beside New combo

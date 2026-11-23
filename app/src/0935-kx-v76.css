@@ -347,3 +347,14 @@
   background: #f0b4291a;
   border: 1px solid #f0b42966;
 }
+.cbs-free {
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: #8ff0c0;
+  background: #2ad48a1f;
+  border: 1px solid #2ad48a55;
+  border-radius: 999px;
+  padding: 1px 6px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
