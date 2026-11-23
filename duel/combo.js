@@ -48,6 +48,7 @@ export function cleanCombo(raw) {
     credits: cleanCredits(raw.credits),
     fx: COMBO_FX.includes(raw.fx) ? raw.fx : "",
     opening: COMBO_OPENINGS.includes(raw.opening) ? raw.opening : "",
+    speed: [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4].includes(Number(raw.speed)) ? Number(raw.speed) : 0,
   };
 }
 /** The dramatic effects a Premium combo can play on its summons and activations (cbfx.js draws them). */

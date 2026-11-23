@@ -5,7 +5,7 @@
 // otherwise WebM. Created by Castel Noleal, creator of MEIOCG.
 import * as C from "./engine/constants.js";
 import { presetIcon } from "./profile.js";
-import { drawFx as comboFxDraw, drawFinale, drawOpening, FX_MS } from "./cbfx.js";
+import { drawFxLocal as comboFxDraw, drawFinale, drawOpening, FX_MS } from "./cbfx.js";
 const M = C.MSG;
 
 export const FORMATS = { landscape: [16, 9], portrait: [9, 16], square: [1, 1] };
@@ -164,7 +164,7 @@ export class Clip {
       }
       if (this.o.comboFx && p.combo && !this.cbFxAt && (e.type === M.CHAINING || e.type === M.SUMMONING || e.type === M.SPSUMMONING || e.type === M.FLIPSUMMONING)) {
         this.cbFxAt = true;
-        this.fx.push({ k: "cbfx", style: this.o.comboFx, at: this.slot(e.controller, e.location, e.sequence), seed: Math.floor(Math.random() * 1e6), t0: now + 120, d: FX_MS });
+        this.fx.push({ k: "cbfx", style: this.o.comboFx, at: this.slot(e.controller, e.location, e.sequence), seed: Math.floor(Math.random() * 1e6), t0: now + (e.type === M.CHAINING ? 700 : 450), d: FX_MS });
       }
       if (e.type === M.CHAINING) {
         const ace = this.o.aces && this.o.aces(e.controller).has(Number(e.code));
@@ -482,7 +482,7 @@ export class Clip {
     this.fx = this.fx.filter((f) => now - f.t0 < f.d);
     for (const f of this.fx) {
       const t = (now - f.t0) / f.d; if (t < 0) continue;
-      if (f.k === "cbfx") { comboFxDraw(g, W, H, f.style, t, f.at, f.seed, u * 1.6); continue; }
+      if (f.k === "cbfx") { comboFxDraw(g, f.style, t, f.at || { x: W / 2, y: H / 2 }, Math.max(this.L.cw, this.L.ch) * 2.8, f.seed); continue; }
       if (f.k === "cbfin") { drawFinale(g, W, H, f.style, t, f.seed, u * 1.6, (this.o.intro && this.o.intro.title) || (this.o.credits && this.o.credits.title) || ""); continue; }
       if (f.k === "fly") {
         const e = ease(t), lift = 1 + .16 * Math.sin(Math.PI * t), w = this.L.cw * lift, h = this.L.ch * lift;
@@ -649,13 +649,22 @@ export class Clip {
     }
   }
   caption(c) {
-    const g = this.g, { W, u } = this, w = Math.min(W - 60 * u, 1500 * u), x = (W - w) / 2, y = 18 * u, h = 66 * u;
+    const sub = [c.what && c.what !== c.caption ? c.what : "", c.note || ""].filter(Boolean).join("  ·  ");
+    const g = this.g, { W, u } = this, w = Math.min(W - 60 * u, 1500 * u), x = (W - w) / 2, y = 18 * u, h = sub ? 92 * u : 66 * u;
+    // a new step slides in gently
+    if (this.capKey !== (c.step || 0) + c.caption) { this.capKey = (c.step || 0) + c.caption; this.capT0 = performance.now(); }
+    const kin = Math.min(1, (performance.now() - (this.capT0 || 0)) / 300); g.save(); g.globalAlpha = .35 + .65 * kin; g.translate(0, (1 - kin) * -8 * u);
     this.rr(x, y, w, h, 20 * u); g.fillStyle = "#0c0f1fe6"; g.fill(); g.lineWidth = 2 * u; g.strokeStyle = "#f0b42988"; g.stroke();
     const tag = c.step ? `STEP ${c.step}/${c.steps}` : "START";
     g.font = `800 ${Math.round(24 * u)}px "Chakra Petch", system-ui, sans-serif`; const tw = g.measureText(tag).width + 36 * u;
     this.rr(x + 10 * u, y + 11 * u, tw, h - 22 * u, 14 * u); g.fillStyle = "#f0b429"; g.fill();
     this.text(tag, x + 10 * u + tw / 2, y + h / 2 + 9 * u, 24 * u, "#1a1405", { align: "center" });
-    this.text(c.caption + (c.note ? "  ·  " + c.note : ""), x + tw + 28 * u, y + h / 2 + 10 * u, 28 * u, "#fff", { weight: 700, max: w - tw - 48 * u, font: '"Plus Jakarta Sans", "Chakra Petch", system-ui, sans-serif' });
+    const font = '"Plus Jakarta Sans", "Chakra Petch", system-ui, sans-serif';
+    if (sub) {
+      this.text(c.caption, x + tw + 28 * u, y + 40 * u, 28 * u, "#fff", { weight: 700, max: w - tw - 48 * u, font });
+      this.text(sub, x + tw + 28 * u, y + 74 * u, 21 * u, "#c9d0f2", { weight: 600, max: w - tw - 48 * u, font });
+    } else this.text(c.caption, x + tw + 28 * u, y + h / 2 + 10 * u, 28 * u, "#fff", { weight: 700, max: w - tw - 48 * u, font });
+    g.restore();
   }
   frame() {
     const p = this.o.packet(); const now = performance.now();
@@ -665,12 +674,13 @@ export class Clip {
       this.field(p, now);
       this.hand(me, this.L.hand[0], p); if (!p.combo) this.hand(op, this.L.hand[1], p);
       this.plate(me, this.L.plate[0], p, now); if (!p.combo) this.plate(op, this.L.plate[1], p, now);
-      if (p.combo) this.caption(p.combo);
       this.head(p);
       if (this.L.feed) this.feedPanel(now);
       if (this.L.card) this.cardPanel(now);
       if (this.L.tick) this.ticker(now);
       this.drawFx(now, p);
+      // the step of a combo, over its effects so it can always be read
+      if (p.combo) this.caption(p.combo);
     }
     // a combo's title card covers the first seconds, then fades into the table
     const it = this.o.intro, el = this.t0 ? now - this.t0 : 0;

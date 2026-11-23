@@ -181,22 +181,22 @@ function kxQuickBind(root) {
 /* ---------- combo settings: the video's end credits and the Premium dramatic effects ---------- */
 const CB_FX = [
   ['', 'None', 'Only the usual moves'],
-  ['shockwave', 'Shockwave', 'A white flash and rings of force that shake the table'],
-  ['lightning', 'Lightning', 'The table goes dark and bolts strike the card'],
-  ['inferno', 'Inferno', 'Flames roar up from below with a rain of embers'],
-  ['cosmic', 'Cosmic', 'Warp-speed starlight streams out of the card'],
-  ['glitch', 'Glitch', 'The picture tears into colour-split slices'],
-  ['eclipse', 'Eclipse', 'A black sun rises behind the card, then bursts'],
+  ['shockwave', 'Shockwave', 'Rings of force spread out from the card'],
+  ['lightning', 'Lightning', 'Bolts of lightning strike the card'],
+  ['inferno', 'Inferno', 'Flames and embers rise around the card'],
+  ['cosmic', 'Cosmic', 'Starlight streams out of the card'],
+  ['glitch', 'Glitch', 'Colour-split slices flicker around the card'],
+  ['eclipse', 'Eclipse', 'A black sun rises behind the card and glows'],
   ['random', 'Random', 'A different one every time']
 ];
 const CB_OPENINGS = [
   ['', 'Classic', 'The picture clears, the title lands and the key card slides in'],
-  ['thunder', 'Thunderstrike', 'Darkness, then bolts strike down and the key card crashes in with a shockwave'],
+  ['thunder', 'Thunderstrike', 'Bolts strike down and the key card lands in a ring of light'],
   ['inferno', 'Inferno Rise', 'The screen catches fire and the key card rises out of the flames'],
   ['warp', 'Cosmic Warp', 'Warp-speed starlight; the key card flies out of the void'],
-  ['shatter', 'Shatter', 'The screen cracks and explodes into shards to reveal the combo'],
+  ['shatter', 'Shatter', 'A sheet of glass cracks and its shards drift away to reveal the combo'],
   ['eclipse', 'Eclipse Summon', 'A summoning circle turns under a black sun and the key card rises from it'],
-  ['cutin', 'Anime Cut-in', 'Speed lines, impact frames and a slanted cut-in of the key card'],
+  ['cutin', 'Anime Cut-in', 'Speed lines and a slanted cut-in of the key card'],
   ['random', 'Random', 'A different opening every time']
 ];
 const CB_THEMES = [
@@ -205,6 +205,15 @@ const CB_THEMES = [
   ['crimson', 'Crimson', '#ff4d6a'],
   ['ice', 'Ice', '#9fd3ff'],
   ['royal', 'Royal', '#b38bff']
+];
+/** How fast a combo plays on screen (the Arena's speed button changes it while it plays). Free. */
+const CB_SPEEDS = [
+  [0.25, '¼×'],
+  [0.5, '½×'],
+  [0.75, '¾×'],
+  [1, '1×'],
+  [1.5, '1.5×'],
+  [2, '2×']
 ];
 function cbSet() {
   const v = S.g('cb_set', {}) || {};
@@ -216,7 +225,8 @@ function cbSet() {
     theme: CB_THEMES.some(t => t[0] === v.theme) ? v.theme : 'gold',
     secs: Math.max(3, Math.min(8, Number(v.secs) || 4.5)),
     fx: CB_FX.some(t => t[0] === v.fx) ? v.fx : '',
-    opening: CB_OPENINGS.some(t => t[0] === v.opening) ? v.opening : ''
+    opening: CB_OPENINGS.some(t => t[0] === v.opening) ? v.opening : '',
+    speed: CB_SPEEDS.some(t => t[0] === Number(v.speed)) ? Number(v.speed) : 1
   };
 }
 function cbSettings() {
@@ -234,9 +244,11 @@ function cbSettings() {
   <div class="cbs-l">Colours ${pro}<div class="cbs-th" role="radiogroup" aria-label="Credit colours">${CB_THEMES.map(([k, l, c]) => `<button type="button" role="radio" class="cbs-tc${s.theme === k ? ' on' : ''}" data-cbth="${k}" aria-checked="${s.theme === k}" style="--c:${c}"${lock}><i></i>${l}</button>`).join('')}</div></div>
   <label class="cbs-l">Length <output data-cbsecs>${s.secs.toFixed(1)} s</output><input type="range" min="3" max="8" step="0.5" value="${s.secs}" data-cbs="secs"${lock}></label>
   <div class="cbs-pv" data-cbspv aria-label="Preview of the end credits"></div></section>
- <section class="cbs-sec"><h4>Opening ${pro}</h4><p class="note">How every combo video starts: the dramatic title sequence that features the combo, its key card and its title before the first step (also when it plays on screen). Tap one to see it.</p>
+ <section class="cbs-sec"><h4>Playback speed</h4><p class="note">How fast a combo plays out on the table. While it plays, the speed button under it changes it too.</p>
+  <div class="cbs-th" role="radiogroup" aria-label="Playback speed">${CB_SPEEDS.map(([k, l]) => `<button type="button" role="radio" class="cbs-tc cbs-sp${s.speed === k ? ' on' : ''}" data-cbsp="${k}" aria-checked="${s.speed === k}" style="--c:#f0b429">${l}${k === 1 ? ' normal' : ''}</button>`).join('')}</div></section>
+ <section class="cbs-sec"><h4>Opening ${pro}</h4><p class="note">How every combo video starts: the title sequence that features the combo, its key card and its title before the first step (also when it plays on screen). Tap one to see it.</p>
   <div class="cbs-fx">${CB_OPENINGS.map(([k, l, d]) => `<button type="button" class="cbs-f${s.opening === k ? ' on' : ''}" data-cbop="${k}" aria-pressed="${s.opening === k}"><b>${l}${k ? '' : ' <small class="cbs-free">Free</small>'}</b><small>${d}</small></button>`).join('')}</div></section>
- <section class="cbs-sec"><h4>Effects during the combo ${pro}</h4><p class="note">Played on every summon and activation, on screen and in the video, and the combo ends with a <b>COMBO COMPLETE</b> slam. Tap one to see it.</p>
+ <section class="cbs-sec"><h4>Effects during the combo ${pro}</h4><p class="note">Played on every summon and activation, on screen and in the video, and the combo ends with a <b>COMBO COMPLETE</b> title. Each one stays around the card, gentle on the eyes. Tap one to see it.</p>
   <div class="cbs-fx">${CB_FX.map(([k, l, d]) => `<button type="button" class="cbs-f${s.fx === k ? ' on' : ''}" data-cbfx="${k}" aria-pressed="${s.fx === k}"><b>${l}</b><small>${d}</small></button>`).join('')}</div></section>
  ${PREMIUM ? '' : `<div class="cbs-up"><span>Your own credits and the dramatic effects come with <b>KodeX Premium</b>. Free combo videos end with the standard MEIOCG credits.</span><button class="btn p" data-gp>See KodeX Premium</button></div>`}
  </div><div class="dact"><button class="btn p" data-close>Done</button></div>`,
@@ -291,6 +303,18 @@ function cbSettings() {
         m.querySelectorAll('[data-cbfx]').forEach(x => {
           x.classList.toggle('on', x === b);
           x.setAttribute('aria-pressed', String(x === b));
+        });
+      })
+  );
+  m.querySelectorAll('[data-cbsp]').forEach(
+    b =>
+      (b.onclick = () => {
+        const v = cbSet();
+        v.speed = Number(b.dataset.cbsp);
+        S.s('cb_set', v);
+        m.querySelectorAll('[data-cbsp]').forEach(x => {
+          x.classList.toggle('on', x === b);
+          x.setAttribute('aria-checked', String(x === b));
         });
       })
   );
@@ -396,6 +420,7 @@ async function cbOpeningPreview(style) {
     };
     p.fx = PREMIUM ? s.fx : '';
     p.opening = PREMIUM ? s.opening : '';
+    p.speed = s.speed;
     return p;
   };
   // Combos: a Settings button beside New combo
