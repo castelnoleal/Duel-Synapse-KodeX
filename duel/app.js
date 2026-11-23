@@ -704,10 +704,10 @@ async function watchReplay(src) {
   enterTable();
   $("#loadingText").textContent = "Reading the replay…";
   $("#replayBar").hidden = false; $("#rbPos").textContent = ""; document.body.classList.add("replaying");
-  S.replay = { paused: false, speed: 1, i: 0, n: 0, turns: [] };
+  S.replay = { paused: false, speed: rpSpeed(), i: 0, n: 0, turns: [] };
   replayBarState(); rbWake();
-  $("#rbRec").hidden = !S.premium; $("#rbView").hidden = false; document.body.classList.remove("combo-play");
-  S.worker.postMessage({ cmd: "playReplay", bytes, speed: 1 }, [bytes]);
+  $("#rbRec").hidden = !S.premium; $("#rbView").hidden = false; document.body.classList.remove("combo-play"); cbStep(null);
+  S.worker.postMessage({ cmd: "playReplay", bytes, speed: S.replay.speed }, [bytes]);
 }
 // ----- combos made in KodeX: played on the table like a replay (watch, step, go back, record) -----
 async function comboKeep(c) {
@@ -740,7 +740,7 @@ async function watchCombo(raw, { keep = false } = {}) {
   enterTable();
   const packets = comboPackets(c, S.db, [(S.myProfile && S.myProfile.name) || c.by || myName(), "Combo"]);
   $("#replayBar").hidden = false; document.body.classList.add("replaying", "combo-play");
-  S.replay = { combo: c, packets, paused: true, speed: 1, i: 0, n: packets.length - 1, turns: [0] };
+  S.replay = { combo: c, packets, paused: true, speed: rpSpeed(c.speed), i: 0, n: packets.length - 1, turns: [0] };
   $("#rbRec").hidden = !S.premium; $("#rbView").hidden = true;
   comboShow(0, true);
   rbWake();
@@ -760,10 +760,33 @@ function comboDrama(p, c) {
   if (e) {
     const w = e.type === M.CHAINING ? { controller: e.controller, location: e.location, sequence: e.sequence } : { controller: e.controller, location: e.location, sequence: e.sequence };
     const r = visRect(placeEl(w));
-    setTimeout(() => playFx(c.fx, r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null), 120);
+    setTimeout(() => playFx(c.fx, r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null, { size: r ? Math.max(r.width, r.height) : 0 }), 120);
   }
   if (p.combo && p.combo.last) setTimeout(() => playFx(c.fx, null, { finale: true, title: c.title }), e ? 1500 : 300);
 }
+/** The step of a combo, on screen the whole time it plays (above the field, where the opponent's plate would be). */
+function cbStep(c) {
+  const b = $("#cbStep"); if (!b) return;
+  if (!c) { b.hidden = true; document.body.style.removeProperty("--cbs-bottom"); return; }
+  const tag = c.step ? `STEP ${c.step}/${c.steps}` : "START", line = c.caption || "", sub = [c.what && c.what !== line ? c.what : "", c.note || ""].filter(Boolean).join(" · ");
+  const changed = b.dataset.k !== tag + line;
+  b.querySelector("b").textContent = tag; b.querySelector("span").textContent = line;
+  const sm = b.querySelector("small"); sm.textContent = sub; sm.hidden = !sub;
+  b.hidden = false; placeCbStep();
+  if (changed) { b.dataset.k = tag + line; b.classList.remove("in"); void b.offsetWidth; b.classList.add("in"); }
+}
+function placeCbStep() {
+  const b = $("#cbStep"); if (!b || b.hidden) return;
+  const land = innerWidth > innerHeight, op = document.querySelector(".duelist.op"), f = $("#field"), fr = f && f.getBoundingClientRect();
+  const orr = op && op.getBoundingClientRect();
+  let top = 8, w = Math.min(innerWidth * .94, 620), left = innerWidth / 2;
+  if (!land && orr && orr.height) { top = orr.top + Math.max(0, (orr.height - 48) / 2); w = Math.min(innerWidth - 16, 620); }
+  else if (fr && fr.width) { top = Math.max(6, fr.top + 4); w = Math.min(fr.width * .9, 600); left = fr.left + fr.width / 2; }
+  b.style.setProperty("--cbs-top", top + "px"); b.style.setProperty("--cbs-w", w + "px"); b.style.left = left + "px";
+  requestAnimationFrame(() => { const r = b.getBoundingClientRect(); document.body.style.setProperty("--cbs-bottom", Math.round(r.bottom + 8) + "px"); });
+}
+addEventListener("resize", () => placeCbStep());
+
 function comboTick() {
   const r = S.replay; if (!r || !r.combo) return;
   clearTimeout(r.timer);
@@ -849,7 +872,7 @@ function comboIntro(c) { return comboIntroPrep(c).then((i) => i.start()); }
 function replayBarState() {
   const r = S.replay || {};
   $("#rbPlay").textContent = r.paused ? "▶" : "❚❚"; $("#rbPlay").setAttribute("aria-label", r.paused ? "Play" : "Pause");
-  $("#rbSpeed").textContent = (r.speed === 0.5 ? "½" : r.speed) + "×";
+  $("#rbSpeed").textContent = speedLabel(r.speed || 1);
   const sk = $("#rbSeek"); sk.max = String(Math.max(1, r.n || 1)); if (!S.rbDragging) sk.value = String(r.i || 0);
   const t = S.packet ? S.packet.turn : 0;
   $("#rbPos").textContent = r.combo ? `Step ${S.packet && S.packet.combo ? S.packet.combo.step : 0}/${S.packet && S.packet.combo ? S.packet.combo.steps : 0}` : r.n ? `Turn ${t} · ${r.i}/${r.n}` : "";
@@ -873,7 +896,34 @@ $("#rbStep").addEventListener("click", () => { S.replay.paused = true; replayBar
 $("#rbBack").addEventListener("click", () => { if (S.replay.i > 0) rbSeek({ to: S.replay.i - 1 }); });
 $("#rbPrevTurn").addEventListener("click", () => { const t = S.packet ? S.packet.turn : 1, st = rbTurnStart(t); rbSeek({ turn: st != null && S.replay.i > st ? t : Math.max(1, t - 1) }); });
 $("#rbNextTurn").addEventListener("click", () => { const t = S.packet ? S.packet.turn : 0; rbSeek({ turn: t + 1 }); });
-$("#rbSpeed").addEventListener("click", () => { const sp = [0.5, 1, 2, 4], r = S.replay; r.speed = sp[(sp.indexOf(r.speed) + 1) % sp.length]; replayBarState(); rpCtl({ speed: r.speed }); });
+// replay speed: a short list over the button (kept on this device for the next replay or combo)
+const SPEEDS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4];
+function speedLabel(v) { return ({ 0.25: "¼", 0.5: "½", 0.75: "¾" }[v] || String(v)) + "×"; }
+/** The speed a replay starts at: a combo's own (set in KodeX) or the last one chosen here. */
+function rpSpeed(own) { const v = Number(own) || Number(PREF.rpSpeed) || 1; return SPEEDS.includes(v) ? v : 1; }
+function setSpeed(v) {
+  const r = S.replay; if (!r) return;
+  r.speed = v; PREF.rpSpeed = v; save("duel:pref", PREF);
+  replayBarState(); rpCtl({ speed: v });
+}
+function speedMenu(open) {
+  let m = $("#rbSpeedMenu");
+  if (!open) { if (m) m.hidden = true; $("#rbSpeed").setAttribute("aria-expanded", "false"); return; }
+  if (!m) {
+    m = el("div", "rb-speed-menu"); m.id = "rbSpeedMenu"; m.setAttribute("role", "menu"); m.setAttribute("aria-label", "Replay speed");
+    m.addEventListener("click", (e) => { const b = e.target.closest("[data-sp]"); if (!b) return; setSpeed(Number(b.dataset.sp)); speedMenu(false); });
+    document.body.append(m);
+  }
+  const cur = (S.replay && S.replay.speed) || 1;
+  m.replaceChildren(el("div", "rbs-h", "Speed"), ...SPEEDS.map((v) => { const b = el("button", null, v === 1 ? "1× normal" : speedLabel(v)); b.type = "button"; b.dataset.sp = String(v); b.setAttribute("role", "menuitemradio"); b.setAttribute("aria-checked", String(v === cur)); return b; }));
+  m.hidden = false; $("#rbSpeed").setAttribute("aria-expanded", "true");
+  const r = $("#rbSpeed").getBoundingClientRect(), mr = m.getBoundingClientRect();
+  m.style.left = Math.max(8, Math.min(innerWidth - mr.width - 8, r.left + r.width / 2 - mr.width / 2)) + "px";
+  m.style.top = (r.top - mr.height - 8 >= 8 ? r.top - mr.height - 8 : Math.min(innerHeight - mr.height - 8, r.bottom + 8)) + "px";
+  rbWake();
+}
+$("#rbSpeed").addEventListener("click", (e) => { e.stopPropagation(); speedMenu($("#rbSpeedMenu")?.hidden !== false); });
+addEventListener("pointerdown", (e) => { const m = $("#rbSpeedMenu"); if (m && !m.hidden && !m.contains(e.target) && !e.target.closest("#rbSpeed")) speedMenu(false); });
 $("#rbSeek").addEventListener("input", () => { S.rbDragging = true; $("#rbPos").textContent = `${$("#rbSeek").value}/${S.replay.n}`; });
 $("#rbSeek").addEventListener("change", () => { S.rbDragging = false; rbSeek({ to: Number($("#rbSeek").value) }); });
 $("#rbView").addEventListener("click", () => {
@@ -1008,7 +1058,7 @@ function offerShare(file) {
 }
 // the controls fade while the replay plays (clean video) and come back on any touch
 let rbIdle = 0;
-function rbWake() { const b = $("#replayBar"); b.classList.remove("dim"); clearTimeout(rbIdle); rbIdle = setTimeout(() => { if (S.mode === "replay" && S.replay && !S.replay.paused && !b.matches(":hover,:focus-within") && !S.rec) b.classList.add("dim"); }, 3200); }
+function rbWake() { const b = $("#replayBar"); b.classList.remove("dim"); clearTimeout(rbIdle); rbIdle = setTimeout(() => { const m = $("#rbSpeedMenu"); if (S.mode === "replay" && S.replay && !S.replay.paused && !b.matches(":hover,:focus-within") && !S.rec && !(m && !m.hidden)) b.classList.add("dim"); }, 3200); }
 for (const t of ["pointerdown", "pointermove", "keydown"]) addEventListener(t, () => { if (S.mode === "replay") rbWake(); }, { passive: true });
 function learningFor(decks) {
   const codes = decks.flatMap((d) => deckCodes(d));
@@ -1272,7 +1322,7 @@ function enterTable() {
 }
 function leaveTable() {
   duelState(false);
-  $("#replayBar").hidden = true; document.body.classList.remove("replaying", "combo-play");
+  $("#replayBar").hidden = true; document.body.classList.remove("replaying", "combo-play"); cbStep(null); speedMenu(false);
   if (S.replay && S.replay.combo) { clearTimeout(S.replay.timer); S.replay = null; const ci = $("#comboIntro"); if (ci) ci.remove(); }
   if ((S.mode === "solo" || S.mode === "replay") && S.worker) S.worker.postMessage({ cmd: "stop" });
   if (S.mode === "guest" || S.mode === "spec") { if (S.room) S.room.close(); S.room = null; netStatus(null); }
@@ -1743,6 +1793,7 @@ function render(p) {
   applyTargets();
   const st2 = $("#status");
   st2.classList.toggle("mine", mine);
+  cbStep(S.mode === "replay" && p.combo ? p.combo : null);
   { const cap = $("#rbCap"); if (cap) { const on = S.mode === "replay" && !!p.combo; cap.hidden = !on; if (on) cap.textContent = `${p.combo.what || p.combo.caption || ""}${p.combo.note ? " · " + p.combo.note : ""}`; } }
   if (S.mode === "replay" && p.combo) setStatus(`${p.combo.step ? `Step ${p.combo.step}/${p.combo.steps} · ` : ""}${p.combo.caption}${p.combo.note ? " · " + p.combo.note : ""}`);
   else if (S.mode === "replay" && !p.ended) setStatus(`Replay · ${p.names.join(" vs ")}${p.waitingFor >= 0 ? ` · ${p.names[p.waitingFor]} is deciding` : ""}`);

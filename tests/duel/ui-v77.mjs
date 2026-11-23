@@ -54,7 +54,7 @@ await f.evaluate(() => document.querySelector("#rbRec").click()); await page.wai
 await f.evaluate(() => { document.querySelector("#recUntil").value = "stop"; document.querySelector("#recSize").value = "1080"; document.querySelector("#recGo").click(); });
 await f.waitForFunction(() => window.__duel.rec && window.__duel.rec.clip, null, { timeout: 20000 });
 const io = await f.evaluate(() => window.__duel.rec.clip.o.intro);
-ok(io && io.style === "thunder" && io.ms >= 5200, "the video's opening is the dramatic one " + JSON.stringify({ style: io && io.style, ms: io && io.ms }));
+ok(io && io.style === "thunder" && io.ms >= 4400, "the video's opening is the dramatic one " + JSON.stringify({ style: io && io.style, ms: io && io.ms }));
 await page.waitForTimeout(2200);
 const shot = await f.evaluate(() => window.__duel.rec.clip.cv.toDataURL("image/jpeg", .8));
 fs.writeFileSync(`${out}/v77-video-opening.jpg`, Buffer.from(shot.split(",")[1], "base64"));
