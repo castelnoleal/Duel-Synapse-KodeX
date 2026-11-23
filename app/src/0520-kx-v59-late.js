@@ -802,8 +802,8 @@ const KXH = [
     () => kxRun(() => $('nDeck').click())
   ],
   [
-    'Premium Studio',
-    'premium studio skins sleeves field showdown finisher emotes sounds finishing emote',
+    'Duelist Studio',
+    'duelist studio premium studio quick reactions combo credits skins sleeves field showdown finisher emotes sounds finishing emote',
     () => openSkins()
   ],
   ['Nearby duel (no internet)', 'nearby local wifi hotspot offline qr no internet', () => openArena('')],

@@ -45,7 +45,19 @@ export function cleanCombo(raw) {
     hand, lines, extra: (Array.isArray(raw.extra) ? raw.extra : []).map(code).filter(Boolean).slice(0, 15), deckSize: Math.max(0, Math.min(60, Number(raw.deckSize) || 40)),
     intro: { ms: Math.max(0, Math.min(10000, Number.isFinite(Number(it.ms)) ? Number(it.ms) : 3000)), art: code(it.art), key: code(it.key), bg: img(it.bg, 2.4e6) },
     ...(cleanBoard(raw.endBoard) ? { endBoard: cleanBoard(raw.endBoard) } : {}),
+    credits: cleanCredits(raw.credits),
+    fx: COMBO_FX.includes(raw.fx) ? raw.fx : "",
   };
+}
+/** The dramatic effects a Premium combo can play on its summons and activations (cbfx.js draws them). */
+export const COMBO_FX = ["shockwave", "lightning", "inferno", "cosmic", "glitch", "eclipse", "random"];
+const CREDIT_THEMES = ["gold", "neon", "crimson", "ice", "royal"];
+/** The end credits of a combo video: who made it, the deck, a handle, a line of their own, the colours, how long.
+ *  "MEIOCG · Duel Synapse: KodeX" is always shown; custom (Premium) decides whether the rest can be changed. */
+export function cleanCredits(c) {
+  c = c && typeof c === "object" ? c : {};
+  return { by: str(c.by, 32), deck: str(c.deck, 60), handle: str(c.handle, 40), line: str(c.line, 90), theme: CREDIT_THEMES.includes(c.theme) ? c.theme : "gold",
+    ms: Math.max(3000, Math.min(8000, Number(c.ms) || 4500)), custom: c.custom === true };
 }
 /** The table as it really stood at the end of a replay's turn: [mine, theirs], each { m: 7 Monster Zones, s: 6 Spell & Trap
  *  Zones (5 = Field Zone) }, a zone being null or { id, pos: "atk" | "def" | "down" } (the shape KodeX's sheet draws). */

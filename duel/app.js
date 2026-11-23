@@ -16,6 +16,7 @@ import { staple, isStaple, stapleMs, setStaplePace, finale, ace, SHOWS, pickShow
 import { cleanProfile, avatarHTML, cardHTML } from "./profile.js";
 import { breakProfile, comeback } from "./ending.js";
 import { Clip, canRecord } from "./video.js";
+import { playFx } from "./cbfx.js";
 import { cleanCombo, comboPackets, lineText, replayTurns, comboFromReplay } from "./combo.js";
 import DeckStats from "./deckstats.js";
 import { LocalRoom, qrSvg, canScan, scanCode } from "./local.js";
@@ -749,7 +750,18 @@ function comboShow(i, quiet) {
   const r = S.replay; if (!r || !r.combo) return;
   r.i = Math.max(0, Math.min(r.n, i));
   const p = structuredClone(r.packets[r.i]);
-  if (quiet) applyQuiet(p); else { onPacket(p); replayBarState(); }
+  if (quiet) applyQuiet(p); else { onPacket(p); replayBarState(); comboDrama(p, r.combo); }
+}
+/** KodeX Premium: the combo's dramatic effect on each summon and activation, and "COMBO COMPLETE" at the end. */
+function comboDrama(p, c) {
+  if (!c || !c.fx || !S.premium || reduceMotion() || document.hidden) return;
+  const e = (p.events || []).find((x) => x.type === M.SPSUMMONING || x.type === M.SUMMONING || x.type === M.FLIPSUMMONING || x.type === M.CHAINING);
+  if (e) {
+    const w = e.type === M.CHAINING ? { controller: e.controller, location: e.location, sequence: e.sequence } : { controller: e.controller, location: e.location, sequence: e.sequence };
+    const r = visRect(placeEl(w));
+    setTimeout(() => playFx(c.fx, r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null), 120);
+  }
+  if (p.combo && p.combo.last) setTimeout(() => playFx(c.fx, null, { finale: true, title: c.title }), e ? 1500 : 300);
 }
 function comboTick() {
   const r = S.replay; if (!r || !r.combo) return;
@@ -893,7 +905,10 @@ $("#recGo").addEventListener("click", () => {
   const intro = cb && cb.intro.ms ? { ms: cb.intro.ms, title: cb.title, sub: cb.sub || cb.deck, by: (S.packet && S.packet.names[0]) || cb.by, bg: cb.intro.bg || (cb.intro.art || cb.intro.key ? artUrl(cb.intro.art || cb.intro.key) : ""), bgCard: !cb.intro.bg, card: cb.intro.key ? artUrl(cb.intro.key) : "" } : null;
   const tap = cfg.sound ? Sound.tap() : null, ft = fieldTheme();
   S.recStamp = "";
-  const clip = new Clip({ format: fmt, size: Number(cfg.size), fps: Number(cfg.fps), watermark: cfg.mark, intro,
+  // a combo's video ends with its credits (MEIOCG always; Premium sets the rest in KodeX › Combos › Settings), and
+  // Premium combos carry their dramatic effects into the video too
+  const credits = cb ? Object.assign({}, cb.credits || {}, { by: (cb.credits && cb.credits.by) || (S.packet && S.packet.names[0]) || cb.by || "", deck: (cb.credits && cb.credits.deck) || cb.deck || "", title: cb.title }) : null;
+  const clip = new Clip({ format: fmt, size: Number(cfg.size), fps: Number(cfg.fps), watermark: cfg.mark, intro, credits, comboFx: cb && S.premium ? cb.fx || "" : "",
     feed: cfg.feed, details: cfg.info, title: cfg.title, info: recCardInfo, audio: tap && tap.track, theme: { me: ft.me, op: ft.op, acc: ft.acc, a: ft.a, b: ft.b, e: ft.e },
     packet: () => S.packet, team: () => S.team, art: (code) => artUrl(code), name: (code) => name(Number(code)), kind: cardKind,
     profile: (team) => profileOf(team === S.team ? "me" : "op"), logo: LOGO, aces: (team) => fxOf(sideOfTeam(team)).aces,
@@ -922,11 +937,18 @@ function recFeed(p) {
   S.rec.clip.feed(p);
   const until = S.rec.cfg.until;
   if (p.ended && until !== "stop" && !S.rec.ending) { S.rec.ending = true; setTimeout(() => recStop(true), 4500); }
-  if (p.combo && p.combo.last && until !== "stop" && !S.rec.ending) { S.rec.ending = true; setTimeout(() => recStop(true), 3200); }
+  if (p.combo && p.combo.last && until !== "stop" && !S.rec.ending) { S.rec.ending = true; setTimeout(() => recStop(true), S.rec.clip.o.comboFx ? 3900 : 3200); }
   if (until === "turn" && !p.combo && p.turn > S.rec.turn && !S.rec.ending) { S.rec.ending = true; setTimeout(() => recStop(true), 600); }
 }
-function recStop(keep) {
+function recStop(keep, now) {
   if (!S.rec) return;
+  // a combo video ends with its credits: they play first, then the recording stops
+  if (keep && !now && S.rec.clip.o.credits && !S.rec.outro) {
+    const r0 = S.rec; r0.outro = true; rpCtl({ paused: true }); if (S.replay) S.replay.paused = true;
+    $("#recStop").disabled = true; toast("Adding the end credits…");
+    setTimeout(() => { $("#recStop").disabled = false; if (S.rec === r0) recStop(true, true); }, r0.clip.outro());
+    return;
+  }
   const r = S.rec; S.rec = null; r.keep = keep;
   if (r.tap) setTimeout(() => r.tap.close(), 400);
   clearInterval(S.recTimer); document.body.classList.remove("recording");
@@ -1754,7 +1776,9 @@ function showInfo(c, team, location, open = true) {
   if (!c || !c.code) return;
   const panel = $("#info");
   if (open === false && !panel.classList.contains("open") && !LANDSCAPE.matches) return;
-  if (open === true) { openInfo(); if (LANDSCAPE.matches) selectTab(document.querySelector('.dock-tabs [data-tab="card"]')); }
+  if (open === true) openInfo();
+  // in landscape a tapped card always shows on the Card tab (not left behind Log or Settings); hovering never switches
+  if (open !== false && LANDSCAPE.matches) selectTab(document.querySelector('.dock-tabs [data-tab="card"]'));
   const b = $("#infoBody");
   b.replaceChildren();
   fillInfo(b, c, team, location);
@@ -3399,7 +3423,7 @@ window.addEventListener("message", (e) => {
   const vo = S.premium ? cleanVoices(d.voices) : null;
   if (vo) S.mySkin.voices = vo;
   sentMedia.clear();
-  renderEmotes(); applyView();
+  renderEmotes(); applyView(); quickSettings(); placeQuick.k = ""; const qbar = $("#quickBar"); if (qbar) qbar.dataset.k = ""; placeQuick();
   applySkins();
   if (S.room && (S.mode === "host" || S.mode === "guest")) sendSkin("others");
 });
@@ -3410,6 +3434,8 @@ window.addEventListener("message", (e) => {
   if (d && d.kx === "audio" && d.premium === true) Sound.setCustom(d);
   // a combo made in KodeX: play it (and keep it with the replays)
   if (d && d.kx === "combo" && d.combo) watchCombo(d.combo, { keep: d.keep !== false });
+  // KodeX's Duelist Studio edits the quick reactions too
+  if (d && d.kx === "quick" && Array.isArray(d.list)) { quickSet(d.list.filter((x) => typeof x === "string" && x.length < 64)); if (typeof d.bar === "boolean") { PREF.quickBar = d.bar; save("duel:pref", PREF); const c = $("#prefQuickBar"); if (c) c.checked = d.bar; placeQuick(); } }
   // a combo KodeX read from a MEIOCG combo image: kept in the Replays list without opening it
   if (d && d.kx === "comboKeep" && d.combo) { const c = cleanCombo(d.combo); if (c) comboKeep(c); }
   // practise a combo for real: its starting hand becomes the opening hand of the playtest
@@ -3554,6 +3580,16 @@ function dockLayout() {
   }
 }
 LANDSCAPE.addEventListener("change", dockLayout);
+// Large text set in the phone's settings makes every letter bigger than the layout expects: measured once, and the
+// card panel in landscape is scaled back by that much so card text still fits beside the field.
+(function textScale() {
+  try {
+    const p = el("span", null, "M"); p.style.cssText = "position:absolute;visibility:hidden;font:100px/1 sans-serif;left:-999px;top:0";
+    document.body.append(p); const h = p.getBoundingClientRect().height; p.remove();
+    const tz = Math.min(2, Math.max(1, h / 100));
+    if (tz > 1.08) { document.documentElement.style.setProperty("--tz", tz.toFixed(3)); document.documentElement.classList.add("tz-big"); }
+  } catch { /* measuring is optional */ }
+})();
 dockLayout();
 
 // ----- field view options (kept on this device) -----
@@ -3690,11 +3726,60 @@ function renderEmotes() {
     for (const e of S.mySounds) btn(e.id, e.name, [el("span", null, "🔊"), el("i", null, e.name)], "snd");
   } else if (!S.premium) box.append(el("div", "em-sep up", "More sounds, your own emotes, HD GIFs and sounds: KodeX Premium"));
 }
-function quickList() { const a = Array.isArray(PREF.quick) ? PREF.quick : ["gg", "nice", "wow", "think"]; return a.filter((x) => typeof x === "string").slice(0, 6); }
+const QUICK_DEFAULT = ["gg", "nice"];
+function quickList() { const a = Array.isArray(PREF.quick) ? PREF.quick : QUICK_DEFAULT; return a.filter((x) => typeof x === "string" && x.length < 64).slice(0, 6); }
+function quickSet(a) { PREF.quick = a.slice(0, 6); save("duel:pref", PREF); placeQuick(); quickSettings(); if (!$("#emotePick").hidden) renderEmotes(); }
+/** Settings › Quick reactions: what is chosen now (and the button to the chooser, which also fits a landscape screen). */
+function quickSettings() {
+  const row = $("#quickNow"); if (!row) return;
+  row.replaceChildren();
+  const a = quickList();
+  if (!a.length) row.append(el("span", "qs-none", "None"));
+  for (const id of a) { const q = quickLook(id); if (!q) continue; const c = el("span", "qs-chip " + q.cls); c.title = q.name; c.append(...q.kids.map((k) => (typeof k === "string" ? el("span", null, k) : k))); row.append(c); }
+  if ($("#quickDlg").open) quickDialog();
+}
+/** The chooser: everything that can be a quick reaction, in a dialog that scrolls on any screen. */
+function quickDialog() {
+  const d = $("#quickDlg"), now = $("#quickPicked"), all = $("#quickAll"), a = quickList();
+  now.replaceChildren(); all.replaceChildren();
+  const tile = (id, picked) => {
+    const q = quickLook(id); if (!q) return null;
+    const b = el("button", "qd-t " + q.cls + (a.includes(id) ? " on" : "")); b.type = "button"; b.dataset.qid = id; b.title = q.name;
+    b.setAttribute("aria-pressed", String(a.includes(id))); b.setAttribute("aria-label", (picked ? "Take out " : a.includes(id) ? "Chosen: " : "Add ") + q.name);
+    b.append(...q.kids.map((k) => (typeof k === "string" ? el("span", null, k) : k)));
+    return b;
+  };
+  if (!a.length) now.append(el("span", "qs-none", "Nothing chosen yet"));
+  for (const id of a) { const t = tile(id, true); if (t) { t.classList.add("picked"); now.append(t); } }
+  const group = (title, ids) => { if (!ids.length) return; all.append(el("div", "qd-h", title)); const g = el("div", "qd-g"); for (const id of ids) { const t = tile(id, false); if (t) g.append(t); } all.append(g); };
+  group("Emotes", BASE_EMOTES.map((e) => e[0]));
+  group("Sounds", SOUND_EMOTES.filter((x) => !x[3] || S.premium).map((x) => "s:" + x[0]));
+  if (S.premium) { group("Your emotes", S.myEmotes.map((e) => e.id)); group("Your sounds", S.mySounds.map((e) => e.id)); }
+  else all.append(el("p", "qd-note", "More sounds and your own emotes and sounds come with KodeX Premium."));
+  if (!d.open) d.showModal();
+}
+{
+  const d = $("#quickDlg");
+  $("#quickEdit").addEventListener("click", quickDialog);
+  for (const id of ["#quickClose", "#quickDone"]) $(id).addEventListener("click", () => d.close());
+  $("#quickReset").addEventListener("click", () => quickSet(QUICK_DEFAULT));
+  d.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-qid]"); if (!b) return;
+    const id = b.dataset.qid, a = quickList(), i = a.indexOf(id);
+    if (i >= 0) a.splice(i, 1); else if (a.length >= 6) { toast("Up to 6 quick reactions"); return; } else a.push(id);
+    quickSet(a);
+  });
+  $("#quickAdd").addEventListener("submit", (e) => {
+    e.preventDefault(); const t = $("#quickPhrase").value.trim().slice(0, 40); if (!t) return;
+    const a = quickList(); if (a.includes("t:" + t)) return; if (a.length >= 6) { toast("Up to 6 quick reactions"); return; }
+    $("#quickPhrase").value = ""; quickSet([...a, "t:" + t]);
+  });
+}
+quickSettings();
 function quickToggle(id) {
   const a = quickList(), i = a.indexOf(id);
   if (i >= 0) a.splice(i, 1); else if (a.length >= 6) { toast("Up to 6 quick reactions"); return; } else a.push(id);
-  PREF.quick = a; save("duel:pref", PREF); placeQuick();
+  PREF.quick = a; save("duel:pref", PREF); placeQuick(); quickSettings();
 }
 /** What a quick reaction looks like on its button. */
 function quickLook(id) {

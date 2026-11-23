@@ -5,6 +5,7 @@
 // otherwise WebM. Created by Castel Noleal, creator of MEIOCG.
 import * as C from "./engine/constants.js";
 import { presetIcon } from "./profile.js";
+import { drawFx as comboFxDraw, drawFinale, FX_MS } from "./cbfx.js";
 const M = C.MSG;
 
 export const FORMATS = { landscape: [16, 9], portrait: [9, 16], square: [1, 1] };
@@ -139,6 +140,8 @@ export class Clip {
   }
   feed(p) {
     const now = performance.now(), me = this.o.team();
+    this.cbFxAt = false;
+    if (this.o.comboFx && p.combo && p.combo.last) this.fx.push({ k: "cbfin", style: this.o.comboFx, seed: Math.floor(Math.random() * 1e6), t0: now + 1500, d: 2100 });
     let nf = 0, lit = false;
     const light = (code, tag, team) => { if (!code) return; lit = true; if (this.cur && this.cur.code === Number(code) && this.cur.tag === tag && now - this.cur.t0 < 1500) return; this.cur = { code: Number(code), tag, team, t0: now }; };
     for (const e of p.events || []) {
@@ -158,6 +161,10 @@ export class Clip {
       } else if (e.type === M.DRAW && e.drawn && nf < 10) {
         const a = this.spot({ controller: e.player, location: C.LOCATION_DECK, sequence: 0 }), b = this.spot({ controller: e.player, location: C.LOCATION_HAND });
         if (a && b) e.drawn.slice(0, 6).forEach((d) => { this.fx.push({ k: "fly", code: e.player === me ? d.code : 0, a, b, t0: now + nf * 70, d: 420, key: "" }); nf++; });
+      }
+      if (this.o.comboFx && p.combo && !this.cbFxAt && (e.type === M.CHAINING || e.type === M.SUMMONING || e.type === M.SPSUMMONING || e.type === M.FLIPSUMMONING)) {
+        this.cbFxAt = true;
+        this.fx.push({ k: "cbfx", style: this.o.comboFx, at: this.slot(e.controller, e.location, e.sequence), seed: Math.floor(Math.random() * 1e6), t0: now + 120, d: FX_MS });
       }
       if (e.type === M.CHAINING) {
         const ace = this.o.aces && this.o.aces(e.controller).has(Number(e.code));
@@ -475,6 +482,8 @@ export class Clip {
     this.fx = this.fx.filter((f) => now - f.t0 < f.d);
     for (const f of this.fx) {
       const t = (now - f.t0) / f.d; if (t < 0) continue;
+      if (f.k === "cbfx") { comboFxDraw(g, W, H, f.style, t, f.at, f.seed, u * 1.6); continue; }
+      if (f.k === "cbfin") { drawFinale(g, W, H, f.style, t, f.seed, u * 1.6, (this.o.intro && this.o.intro.title) || (this.o.credits && this.o.credits.title) || ""); continue; }
       if (f.k === "fly") {
         const e = ease(t), lift = 1 + .16 * Math.sin(Math.PI * t), w = this.L.cw * lift, h = this.L.ch * lift;
         const x = f.a.x + (f.b.x - f.a.x) * e, y = f.a.y + (f.b.y - f.a.y) * e - 18 * u * Math.sin(Math.PI * t);
@@ -609,6 +618,36 @@ export class Clip {
     const sf = E(.5, .64), sub = [it.sub, it.by ? "by " + it.by : ""].filter(Boolean).join("  ·  ");
     if (sf > 0 && sub) { g.globalAlpha *= sf; this.text(sub, tx, by2 + 54 * u, 32 * u, "#e9ecff", { weight: 700, align, max: tw, font: '"Plus Jakarta Sans", "Chakra Petch", system-ui, sans-serif', stroke: 5 * u, strokeColor: "#05060f" }); g.globalAlpha /= sf; }
   }
+  /** Starts the end credits; returns how long they last (ms). */
+  outro() { const c = this.o.credits || {}; this.outroMs = Math.max(3000, Math.min(8000, Number(c.ms) || 4500)); this.outroT0 = performance.now(); return this.outroMs + 250; }
+  /** The end credits: who made the combo, the deck, a handle, their own line, and MEIOCG · Duel Synapse: KodeX. */
+  drawOutro(k) {
+    const g = this.g, { W, H, u } = this, c = this.o.credits || {}, wide = W > H * 1.2;
+    const TH = { gold: ["#f0b429", "#ffe08a", "#3a2a05"], neon: ["#2ef2ff", "#b4fbff", "#062a33"], crimson: ["#ff4d6a", "#ffc2cc", "#33060f"], ice: ["#9fd3ff", "#e9f6ff", "#0a2033"], royal: ["#b38bff", "#ecdfff", "#1d0b3a"] }[c.custom ? c.theme : "gold"] || ["#f0b429", "#ffe08a", "#3a2a05"];
+    const E = (a, b) => ease(Math.min(1, Math.max(0, (k - a) / (b - a)))), fade = 1 - E(.9, 1) * 0;
+    // the last frame of the combo darkens behind the credits
+    g.save(); g.globalAlpha = .92 * E(0, .12); g.fillStyle = "#05060f"; g.fillRect(0, 0, W, H); g.restore();
+    const glow = g.createRadialGradient(W / 2, H * .45, 0, W / 2, H * .45, Math.max(W, H) * .6); glow.addColorStop(0, TH[0] + "33"); glow.addColorStop(1, TH[0] + "00");
+    g.save(); g.globalAlpha = E(0, .2); g.fillStyle = glow; g.fillRect(0, 0, W, H);
+    // rising motes
+    for (let i = 0; i < 46; i++) { const sx = ((i * 97) % 100) / 100 * W, sp = .25 + ((i * 37) % 10) / 14, sy = H - ((k * sp + ((i * 53) % 100) / 100) % 1) * H; g.globalAlpha = .5 * E(0, .2); g.fillStyle = i % 3 ? TH[1] : TH[0]; g.fillRect(sx, sy, 3 * u, 3 * u); }
+    g.restore();
+    const cx = W / 2, top = wide ? H * .2 : H * .26, line = (txt, y, size, col, a0, opt = {}) => { const f = E(a0, a0 + .14); if (f <= 0 || !txt) return; g.save(); g.globalAlpha = f * fade; this.text(txt, cx, y + (1 - f) * 26 * u, size, col, { align: "center", max: W * .86, ...opt }); g.restore(); };
+    if (this.logo && this.logo.ok) { const f = E(.04, .18), s = 120 * u * (.8 + .2 * f); g.save(); g.globalAlpha = f; g.shadowColor = TH[0]; g.shadowBlur = 40 * u * f; g.drawImage(this.logo.img, cx - s / 2, top - s / 2, s, s); g.restore(); }
+    let y = top + 110 * u;
+    line(c.title ? String(c.title).toUpperCase() : "COMBO", y, 54 * u, TH[1], .12, { weight: 900, italic: true, stroke: 7 * u, strokeColor: "#05060f", glow: TH[0] + "88" }); y += 76 * u;
+    if (c.by) { line("COMBO BY", y, 20 * u, TH[0], .22, { weight: 800 }); y += 46 * u; line(c.by, y, 44 * u, "#ffffff", .25, { weight: 800 }); y += 62 * u; }
+    if (c.deck) { line("DECK", y, 20 * u, TH[0], .32, { weight: 800 }); y += 40 * u; line(c.deck, y, 34 * u, "#e9ecff", .35, { weight: 700 }); y += 56 * u; }
+    if (c.custom && c.handle) { line(c.handle, y, 30 * u, TH[1], .42, { weight: 700 }); y += 50 * u; }
+    if (c.custom && c.line) { line(c.line, y, 26 * u, "#c9d0f2", .48, { weight: 600, italic: true }); y += 50 * u; }
+    // MEIOCG, always
+    const by2 = H - (wide ? 90 : 150) * u, f = E(.55, .7);
+    if (f > 0) {
+      g.save(); g.globalAlpha = f; const lw = Math.min(W * .5, 520 * u) * f; g.fillStyle = TH[0]; g.fillRect(cx - lw / 2, by2 - 46 * u, lw, 2 * u); g.restore();
+      line("MADE WITH DUEL SYNAPSE: KODEX", by2, 24 * u, "#ffffff", .58, { weight: 800 });
+      line("MEIOCG · META INSIDER OCG · meiocg.org", by2 + 38 * u, 20 * u, TH[0], .62, { weight: 700 });
+    }
+  }
   caption(c) {
     const g = this.g, { W, u } = this, w = Math.min(W - 60 * u, 1500 * u), x = (W - w) / 2, y = 18 * u, h = 66 * u;
     this.rr(x, y, w, h, 20 * u); g.fillStyle = "#0c0f1fe6"; g.fill(); g.lineWidth = 2 * u; g.strokeStyle = "#f0b42988"; g.stroke();
@@ -636,6 +675,8 @@ export class Clip {
     // a combo's title card covers the first seconds, then fades into the table
     const it = this.o.intro, el = this.t0 ? now - this.t0 : 0;
     if (it && it.ms && el < it.ms) { this.g.globalAlpha = el > it.ms - 380 ? Math.max(0, (it.ms - el) / 380) : 1; this.drawIntro(el / it.ms); this.g.globalAlpha = 1; }
+    // the end credits of a combo video, over everything
+    if (this.outroT0) { const k = Math.min(1, (now - this.outroT0) / this.outroMs); this.drawOutro(k); return; }
     if (this.o.watermark) {
       const u = this.u, g = this.g; g.globalAlpha = 0.85;
       this.text("KodeX · meiocg.org", this.W - 30 * u, this.H - 34 * u, 22 * u, "#fff", { weight: 700, align: "right" });

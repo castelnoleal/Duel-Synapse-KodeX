@@ -800,7 +800,9 @@ async function cbPayload(c) {
       .map(l =>
         l
           .map(n => ({
-            cards: n.cards.map(x => ({ c: pc(x.c), a: x.a, z: x.z, p: x.p, f: x.f, s: x.s, o: x.o })).filter(x => x.c),
+            cards: n.cards
+              .map(x => ({ c: pc(x.c), a: x.a, z: x.z, p: x.p, f: x.f, s: x.s, o: x.o, r: x.r }))
+              .filter(x => x.c),
             note: n.note || ''
           }))
           .filter(n => n.cards.length)

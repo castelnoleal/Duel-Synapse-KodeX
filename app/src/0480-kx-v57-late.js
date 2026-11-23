@@ -104,7 +104,7 @@ function skinsToArena() {
   audioToArena();
 }
 
-/* ===== Premium Studio: everything Premium in one organized place ===== */
+/* ===== Duelist Studio (was Premium Studio): everything to make duels yours, in one organized place ===== */
 const STUDIO_TABS = [
   ['look', 'Look'],
   ['moves', 'Moves'],
@@ -222,8 +222,8 @@ function openSkins() {
   );
   const panes = { look, moves, shows, cards: cardsP, emotes, sound };
   tool(
-    'Premium Studio',
-    `<div class="studio"><div class="st-hero"><img src="${(document.querySelector('header .logo img') || {}).src || ''}" alt="" onerror="this.remove()"><div><b>KodeX Premium</b><span>Make every duel yours. Your look, moves and showdowns are shown to your opponent too.</span></div></div><nav class="st-tabs" role="tablist" aria-label="Premium Studio">${STUDIO_TABS.map(([k, l]) => `<button type="button" role="tab" data-stab="${k}" aria-selected="${k === studioTab}">${l}</button>`).join('')}</nav>${STUDIO_TABS.map(([k]) => `<div class="st-pane" data-spane="${k}"${k === studioTab ? '' : ' hidden'}>${panes[k]}</div>`).join('')}</div>`
+    'Duelist Studio',
+    `<div class="studio"><div class="st-hero"><img src="${(document.querySelector('header .logo img') || {}).src || ''}" alt="" onerror="this.remove()"><div><b>KodeX Premium</b><span>Make every duel yours. Your look, moves and showdowns are shown to your opponent too.</span></div></div><nav class="st-tabs" role="tablist" aria-label="Duelist Studio">${STUDIO_TABS.map(([k, l]) => `<button type="button" role="tab" data-stab="${k}" aria-selected="${k === studioTab}">${l}</button>`).join('')}</nav>${STUDIO_TABS.map(([k]) => `<div class="st-pane" data-spane="${k}"${k === studioTab ? '' : ' hidden'}>${panes[k]}</div>`).join('')}</div>`
   );
   const tb = $('tb');
   tb.querySelectorAll('[data-stab]').forEach(
@@ -522,7 +522,7 @@ function openSigEditor(id, onDone) {
 {
   const b = $('bPrem'),
     sp = b && b.querySelector('span');
-  if (PREMIUM && sp) sp.textContent = 'Premium Studio';
+  if (PREMIUM && sp) sp.textContent = 'Duelist Studio';
 }
 // (the back-navigation fix is in the main script: minimizing no longer asks "Leave the duel?")
 
