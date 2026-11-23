@@ -25293,7 +25293,8 @@ export function drawOpening(g, W, H, style, k, d = {}, seed = 1, u = 1) {
     if (k < .62) drawFx(g, W, H, "lightning", clamp(k / .62) * .9, { x: cx, y: cy }, seed, u);
     for (const t0 of [.08, .2, .31]) if (k > t0 && k < t0 + .025) { g.fillStyle = "rgba(225,240,255,.6)"; g.fillRect(0, 0, W, H); }
   } else if (style === "inferno") {
-    drawFx(g, W, H, "inferno", .12 + .55 * L(0, .7), { x: cx, y: cy + ch * .3 }, seed, u);
+    // the fire roars up, then dies down once the card has risen out of it
+    drawFx(g, W, H, "inferno", .12 + .88 * L(0, .92), { x: cx, y: cy + ch * .3 }, seed, u);
   } else if (style === "warp") {
     if (k < .7) drawFx(g, W, H, "cosmic", .1 + .7 * L(0, .62), { x: cx, y: cy }, seed, u);
   } else if (style === "shatter") {
@@ -25384,7 +25385,8 @@ export function drawOpening(g, W, H, style, k, d = {}, seed = 1, u = 1) {
       if (split > .5) { oText(g, l, -split, 0, fs, P[2] + "cc", { align }); oText(g, l, split, 0, fs, P[1] + "cc", { align }); }
       oText(g, l, 0, 0, fs, "#ffffff", { align, stroke: 9 * u, glow: P[1] });
       // a gleam across the letters
-      const gs = L(tAt + .1, tAt + .3); if (gs > 0 && gs < 1) { g.globalCompositeOperation = "source-atop"; const w = g.measureText(l).width, x0 = align === "left" ? 0 : -w / 2, gx = x0 - w * .3 + gs * w * 1.6, gr = g.createLinearGradient(gx - fs, 0, gx + fs, 0); gr.addColorStop(0, "#ffffff00"); gr.addColorStop(.5, P[0] + "dd"); gr.addColorStop(1, "#ffffff00"); g.fillStyle = gr; g.fillRect(x0, -fs, w, fs * 1.2); g.globalCompositeOperation = "source-over"; }
+      // a gleam across the letters (the words drawn again in a moving gradient, so only the letters light up)
+      const gs = L(tAt + .1, tAt + .3); if (gs > 0 && gs < 1) { const w = g.measureText(l).width, x0 = align === "left" ? 0 : -w / 2, gx = x0 - w * .3 + gs * w * 1.6, gr = g.createLinearGradient(gx - fs, 0, gx + fs, 0); gr.addColorStop(0, "rgba(255,255,255,0)"); gr.addColorStop(.5, "rgba(255,255,255,.95)"); gr.addColorStop(1, "rgba(255,255,255,0)"); g.fillStyle = gr; g.fillText(l, 0, 0); }
       g.restore();
     });
     // "COMBO" above, the subtitle below
