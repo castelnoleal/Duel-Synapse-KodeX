@@ -16,7 +16,7 @@ import { staple, isStaple, stapleMs, setStaplePace, finale, ace, SHOWS, pickShow
 import { cleanProfile, avatarHTML, cardHTML } from "./profile.js";
 import { breakProfile, comeback } from "./ending.js";
 import { Clip, canRecord } from "./video.js";
-import { playFx } from "./cbfx.js";
+import { playFx, playOpening, OPENING_MS } from "./cbfx.js";
 import { cleanCombo, comboPackets, lineText, replayTurns, comboFromReplay } from "./combo.js";
 import DeckStats from "./deckstats.js";
 import { LocalRoom, qrSvg, canScan, scanCode } from "./local.js";
@@ -730,10 +730,11 @@ async function watchCombo(raw, { keep = false } = {}) {
   if (keep) comboKeep(c);
   // the title card is made ready first (its picture loaded), then everything else is set up underneath it
   const intro = await comboIntroPrep(c);
+  // the table it replaces is closed first (closing it would also take the new title card away)
+  if (!$("#table").hidden) leaveTable();
   const done = intro.start();
   comboCover(false);
   try { if (window.parent !== window) window.parent.postMessage({ kx: "comboShown" }, "*"); } catch { /* not embedded */ }
-  if (!$("#table").hidden) leaveTable();
   for (const d of document.querySelectorAll("dialog[open]")) d.close();
   S.mode = "replay"; S.replayTeam = 0; S.team = 0; S.control = "one";
   enterTable();
@@ -793,10 +794,24 @@ function coverBox(nw, nh, W, H, isCard) {
 /** The title card before a combo: its picture clears from a soft blur, the title lands, the key card slides in.
  *  The picture is loaded before anything shows. Only opacity and position are animated (an animated blur filter
  *  made phones draw the picture in pieces). A tap skips it. */
+/** How long a combo's opening lasts: a Premium dramatic opening needs a little longer than the classic title card. */
+function introMs(c) { return c && c.intro && c.intro.ms ? (c.opening && S.premium ? Math.max(c.intro.ms, OPENING_MS) : c.intro.ms) : 0; }
+/** Loads a picture for the canvas (resolves to null when it can't be drawn). */
+function loadPic(src, wait = 1600) {
+  if (!src) return Promise.resolve(null);
+  return new Promise((ok) => { const im = new Image(); im.crossOrigin = /^data:|^blob:/.test(src) ? null : "anonymous"; const t = setTimeout(() => ok(null), wait); im.onload = () => { clearTimeout(t); ok(im); }; im.onerror = () => { clearTimeout(t); ok(null); }; im.src = src; });
+}
 async function comboIntroPrep(c) {
   const old = $("#comboIntro"); if (old) old.remove();
-  const ms = c.intro.ms;
+  const ms = introMs(c);
   if (!ms) return { start: () => Promise.resolve() };
+  // KodeX Premium: a dramatic opening (Combos › Settings › Opening), drawn on a layer over the Arena
+  if (c.opening && S.premium && !reduceMotion()) {
+    const artCode = c.intro.art || c.intro.key;
+    const [bg, card, logo] = await Promise.all([loadPic(c.intro.bg || (artCode ? artUrl(artCode) : "")), loadPic(c.intro.key ? artUrl(c.intro.key) : ""), loadPic(LOGO)]);
+    const sub = [c.sub || c.deck, S.myProfile && S.myProfile.name ? "by " + S.myProfile.name : c.by ? "by " + c.by : ""].filter(Boolean).join(" · ");
+    return { start: () => { Sound.play("cutin"); setTimeout(() => Sound.play("reveal"), ms * .55); return playOpening(c.opening, { title: c.title, sub, bg, bgCard: !c.intro.bg, card, logo }, ms); } };
+  }
   const custom = !!c.intro.bg, artCode = c.intro.art || c.intro.key;
   let src = c.intro.bg || "";
   if (!src && artCode) src = (await new Promise((ok) => { let fin = false; const t = setTimeout(() => { if (!fin) { fin = true; ok(""); } }, 900); artFor(artCode, (u) => { if (!fin) { fin = true; clearTimeout(t); ok(u || ""); } }); })) || artUrl(artCode);
@@ -902,7 +917,7 @@ $("#recGo").addEventListener("click", () => {
   save("duel:rec", cfg);
   $("#recDlg").close();
   const cb = S.replay.combo || null;
-  const intro = cb && cb.intro.ms ? { ms: cb.intro.ms, title: cb.title, sub: cb.sub || cb.deck, by: (S.packet && S.packet.names[0]) || cb.by, bg: cb.intro.bg || (cb.intro.art || cb.intro.key ? artUrl(cb.intro.art || cb.intro.key) : ""), bgCard: !cb.intro.bg, card: cb.intro.key ? artUrl(cb.intro.key) : "" } : null;
+  const intro = cb && cb.intro.ms ? { ms: introMs(cb), style: cb.opening && S.premium ? cb.opening : "", title: cb.title, sub: cb.sub || cb.deck, by: (S.packet && S.packet.names[0]) || cb.by, bg: cb.intro.bg || (cb.intro.art || cb.intro.key ? artUrl(cb.intro.art || cb.intro.key) : ""), bgCard: !cb.intro.bg, card: cb.intro.key ? artUrl(cb.intro.key) : "" } : null;
   const tap = cfg.sound ? Sound.tap() : null, ft = fieldTheme();
   S.recStamp = "";
   // a combo's video ends with its credits (MEIOCG always; Premium sets the rest in KodeX › Combos › Settings), and

@@ -47,9 +47,12 @@ export function cleanCombo(raw) {
     ...(cleanBoard(raw.endBoard) ? { endBoard: cleanBoard(raw.endBoard) } : {}),
     credits: cleanCredits(raw.credits),
     fx: COMBO_FX.includes(raw.fx) ? raw.fx : "",
+    opening: COMBO_OPENINGS.includes(raw.opening) ? raw.opening : "",
   };
 }
 /** The dramatic effects a Premium combo can play on its summons and activations (cbfx.js draws them). */
+/** The Premium openings of a combo (cbfx.js draws them): the title sequence before the first step. */
+export const COMBO_OPENINGS = ["thunder", "inferno", "warp", "shatter", "eclipse", "cutin", "random"];
 export const COMBO_FX = ["shockwave", "lightning", "inferno", "cosmic", "glitch", "eclipse", "random"];
 const CREDIT_THEMES = ["gold", "neon", "crimson", "ice", "royal"];
 /** The end credits of a combo video: who made it, the deck, a handle, a line of their own, the colours, how long.

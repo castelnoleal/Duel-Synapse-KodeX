@@ -187,3 +187,189 @@ export function playFx(style, at, opts = {}) {
     requestAnimationFrame(step);
   });
 }
+
+/* ---------- Premium openings: the dramatic title sequence before a combo ---------- */
+export const OPENINGS = [
+  ["", "Classic", "The picture clears, the title lands and the key card slides in (free)"],
+  ["thunder", "Thunderstrike", "Darkness, then bolts strike down and the key card crashes in with a shockwave"],
+  ["inferno", "Inferno Rise", "The screen catches fire and the key card rises out of the flames"],
+  ["warp", "Cosmic Warp", "Warp-speed starlight; the key card flies out of the void"],
+  ["shatter", "Shatter", "The screen cracks and explodes into shards to reveal the combo"],
+  ["eclipse", "Eclipse Summon", "A summoning circle turns under a black sun and the key card rises from it"],
+  ["cutin", "Anime Cut-in", "Speed lines, impact frames and a slanted cut-in of the key card"],
+  ["random", "Random", "A different opening every time"],
+];
+export const OPENING_MS = 5200;
+const OPAL = { thunder: ["#ffffff", "#8fd8ff", "#3a7bff"], inferno: ["#fff1b8", "#ff9a2e", "#ff3d1f"], warp: ["#ffffff", "#c79bff", "#6a3dff"],
+  shatter: ["#ffffff", "#9fe2ff", "#4f6bff"], eclipse: ["#fff3c4", "#f0b429", "#ff7a1a"], cutin: ["#ffffff", "#ff4d6a", "#ffd23f"] };
+export function openingStyle(style, seed) {
+  if (style !== "random") return style;
+  const all = OPENINGS.map((x) => x[0]).filter((x) => x && x !== "random");
+  return all[Math.floor(rnd(seed + 3)() * all.length)];
+}
+function oCover(g, img, W, H, zoom = 1, isCard = false) {
+  const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height; if (!iw || !ih) return;
+  const a = isCard ? { x: .14, y: .2, w: .72, h: .42 } : { x: 0, y: 0, w: 1, h: 1 };
+  const k = Math.max(W / (iw * a.w), H / (ih * a.h)) * zoom, sw = W / k, sh = H / k;
+  g.drawImage(img, iw * (a.x + a.w / 2) - sw / 2, ih * (a.y + a.h / 2) - sh / 2, sw, sh, 0, 0, W, H);
+}
+function oRR(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+function oText(g, t, x, y, size, color, o = {}) {
+  g.font = `${o.weight || 900} ${o.italic === false ? "" : "italic "}${Math.round(size)}px "Chakra Petch", system-ui, sans-serif`;
+  g.textAlign = o.align || "center"; g.textBaseline = "alphabetic";
+  if (o.stroke) { g.lineWidth = o.stroke; g.strokeStyle = o.strokeColor || "#05060f"; g.lineJoin = "round"; g.strokeText(t, x, y); }
+  if (o.glow) { g.shadowColor = o.glow; g.shadowBlur = size * .7; }
+  g.fillStyle = color; g.fillText(t, x, y); g.shadowBlur = 0;
+}
+/**
+ * One moment of a Premium opening (k: 0..1 over OPENING_MS).
+ * d: { title, sub, bg (image, the backdrop), bgCard (bg is a card picture), card (image of the key card), logo (image) }
+ */
+export function drawOpening(g, W, H, style, k, d = {}, seed = 1, u = 1) {
+  style = openingStyle(style, seed);
+  const P = OPAL[style] || OPAL.thunder, wide = W > H * 1.2, R = Math.hypot(W, H);
+  const E = (a, b) => ease(clamp((k - a) / (b - a))), L = (a, b) => clamp((k - a) / (b - a));
+  const cw = wide ? Math.min(W * .2, H * .5 * 59 / 86) : Math.min(W * .46, H * .32 * 59 / 86), ch = cw * 86 / 59;
+  const cx = wide ? W * .73 : W * .5, cy = wide ? H * .47 : H * .34;
+  const ok = (im) => im && (im.naturalWidth || im.width);
+  g.save();
+  g.fillStyle = "#03040b"; g.fillRect(0, 0, W, H);
+  // the backdrop: held back until the opening reveals it
+  const reveal = { thunder: E(.32, .5), inferno: E(.2, .55), warp: E(.4, .62), shatter: 1, eclipse: E(.45, .7), cutin: E(.05, .2) }[style] ?? 1;
+  if (ok(d.bg) && reveal > 0) { g.globalAlpha = reveal * .9; oCover(g, d.bg, W, H, 1.2 - .14 * E(0, 1), !!d.bgCard); g.globalAlpha = 1; }
+  let sh = g.createLinearGradient(0, H, 0, 0); sh.addColorStop(0, "#03040bf2"); sh.addColorStop(.55, "#03040b66"); sh.addColorStop(1, "#03040bb0"); g.fillStyle = sh; g.fillRect(0, 0, W, H);
+  // ---- the style's own build-up
+  if (style === "thunder") {
+    g.fillStyle = `rgba(2,4,18,${.75 * (1 - E(.3, .5))})`; g.fillRect(0, 0, W, H);
+    if (k < .62) drawFx(g, W, H, "lightning", clamp(k / .62) * .9, { x: cx, y: cy }, seed, u);
+    for (const t0 of [.08, .2, .31]) if (k > t0 && k < t0 + .025) { g.fillStyle = "rgba(225,240,255,.6)"; g.fillRect(0, 0, W, H); }
+  } else if (style === "inferno") {
+    // the fire roars up, then dies down once the card has risen out of it
+    drawFx(g, W, H, "inferno", .12 + .88 * L(0, .92), { x: cx, y: cy + ch * .3 }, seed, u);
+  } else if (style === "warp") {
+    if (k < .7) drawFx(g, W, H, "cosmic", .1 + .7 * L(0, .62), { x: cx, y: cy }, seed, u);
+  } else if (style === "shatter") {
+    // a sheet of glass over the screen cracks, then its shards fly off
+    const rr = rnd(seed + 5), n = 9, crack = L(.1, .26), fly = E(.28, .7);
+    if (fly < 1) {
+      for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+        const x0 = i / n * W, y0 = j / n * H, w = W / n, h = H / n, jx = (rr() - .5) * w * .5, jy = (rr() - .5) * h * .5;
+        const tri = [[[x0, y0], [x0 + w + jx, y0], [x0 + jx, y0 + h + jy]], [[x0 + w + jx, y0], [x0 + w, y0 + h], [x0 + jx, y0 + h + jy]]];
+        for (const t of tri) {
+          const mx = (t[0][0] + t[1][0] + t[2][0]) / 3, my = (t[0][1] + t[1][1] + t[2][1]) / 3, dx = mx - W / 2, dy = my - H / 2, dist = Math.hypot(dx, dy) || 1;
+          const sp = fly * (R * .6 + rr() * R * .5), ang = fly * (rr() - .5) * 6;
+          g.save(); g.globalAlpha = 1 - fly; g.translate(mx + dx / dist * sp, my + dy / dist * sp + fly * fly * 300 * u); g.rotate(ang);
+          g.beginPath(); t.forEach(([px, py], q) => (q ? g.lineTo(px - mx, py - my) : g.moveTo(px - mx, py - my))); g.closePath();
+          const gl = g.createLinearGradient(-w, -h, w, h); gl.addColorStop(0, "#1a2152"); gl.addColorStop(.5, "#0b0f2a"); gl.addColorStop(1, "#2a3577"); g.fillStyle = gl; g.fill();
+          g.strokeStyle = `rgba(190,230,255,${.25 + .6 * crack})`; g.lineWidth = 1.5 * u; g.stroke(); g.restore();
+        }
+      }
+      if (crack > 0 && fly < .05) { g.strokeStyle = P[1]; g.lineWidth = 2.5 * u; g.shadowColor = P[1]; g.shadowBlur = 20 * u; g.globalAlpha = crack;
+        const r2 = rnd(seed + 9); for (let i = 0; i < 12; i++) { let x = W / 2, y = H / 2; const a = i / 12 * Math.PI * 2; g.beginPath(); g.moveTo(x, y); for (let s = 0; s < 6; s++) { x += Math.cos(a + (r2() - .5)) * R * .09 * crack; y += Math.sin(a + (r2() - .5)) * R * .09 * crack; g.lineTo(x, y); } g.stroke(); }
+        g.shadowBlur = 0; g.globalAlpha = 1; }
+      if (k > .27 && k < .31) { g.fillStyle = "rgba(255,255,255,.7)"; g.fillRect(0, 0, W, H); }
+    }
+  } else if (style === "eclipse") {
+    if (k < .75) drawFx(g, W, H, "eclipse", .1 + .55 * L(0, .7), { x: cx, y: cy - ch * .05 }, seed, u);
+    // the summoning circle under the card
+    const cf = E(.12, .4) * (1 - E(.85, 1)), ry = (wide ? cw * 1.4 : cw * 1.2), rx = ry * 2.2;
+    if (cf > 0) {
+      g.save(); g.translate(cx, cy + ch * .55); g.scale(1, .32); g.globalAlpha = cf; g.strokeStyle = P[1]; g.shadowColor = P[1]; g.shadowBlur = 30 * u;
+      for (const [r, w, sp] of [[1, 4, 1], [.82, 2, -1.6], [.6, 3, 2.2]]) { g.lineWidth = w * u; g.beginPath(); g.arc(0, 0, rx * r * .5, 0, Math.PI * 2); g.stroke();
+        g.save(); g.rotate(k * sp * 4); for (let i = 0; i < 12; i++) { g.rotate(Math.PI / 6); g.beginPath(); g.moveTo(rx * r * .5, 0); g.lineTo(rx * r * .5 - 18 * u, 6 * u); g.stroke(); } g.restore(); }
+      g.rotate(k * 2); g.beginPath(); for (let i = 0; i <= 5; i++) { const a = i * 4 * Math.PI / 5 - Math.PI / 2; const px = Math.cos(a) * rx * .3, py = Math.sin(a) * rx * .3; i ? g.lineTo(px, py) : g.moveTo(px, py); } g.stroke();
+      g.restore();
+    }
+  } else if (style === "cutin") {
+    // speed lines from the right, a slanted band with the key card's art crossing the screen
+    const rr = rnd(seed + 11); g.save(); g.globalAlpha = .55 * (1 - E(.8, 1));
+    for (let i = 0; i < 60; i++) { const y = rr() * H, len = (.2 + rr() * .5) * W, x = ((rr() + k * (2 + rr() * 2)) % 1.4 - .2) * W; g.fillStyle = rr() > .7 ? P[2] : "#ffffff"; g.fillRect(W - x, y, len, (1 + rr() * 3) * u); }
+    g.restore();
+    const bIn = E(.08, .22), bOut = E(.4, .5), bh = H * .32;
+    if (bIn > 0 && bOut < 1) {
+      g.save(); g.translate(W / 2 + (1 - bIn) * W * 1.2 - bOut * W * 1.3, H / 2); g.rotate(-.12);
+      g.beginPath(); g.rect(-W, -bh / 2, W * 2, bh); g.save(); g.clip();
+      if (ok(d.card)) { g.translate(-W, -bh / 2); oCover(g, d.card, W * 2, bh, 1.05, true); g.translate(W, bh / 2); } else { g.fillStyle = P[1]; g.fillRect(-W, -bh / 2, W * 2, bh); }
+      g.restore(); g.lineWidth = 8 * u; g.strokeStyle = P[2]; g.strokeRect(-W, -bh / 2, W * 2, bh); g.lineWidth = 3 * u; g.strokeStyle = "#fff"; g.strokeRect(-W, -bh / 2 - 12 * u, W * 2, bh + 24 * u);
+      g.restore();
+    }
+    // impact frames: black and white
+    for (const [t0, c] of [[.22, "#ffffff"], [.24, "#000000"], [.5, "#ffffff"], [.52, "#000000"]]) if (k > t0 && k < t0 + .018) { g.fillStyle = c; g.globalAlpha = .85; g.fillRect(0, 0, W, H); g.globalAlpha = 1; }
+  }
+  // ---- the key card arrives, each style its own way
+  const at = { thunder: .3, inferno: .38, warp: .42, shatter: .34, eclipse: .45, cutin: .52 }[style] ?? .4;
+  const f = E(at, at + .16);
+  if (ok(d.card) && f > 0) {
+    g.save();
+    let x = cx, y = cy, s = 1, rot = 5 * Math.PI / 180, a = f;
+    if (style === "thunder") { y = cy - (1 - f) * H * .6; s = 1 + (1 - f) * .3; }
+    else if (style === "inferno") { y = cy + (1 - f) * H * .5; a = f; }
+    else if (style === "warp") { s = .05 + .95 * f; rot += (1 - f) * Math.PI * 2; }
+    else if (style === "shatter") { s = 1.4 - .4 * f; }
+    else if (style === "eclipse") { y = cy + (1 - f) * ch * .9; a = f; }
+    else if (style === "cutin") { x = cx + (1 - f) * W * .7; rot = (5 + (1 - f) * -20) * Math.PI / 180; }
+    const bob = Math.sin(k * 9) * 4 * u * E(at + .16, at + .3);
+    g.globalAlpha = a; g.translate(x, y + bob); g.rotate(rot); g.scale(s, s);
+    g.shadowColor = P[1]; g.shadowBlur = 70 * u; oRR(g, -cw / 2 - 5 * u, -ch / 2 - 5 * u, cw + 10 * u, ch + 10 * u, cw * .05); g.fillStyle = P[0]; g.fill(); g.shadowBlur = 0;
+    g.save(); oRR(g, -cw / 2, -ch / 2, cw, ch, cw * .04); g.clip(); g.drawImage(d.card, -cw / 2, -ch / 2, cw, ch);
+    const gs = E(at + .14, at + .34); if (gs > 0 && gs < 1) { const gx = -cw + gs * cw * 2.4, gr = g.createLinearGradient(gx, 0, gx + cw * .6, 0); gr.addColorStop(0, "#ffffff00"); gr.addColorStop(.5, "#ffffffaa"); gr.addColorStop(1, "#ffffff00"); g.fillStyle = gr; g.fillRect(-cw / 2, -ch / 2, cw, ch); }
+    g.restore(); g.restore();
+    // the landing
+    const land = L(at + .14, at + .3);
+    if (land > 0 && land < 1 && style !== "inferno") drawFx(g, W, H, "shockwave", land * .8, { x: cx, y: cy }, seed + 1, u * .8);
+  }
+  // ---- the title slams in
+  const tAt = Math.max(.52, at + .12), tf = E(tAt, tAt + .1), title = String(d.title || "Combo");
+  if (tf > 0) {
+    const tx = wide ? W * .07 : W / 2, align = wide ? "left" : "center", tw = wide ? W * .58 : W * .9;
+    let fs = (wide ? 110 : 94) * u; g.font = `900 italic ${Math.round(fs)}px "Chakra Petch", system-ui, sans-serif`;
+    const words = title.split(/\s+/); let lines = [title];
+    if (g.measureText(title).width > tw && words.length > 1) { let best = 1, bd = 1e9; for (let i = 1; i < words.length; i++) { const dd = Math.abs(g.measureText(words.slice(0, i).join(" ")).width - g.measureText(words.slice(i).join(" ")).width); if (dd < bd) { bd = dd; best = i; } } lines = [words.slice(0, best).join(" "), words.slice(best).join(" ")]; }
+    const widest = Math.max(...lines.map((l) => g.measureText(l).width)); if (widest > tw) fs *= tw / widest;
+    const baseY = wide ? H * .62 : cy + ch / 2 + 150 * u;
+    const s = 1 + (1 - tf) * 1.6, shake = L(tAt, tAt + .08) < 1 ? Math.sin(k * 300) * 12 * u * (1 - L(tAt, tAt + .08)) : 0;
+    g.save(); g.globalAlpha = tf;
+    lines.forEach((l, i) => {
+      const y = baseY + i * fs * 1.04;
+      g.save(); g.translate(tx + shake, y); g.scale(s, s);
+      const split = (1 - tf) * 14 * u + (style === "cutin" || style === "shatter" ? Math.max(0, Math.sin(k * 90)) * 4 * u * (1 - L(tAt, tAt + .2)) : 0);
+      if (split > .5) { oText(g, l, -split, 0, fs, P[2] + "cc", { align }); oText(g, l, split, 0, fs, P[1] + "cc", { align }); }
+      oText(g, l, 0, 0, fs, "#ffffff", { align, stroke: 9 * u, glow: P[1] });
+      // a gleam across the letters
+      // a gleam across the letters (the words drawn again in a moving gradient, so only the letters light up)
+      const gs = L(tAt + .1, tAt + .3); if (gs > 0 && gs < 1) { const w = g.measureText(l).width, x0 = align === "left" ? 0 : -w / 2, gx = x0 - w * .3 + gs * w * 1.6, gr = g.createLinearGradient(gx - fs, 0, gx + fs, 0); gr.addColorStop(0, "rgba(255,255,255,0)"); gr.addColorStop(.5, "rgba(255,255,255,.95)"); gr.addColorStop(1, "rgba(255,255,255,0)"); g.fillStyle = gr; g.fillText(l, 0, 0); }
+      g.restore();
+    });
+    // "COMBO" above, the subtitle below
+    const ya = baseY - fs * .95; g.globalAlpha = E(tAt + .04, tAt + .14);
+    oText(g, "C O M B O", tx, ya, 28 * u, P[1], { align, italic: false, weight: 800, glow: P[2] });
+    if (d.sub) { g.globalAlpha = E(tAt + .1, tAt + .2); oText(g, String(d.sub).slice(0, 70), tx, baseY + lines.length * fs * 1.04 + 10 * u, 32 * u, "#e9ecff", { align, italic: false, weight: 700, stroke: 5 * u }); }
+    g.restore();
+    if (tf < 1 && tf > .7) { g.fillStyle = `rgba(255,255,255,${(1 - tf) * 1.2})`; g.fillRect(0, 0, W, H); }
+  }
+  // MEIOCG at the top, always
+  const ba = E(.04, .16); g.globalAlpha = ba;
+  if (ok(d.logo)) g.drawImage(d.logo, 44 * u, 36 * u, 52 * u, 52 * u);
+  oText(g, "MEIOCG · DUEL SYNAPSE: KODEX", 110 * u, 72 * u, 22 * u, "#f0b429", { align: "left", italic: false, weight: 700 });
+  g.globalAlpha = 1;
+  // a flash into the duel
+  const out = L(.94, 1); if (out > 0) { g.fillStyle = `rgba(255,255,255,${Math.sin(out * Math.PI) * .7})`; g.fillRect(0, 0, W, H); }
+  g.restore();
+}
+
+/** On screen: the opening over the Arena (a tap skips it). Resolves when it ends. */
+export function playOpening(style, d, ms = OPENING_MS) {
+  const cv = document.createElement("canvas"), dpr = Math.min(2, window.devicePixelRatio || 1), W = innerWidth, H = innerHeight;
+  cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); cv.className = "cbfx-open"; cv.setAttribute("aria-label", "Combo opening (tap to skip)");
+  Object.assign(cv.style, { position: "fixed", inset: "0", width: W + "px", height: H + "px", zIndex: "85", cursor: "pointer" });
+  document.body.append(cv);
+  const g = cv.getContext("2d"); g.scale(dpr, dpr);
+  const seed = Math.floor(Math.random() * 1e6), t0 = performance.now(), u = Math.min(W, H) / 1080 * (W > H ? 1.15 : 1.1);
+  return new Promise((done) => {
+    let over = false;
+    const end = () => { if (over) return; over = true; cv.style.transition = "opacity .35s"; cv.style.opacity = "0"; setTimeout(() => cv.remove(), 380); done(); };
+    cv.addEventListener("click", end);
+    const step = (now) => { if (over) return; const k = (now - t0) / ms; if (k >= 1) { end(); return; } g.clearRect(0, 0, W, H); drawOpening(g, W, H, style, k, d, seed, u); requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  });
+}

@@ -5,7 +5,7 @@
 // otherwise WebM. Created by Castel Noleal, creator of MEIOCG.
 import * as C from "./engine/constants.js";
 import { presetIcon } from "./profile.js";
-import { drawFx as comboFxDraw, drawFinale, FX_MS } from "./cbfx.js";
+import { drawFx as comboFxDraw, drawFinale, drawOpening, FX_MS } from "./cbfx.js";
 const M = C.MSG;
 
 export const FORMATS = { landscape: [16, 9], portrait: [9, 16], square: [1, 1] };
@@ -674,7 +674,16 @@ export class Clip {
     }
     // a combo's title card covers the first seconds, then fades into the table
     const it = this.o.intro, el = this.t0 ? now - this.t0 : 0;
-    if (it && it.ms && el < it.ms) { this.g.globalAlpha = el > it.ms - 380 ? Math.max(0, (it.ms - el) / 380) : 1; this.drawIntro(el / it.ms); this.g.globalAlpha = 1; }
+    if (it && it.ms && el < it.ms) {
+      this.g.globalAlpha = el > it.ms - 380 ? Math.max(0, (it.ms - el) / 380) : 1;
+      // KodeX Premium: a dramatic opening instead of the classic title card
+      if (it.style) {
+        const pic = (x) => (x && x.ok ? x.img : null);
+        if (!this.openSeed) this.openSeed = Math.floor(Math.random() * 1e6);
+        drawOpening(this.g, this.W, this.H, it.style, el / it.ms, { title: it.title, sub: [it.sub, it.by ? "by " + it.by : ""].filter(Boolean).join("  ·  "), bg: pic(this.introBg), bgCard: !!it.bgCard, card: pic(this.introCard), logo: pic(this.logo) }, this.openSeed, this.u);
+      } else this.drawIntro(el / it.ms);
+      this.g.globalAlpha = 1;
+    }
     // the end credits of a combo video, over everything
     if (this.outroT0) { const k = Math.min(1, (now - this.outroT0) / this.outroMs); this.drawOutro(k); return; }
     if (this.o.watermark) {
