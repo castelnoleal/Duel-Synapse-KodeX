@@ -127,6 +127,7 @@ function emit(viewer, packet) {
     replayStep();
     return;
   }
+  if (!rp && host && host.rec) packet.at = host.rec.responses.length;   // how many answers the duel has had (take-backs)
   post({ t: "packet", viewer, packet });
   if (rp && viewer === 3) {
     if (packet.events.some((e) => e.type === 40)) { rp.turnSeenNow = (rp.turnSeenNow || 0) + 1; if (!rp.turnAt.includes(rp.i)) rp.turnAt.push(rp.i); }
@@ -250,6 +251,24 @@ self.onmessage = async (ev) => {
         rec.answer(m.team, host.pending.msg, m.resp, host.pending.hint);
       const err = host.respond(m.team, m.resp);
       if (err) post({ t: "error", team: m.team, error: err });
+    } else if (m.cmd === "takeBack") {
+      // Take back moves (solo): the same duel is run again from its start (same seed and deck order) with only the first
+      // `keep` answers, without showing anything, then it carries on live from there. The replay keeps only those answers.
+      if (!host || rp || !host.rec || host.ended && !m.ended) { post({ t: "takeback", error: "Nothing to take back." }); return; }
+      const old = host, R = old.rec, keep = Math.max(0, Math.min(R.responses.length, m.keep | 0));
+      const decks = R.decks.map((d, t) => ({ ...(old.decks[t] || {}), main: [...d.main].reverse(), extra: [...d.extra] }));
+      let quiet = true, h = null;
+      try {
+        h = new DuelHost({ core, db, scripts: store, decks, names: old.names, options: { ...old.opt, noShuffle: true }, seed: R.seed, emit: (v, p) => { if (!quiet) emit(v, p); } });
+        h.start();
+        for (const b of R.responses.slice(0, keep)) { if (!h.pending || h.ended) break; h.rec.responses.push(b); h.respondRaw(b); }
+      } catch (e) { h = null; }
+      if (!h || h.rec.responses.length !== keep || h.ended) { try { if (h) h.destroy(); } catch { /* gone */ } post({ t: "takeback", error: "That move can't be taken back." }); return; }
+      h.rec.time = R.time;
+      old.destroy(); host = h; mems = {}; retries = {};
+      quiet = false;
+      post({ t: "takeback", keep, turn: h.turn });
+      h.broadcast([]);
     } else if (m.cmd === "surrender") {
       if (host) host.surrender(m.team);
     } else if (m.cmd === "timeout") {

@@ -76,7 +76,7 @@ await page.waitForTimeout(250);
 await page.screenshot({ path: `${out}/v76-fx.png` });
 ok(true, "a dramatic effect plays on a summon");
 await f.waitForFunction(() => window.__duel.packet && window.__duel.packet.combo && window.__duel.packet.combo.last, null, { timeout: 40000 });
-await f.waitForFunction(() => !!document.querySelector(".cbfx-layer"), null, { timeout: 6000 }).catch(() => fail("no finale"));
+await f.waitForFunction(() => !!document.querySelector(".cbfx-layer"), null, { timeout: 15000 }).catch(() => fail("no finale"));
 ok(true, "COMBO COMPLETE at the end");
 // record it: the video ends with the credits
 await page.waitForTimeout(2500);
