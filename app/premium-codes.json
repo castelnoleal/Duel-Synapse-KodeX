@@ -1,0 +1,6 @@
+{
+  "about": "KodeX Premium by code. pub: the public key that checks Premium keys (scripts/kodex_keys.mjs; the private key is kept by MEIOCG, never here). promos: SHA-256 hashes of promo codes. revoked: ids of keys that no longer work.",
+  "pub": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAESQFP6Gc8z4lDzxtQgnddiWKS8A2et67QazJ72Xs/7lTE9mVk+L0+OSfAAk7DCWoS60dps4FIIP/fIao8lx1LLg==",
+  "promos": [],
+  "revoked": []
+}

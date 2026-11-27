@@ -158,8 +158,9 @@ async function boot() {
   let fromLink = null;
   try {
     if (hash.get("deck")) fromLink = decodeKodex(hash.get("deck"));
-    else if (location.hash.length > 30 && !hash.get("join") && !hash.get("watch")) fromLink = decodeKodex(location.hash.slice(1));
+    else if (location.hash.length > 30 && !hash.get("join") && !hash.get("watch") && !hash.get("combo")) fromLink = decodeKodex(location.hash.slice(1));
   } catch (e) { toast("That deck link could not be read."); }
+  if (hash.get("combo")) comboFromLink(hash.get("combo"));
   if (S.pendingCombo) { const pc = S.pendingCombo; S.pendingCombo = null; watchCombo(pc.raw, { keep: pc.keep }); }
   if (fromLink) useDeck(fromLink, true);
   else if (S.decks.length) selectDeck(load("duel:current", 0));
@@ -172,6 +173,7 @@ async function boot() {
   window.addEventListener("hashchange", () => {
     const h = new URLSearchParams(location.hash.slice(1));
     if (h.get("deck")) { try { useDeck(decodeKodex(h.get("deck")), true); } catch (e) { toast("That deck link could not be read."); } }
+    if (h.get("combo")) comboFromLink(h.get("combo"));
     applyRoomHash(h);
   });
   refreshButtons();
@@ -450,6 +452,7 @@ async function startSolo() {
   if (noShuffle) shuffleInPlace(decks[oppTeam].main);
   enterTable();
   Learning.stopPractice();
+  S.duelId = Date.now().toString(36); S.moves = []; S.tbBusy = false; S.tbNext = false; S.leaveCombo = null;
   S.worker.postMessage({ cmd: "start", decks, names, options: opt, bots, ...learningFor(decks) });
   
 }
@@ -722,6 +725,21 @@ function comboCover(on) {
   if (!on) { if (c) c.remove(); return; }
   if (!c) { c = el("div", "combo-cover"); c.id = "comboCover"; c.append(el("i"), el("span", null, "Loading the combo…")); document.body.append(c); }
 }
+/** A combo shared from KodeX as a link (#combo=…): "z" + deflated JSON, or "j" + JSON, in URL-safe base64. It plays here,
+ *  in any browser, like a replay. */
+async function comboFromLink(s) {
+  try {
+    s = String(s || "");
+    if (s.length < 8 || s.length > 60000) throw new Error("size");
+    const b = Uint8Array.from(atob(s.slice(1).replace(/-/g, "+").replace(/_/g, "/")), (ch) => ch.charCodeAt(0));
+    const txt = s[0] === "z" ? await new Response(new Blob([b]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).text()
+      : s[0] === "j" ? new TextDecoder().decode(b) : "";
+    const raw = JSON.parse(txt);
+    if (!raw || typeof raw !== "object") throw new Error("not a combo");
+    delete raw.fx; delete raw.opening; delete raw.credits;                  // a link only carries the combo itself
+    await watchCombo(raw, { keep: false });
+  } catch (e) { toast("That combo link could not be read.", 5000); }
+}
 async function watchCombo(raw, { keep = false } = {}) {
   const c = cleanCombo(raw);
   if (!c) { toast("That combo could not be read."); return; }
@@ -750,12 +768,12 @@ async function watchCombo(raw, { keep = false } = {}) {
 function comboShow(i, quiet) {
   const r = S.replay; if (!r || !r.combo) return;
   r.i = Math.max(0, Math.min(r.n, i));
+  if (r.i < r.n) r.endOf = null;
   const p = structuredClone(r.packets[r.i]);
   if (quiet) applyQuiet(p); else { onPacket(p); replayBarState(); }
 }
 /** KodeX Premium: a light effect on each summon and activation of a combo, queued with the step's other animations
- *  (it plays once the card has landed, or after its chain link has shown, and the next animation waits for it), and a
- *  "COMBO COMPLETE" title after everything else in the last step. */
+ *  (it plays once the card has landed, or after its chain link has shown, and the next animation waits for it). */
 function comboFx(p, flew) {
   const c = S.mode === "replay" && S.replay && S.replay.combo;
   if (!c || !c.fx || !p.combo || p.seek || !S.premium || reduceMotion() || document.hidden) return;
@@ -771,7 +789,29 @@ function comboFx(p, flew) {
       playFx(c.fx, r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null, { size: r ? Math.max(r.width, r.height) : 0 });
     }, land));
   });
-  if (p.combo.last) { fxEv = evs.length; beat(Math.round(1600 / sp), () => playFx(c.fx, null, { finale: true, title: c.title })); }
+}
+/** The end of a combo: once every animation and showdown of its last step is over, the finished board stays on screen
+ *  for a few seconds, then (Premium) "COMBO COMPLETE" plays. Resolves when it is all over (a recording stops then). */
+const COMBO_BOARD_MS = 2800;
+function comboBusy() {
+  return fxLeft() > 0 || Date.now() < S.holdUntil || S.pq.length > 0 || document.body.classList.contains("ace-on") || !!document.querySelector(".big-fx .splash, .cbfx-layer, #flyFx > *, .rise-src");
+}
+function comboEnd(c) {
+  const r0 = S.replay;
+  return new Promise((done) => {
+    let calm = 0;
+    const tick = () => {
+      if (S.replay !== r0 || S.mode !== "replay" || r0.i < r0.n) { if (S.replay === r0) r0.endOf = null; return done(false); }
+      calm = comboBusy() ? 0 : calm + 100;
+      if (calm < COMBO_BOARD_MS) { setTimeout(tick, 100); return; }
+      const fx = c.fx && S.premium && !reduceMotion() && !document.hidden;
+      if (!fx) return done(true);
+      playFx(c.fx, null, { finale: true, title: c.title });
+      if (S.rec && S.rec.clip && S.rec.clip.finale) S.rec.clip.finale();
+      setTimeout(() => done(true), 2000);
+    };
+    setTimeout(tick, 100);
+  });
 }
 /** The step of a combo, on screen the whole time it plays (above the field, where the opponent's plate would be). */
 function cbStep(c) {
@@ -789,8 +829,15 @@ function placeCbStep() {
   const land = innerWidth > innerHeight, op = document.querySelector(".duelist.op"), f = $("#field"), fr = f && f.getBoundingClientRect();
   const orr = op && op.getBoundingClientRect();
   let top = 8, w = Math.min(innerWidth * .94, 620), left = innerWidth / 2;
-  if (!land && orr && orr.height) { top = orr.top + Math.max(0, (orr.height - 48) / 2); w = Math.min(innerWidth - 16, 620); }
-  else if (fr && fr.width) { top = Math.max(6, fr.top + 4); w = Math.min(fr.width * .9, 600); left = fr.left + fr.width / 2; }
+  if (!land && orr && orr.height) {
+    // where the opponent's plate is (it already keeps clear of KodeX's buttons)
+    top = orr.top + Math.max(0, (orr.height - 48) / 2); w = Math.min(orr.width, 620); left = orr.left + orr.width / 2;
+    if (kxBox && left + w / 2 > innerWidth - kxBox.w - 4 && top < kxBox.h + 4) { w = Math.max(200, innerWidth - kxBox.w - 16); left = 8 + w / 2; }
+  }
+  else if (fr && fr.width) {
+    top = Math.max(6, fr.top + 4); w = Math.min(fr.width * .9, 600); left = fr.left + fr.width / 2;
+    if (kxBox && left + w / 2 > innerWidth - kxBox.w - 4 && top < kxBox.h + 4) w = Math.max(200, 2 * (innerWidth - kxBox.w - 8 - left));
+  }
   b.style.setProperty("--cbs-top", top + "px"); b.style.setProperty("--cbs-w", w + "px"); b.style.left = left + "px";
   requestAnimationFrame(() => { const r = b.getBoundingClientRect(); document.body.style.setProperty("--cbs-bottom", Math.round(r.bottom + 8) + "px"); });
 }
@@ -1011,7 +1058,8 @@ function recFeed(p) {
   S.rec.clip.feed(p);
   const until = S.rec.cfg.until;
   if (p.ended && until !== "stop" && !S.rec.ending) { S.rec.ending = true; setTimeout(() => recStop(true), 4500); }
-  if (p.combo && p.combo.last && until !== "stop" && !S.rec.ending) { S.rec.ending = true; setTimeout(() => recStop(true), S.rec.clip.o.comboFx ? 3900 : 3200); }
+  // the end of a combo: the recording stops once the board has been shown and COMBO COMPLETE has played (comboEnd)
+  if (p.combo && p.combo.last && until !== "stop" && !S.rec.ending) { S.rec.ending = true; S.rec.waitCombo = true; }
   if (until === "turn" && !p.combo && p.turn > S.rec.turn && !S.rec.ending) { S.rec.ending = true; setTimeout(() => recStop(true), 600); }
 }
 function recStop(keep, now) {
@@ -1276,6 +1324,12 @@ function netStatus(s, err) {
 
 // ---------------------------------------------------------------------------
 // Worker events
+/** A solo packet: right after moves were taken back, the board is shown as it was then (no animations) and asks again. */
+function soloShow(p) {
+  if (S.tbNext) { S.tbNext = false; applyQuiet(p); if (p.prompt) handlePrompt(p); }
+  else onPacket(p);
+  undoState();
+}
 function onWorker(m) {
   if (m.t === "learn") { Learning.add(m.rows, m.source); return; }
   if (m.t === "progress") { if (m.done === m.total || m.done % 10 === 0) $("#loadingText").textContent = `Loading card scripts · ${m.done}/${m.total}`; return; }
@@ -1286,6 +1340,7 @@ function onWorker(m) {
   if (m.t === "replayinfo") { S.replayInfo = m; addLog(`Replay: ${m.names.join(" vs ")} · ${m.mode === "recorded" ? "played as recorded" : `${m.answers} answers`}${m.turns ? ` · ${m.turns} turns` : ""}${m.unknown ? ` · ${m.unknown} cards this Arena doesn't know yet` : ""}`, "sys"); return; }
   if (m.t === "replaypos") { if (S.replay) { S.replay.i = m.i; S.replay.n = m.n; if (m.turns) S.replay.turns = m.turns; replayBarState(); } return; }
   if (m.t === "replayerr") { toast(m.error, 6000); leaveTable(); return; }
+  if (m.t === "takeback") { takeBackDone(m); return; }
   if (m.t !== "packet") return;
   const p = m.packet, v = m.viewer;
   if (S.mode === "replay") { if (v === 3) { S.team = S.replayTeam || 0; if (p.seek) applyQuiet(p); else onPacket(p); } return; }
@@ -1304,8 +1359,8 @@ function onWorker(m) {
       if (acting >= 0 && acting !== v) return;
       if (acting < 0 && v !== S.team) return;
       S.team = v;
-      onPacket(p);
-    } else if (v === S.team) onPacket(p);
+      soloShow(p);
+    } else if (v === S.team) soloShow(p);
   }
 }
 
@@ -1363,8 +1418,9 @@ function bindTable() {
   $("#panelBtn").addEventListener("click", (e) => { e.stopPropagation(); const i = $("#info"); if (i.classList.contains("open")) { closeInfo(); return; } openInfo(); selectTab(document.querySelector('.dock-tabs [data-tab="log"]')); });
   $("#sheetChat").addEventListener("click", () => toggleSide());
   $("#sideClose").addEventListener("click", () => toggleSide(false));
-  $("#replayBtn").addEventListener("click", saveReplay);
-  $("#resultReplay").addEventListener("click", saveReplay);
+  $("#replayBtn").addEventListener("click", () => saveReplay());
+  $("#resultReplay").addEventListener("click", () => saveReplay());
+  $("#resultCombo").addEventListener("click", async () => { const r = await saveReplay({ quiet: true }); if (r) rpToCombo(r); else toast("No replay for this duel"); });
   $("#revealOk").addEventListener("click", () => $("#reveal").close());
   $("#revealClose").addEventListener("click", () => $("#reveal").close());
   try { new ResizeObserver(() => fabAboveSheet()).observe($("#sheet")); } catch (e) { /* older browsers */ }
@@ -1392,12 +1448,111 @@ function bindTable() {
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") hideMenu(); });
 }
 
+/** Leave the duel (the flag's menu): keep it as a replay, or turn it into a combo, then surrender. */
 async function surrender() {
   if (!S.packet || S.packet.ended || S.mode === "spec" || S.mode === "replay") return;
-  if (!(await ask("Surrender this duel?", "You lose this duel.", "Surrender"))) return;
-  if (S.mode === "guest") S.room.send({ to: "host", m: { t: "surrender" } });
-  else S.worker.postMessage({ cmd: "surrender", team: S.team });
+  if (S.mode === "guest") {
+    if (!(await ask("Surrender this duel?", "You lose this duel.", "Surrender"))) return;
+    S.room.send({ to: "host", m: { t: "surrender" } });
+    return;
+  }
+  const d = $("#leaveDlg");
+  $("#leaveCombo").hidden = !hostApp;
+  $("#leaveText").textContent = S.mode === "solo" ? "Keep this playtest as a replay first, or turn it into a combo." : "Keep this duel as a replay first, or turn it into a combo. Leaving counts as a surrender.";
+  const pick = await new Promise((done) => {
+    const end = (v) => { d.close(); done(v); };
+    $("#leaveSave").onclick = () => end("save"); $("#leaveCombo").onclick = () => end("combo");
+    $("#leaveQuit").onclick = () => end("quit"); $("#leaveNo").onclick = () => end(null);
+    d.oncancel = (e) => { e.preventDefault(); end(null); };
+    d.showModal();
+  });
+  if (!pick) return;
+  let kept = null;
+  if (pick !== "quit") kept = await saveReplay({ quiet: true });
+  S.leaveCombo = pick === "combo" && kept ? kept : null;
+  S.worker.postMessage({ cmd: "surrender", team: S.team });
+  if (pick === "save") toast(kept ? "Replay saved. Find it under Replays." : "No replay for this duel", 4000);
 }
+/** After a duel left with "Save as a combo": once it has ended, the turn picker opens for that replay. */
+function leaveComboNext(p) {
+  if (!p || !p.ended || !S.leaveCombo) return;
+  const r = S.leaveCombo; S.leaveCombo = null;
+  setTimeout(() => rpToCombo(r), 900);
+}
+
+// ----- take back moves (solo playtests) -----
+// Premium: as often as you like. Free: in 3 duels a day (taking a move back in a duel spends that day's credit for it;
+// after that, that duel can take moves back as often as you like). The replay keeps only the moves that stood.
+const UNDO_FREE = 3;
+const undoDay = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
+function undoCredits() { const u = load("duel:undo", null); return u && u.day === undoDay() && Array.isArray(u.ids) ? u : { day: undoDay(), ids: [] }; }
+function undoLeft() { const u = undoCredits(); return Math.max(0, UNDO_FREE - u.ids.length); }
+async function undoAllowed() {
+  if (S.premium) return true;
+  const u = undoCredits();
+  if (u.ids.includes(S.duelId)) return true;
+  if (u.ids.length >= UNDO_FREE) {
+    toast(`No take-backs left today: the free edition takes moves back in ${UNDO_FREE} duels a day. KodeX Premium has no limit.`, 6000);
+    return false;
+  }
+  const left = UNDO_FREE - u.ids.length;
+  if (!(await ask("Take back moves in this duel?", `This uses 1 of your ${left} take-back ${left === 1 ? "duel" : "duels"} left today. In this duel you can then take back as many moves as you like.`, "Use 1"))) return false;
+  u.ids.push(S.duelId); save("duel:undo", u);
+  return true;
+}
+const MOVE_TYPES = new Set([10, 11]);      // a battle or main phase choice: what a move is (the picks inside it follow it)
+function undoMoves() { const at = S.packet && S.packet.at != null ? S.packet.at : Infinity; return (S.moves || []).filter((m) => m.at < at); }
+function undoState() {
+  const on = S.mode === "solo" && !!S.worker && undoMoves().length > 0 && !S.tbBusy;
+  const b = $("#undoBtn"); if (b) { b.hidden = !on || !!(S.packet && S.packet.ended); b.title = S.premium ? "Take back a move" : `Take back a move (${undoCredits().ids.includes(S.duelId) ? "free in this duel" : undoLeft() + " left today"})`; }
+  const r = $("#resultUndo"); if (r) r.hidden = !on;
+  if (b && b.dataset.was !== String(b.hidden)) { b.dataset.was = String(b.hidden); placeQuick(); }
+}
+/** Remembers a move the player makes (solo), so it can be taken back. */
+function noteMove(resp) {
+  if (S.mode !== "solo" || !S.packet || S.packet.at == null || !S.packet.prompt) return;
+  const t = S.packet.prompt.msg && S.packet.prompt.msg.type;
+  if (!MOVE_TYPES.has(t)) return;
+  S.moves = (S.moves || []).filter((m) => m.at < S.packet.at);
+  S.moves.push({ at: S.packet.at, turn: S.packet.turn, phase: S.packet.phase, label: "", team: S.team });
+}
+async function takeBack(move) {
+  if (!move || S.tbBusy || S.mode !== "solo") return;
+  if (!(await undoAllowed())) return;
+  S.tbBusy = true; undoState();
+  S.worker.postMessage({ cmd: "takeBack", keep: move.at, ended: !!(S.packet && S.packet.ended) });
+}
+function takeBackDone(m) {
+  S.tbBusy = false;
+  if (m.error) { toast(m.error); undoState(); return; }
+  S.moves = (S.moves || []).filter((x) => x.at < m.keep);
+  // the log forgets what was taken back
+  for (const sel of ["#log [data-at]", "#feed [data-at]"]) document.querySelectorAll(sel).forEach((e) => { if (Number(e.dataset.at) > m.keep) e.remove(); });
+  fxQueue.length = 0; fxEndAt = 0; S.pq = []; S.holdUntil = 0; clearTimeout(pqTimer);
+  S.tbNext = true; S.leaveCombo = null;
+  $("#result").hidden = true;
+  addLog(`Took back to turn ${m.turn}`, "sys");
+  toast(`Took back to turn ${m.turn}`);
+}
+function phaseShort(ph) { return ({ 1: "Draw", 2: "Standby", 4: "Main 1", 8: "Battle", 16: "Battle", 32: "Battle", 64: "Battle", 128: "Battle", 256: "Main 2", 512: "End" })[ph] || ""; }
+function movesOpen() {
+  const list = $("#movesList"), moves = undoMoves().slice().reverse();
+  list.replaceChildren();
+  $("#movesNote").textContent = S.premium ? "Go back to before one of your moves. The duel carries on from there, and its replay keeps only the moves that stood."
+    : undoCredits().ids.includes(S.duelId) ? "Take back as many moves as you like in this duel." : `Free: take moves back in ${UNDO_FREE} duels a day (${undoLeft()} left today). Premium has no limit.`;
+  if (!moves.length) list.append(el("li", "empty", "No moves to take back yet."));
+  moves.forEach((m, i) => {
+    const li = el("li"), b = el("button", "mv"); b.type = "button";
+    b.append(el("b", null, `Turn ${m.turn}${phaseShort(m.phase) ? " · " + phaseShort(m.phase) : ""}`), el("span", null, m.label || "A move"));
+    if (i === 0) b.append(el("i", "mv-tag", "Last move"));
+    b.onclick = () => { $("#movesDlg").close(); takeBack(m); };
+    li.append(b); list.append(li);
+  });
+  $("#movesDlg").showModal();
+}
+$("#movesClose").addEventListener("click", () => $("#movesDlg").close());
+$("#undoBtn").addEventListener("click", () => { const ms = undoMoves(); if (ms.length) takeBack(ms[ms.length - 1]); });
+$("#resultUndo").addEventListener("click", movesOpen);
 /** Solo: start the same playtest again at once (same decks and settings). It doesn't count in a match score. */
 async function restartDuel() {
   if (S.mode !== "solo" || !S.lastSolo) return;
@@ -1420,12 +1575,16 @@ function bindQuick() {
     e.stopPropagation();
     if (!m.hidden) { close(); return; }
     $("#qmRestart").hidden = S.mode !== "solo";
+    $("#qmUndo").hidden = S.mode !== "solo" || !undoMoves().length;
+    $("#qmSave").hidden = S.mode === "spec" || S.mode === "guest";
     m.hidden = false; b.setAttribute("aria-expanded", "true");
     const r = b.getBoundingClientRect(), w = m.offsetWidth, h = m.offsetHeight;
     m.style.left = Math.round(Math.max(8, Math.min(r.right - w, innerWidth - w - 8))) + "px";
     m.style.top = Math.round(r.top - h - 8 > 8 ? r.top - h - 8 : r.bottom + 8) + "px";
   });
   $("#qmRestart").addEventListener("click", () => { close(); restartDuel(); });
+  $("#qmUndo").addEventListener("click", () => { close(); movesOpen(); });
+  $("#qmSave").addEventListener("click", () => { close(); saveReplay(); });
   $("#qmSurrender").addEventListener("click", () => { close(); surrender(); });
   document.addEventListener("click", (e) => { if (!m.hidden && !e.target.closest("#quickMenu, #quickBtn")) close(); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
@@ -1470,6 +1629,7 @@ function rematch() {
     if (noShuffle) shuffleInPlace(decks[1 - S.team].main);
     timerReset();
     if (S.control === "both") { /* keep seats */ }
+    S.duelId = Date.now().toString(36); S.moves = []; S.tbBusy = false; S.tbNext = false; S.leaveCombo = null;
     S.worker.postMessage({ cmd: "start", decks, names: S.lastSolo.names, options: { ...options(), noShuffle }, bots: S.lastSolo.bots, ...learningFor(decks) });
   } else if (S.mode === "host") {
     // The loser of the previous duel goes first.
@@ -1702,6 +1862,10 @@ function applyPacket(p) {
   fxEvents(p);
   bigFx(p);
   comboFx(p, !!fly);
+  if (S.mode === "replay" && S.replay && S.replay.combo && p.combo && p.combo.last && !p.seek && S.replay.endOf !== p) {
+    S.replay.endOf = p;
+    comboEnd(S.replay.combo).then((ok) => { const r = S.rec; if (ok && r && r.waitCombo && !r.outro) setTimeout(() => { if (S.rec === r) recStop(true); }, 700); });
+  }
   const wait = p.seek ? 0 : fxStart();
   // a chain link plays out before anything else can be activated: the next step and the next question wait for it
   if (wait > 60) { hold(wait); S.actions = null; closeSheet(); setTimeout(() => { if (S.packet === p) handlePrompt(p); }, wait); }
@@ -1812,7 +1976,7 @@ function render(p) {
   else if (p.waitingFor >= 0) setStatus(`Waiting for ${p.names[p.waitingFor]}…`);
   else setStatus("");
 }
-function setStatus(t) { $("#status").textContent = t; }
+function setStatus(t) { const st = $("#status"); if (st.textContent === t) return; st.textContent = t; clearTimeout(setStatus.q); setStatus.q = setTimeout(() => { const q = $("#quickBar"); if (q && !q.hidden) placeQuick(); }, 150); }
 
 // ----- card info -----
 // Card details always sit on top. An open pop-up (a modal <dialog>, e.g. the Extra Deck or GY list) is drawn in the
@@ -2147,7 +2311,7 @@ function send(resp) {
   document.querySelectorAll(".card.act").forEach((c) => c.classList.remove("act"));
   const team = S.team;
   if (S.mode === "guest") S.room.send({ to: "host", m: { t: "resp", resp } });
-  else S.worker.postMessage({ cmd: "respond", team, resp });
+  else { noteMove(resp); S.worker.postMessage({ cmd: "respond", team, resp }); }
   setStatus("…");
 }
 
@@ -2651,6 +2815,13 @@ function addLog(text, cls = "", codes = []) {
   }
   const plain = li.textContent;
   S.fullLog.push(plain);
+  const at = S.packet && S.packet.at != null ? S.packet.at : null;
+  if (at != null) {
+    li.dataset.at = at;
+    // the move this line follows from gets it as its name (for taking moves back)
+    const mv = S.moves && S.moves[S.moves.length - 1];
+    if (mv && !mv.label && at > mv.at && cls !== "phase" && cls !== "turn" && cls !== "sys") mv.label = plain;
+  }
   const code = Number((/\[\[(\d+)\]\]/.exec(text) || [])[1] || 0) || (codes && codes[0]) || 0;
   if (code) { const t = el("span", "lth"); t.append(cardImg(code, "")); li.prepend(t); }
   feed(plain, code, cls);
@@ -2666,6 +2837,7 @@ function feed(text, code, cls) {
   const f = $("#feed");
   if (!f || cls === "phase" || cls === "sys" && !code) return;
   const d = el("div", "fd" + (cls === "turn" ? " turn" : ""));
+  if (S.packet && S.packet.at != null) d.dataset.at = S.packet.at;
   if (cls === "turn") d.textContent = text;
   else {
     const th = el("span", "th"); if (code) th.append(cardImg(code, "")); d.append(th, el("span", null, text));
@@ -2755,7 +2927,9 @@ function logEvent(e, p) {
 function showResult(p) {
   duelState(false);
   document.body.classList.remove("timer-alert");
-  $("#resultReplay").hidden = !(S.premium && S.mode !== "spec");
+  $("#resultReplay").hidden = S.mode === "spec" || (S.mode === "guest" && !S.premium);
+  $("#resultCombo").hidden = !hostApp || S.mode === "spec" || S.mode === "guest";
+  undoState(); leaveComboNext(p);
   setTimeout(() => Learning.flush(), 1500); // send what this duel taught
   const me = S.team;
   const w = p.ended.winner;
@@ -3315,14 +3489,18 @@ function workerReplay() {
     setTimeout(() => { S.worker.removeEventListener("message", on); done(null); }, 5000);
   });
 }
-async function saveReplay() {
-  if (!S.premium) return;
-  if (S.mode === "guest") { S.room.send({ to: "host", m: { t: "replayreq" } }); toast("Asking the host for the replay…"); return; }
-  if (!S.worker) return;
+/** Keeps this duel (finished or not) in Replays, for everyone; Premium also gets it as a .yrp file. opts.quiet: no
+ *  file and no message (leaving a duel says it). Resolves to the kept replay. */
+async function saveReplay(opts = {}) {
+  if (S.mode === "guest") { if (!S.premium) return null; S.room.send({ to: "host", m: { t: "replayreq" } }); toast("Asking the host for the replay…"); return null; }
+  if (!S.worker) return null;
   const bytes = await workerReplay();
-  if (!bytes || !bytes.length) { toast("No replay for this duel"); return; }
-  await rpKeep(bytes, S.packet ? S.packet.names : null, "saved");
-  saveFile(replayName(), "data:application/octet-stream;base64," + b64(bytes));
+  if (!bytes || !bytes.length) { if (!opts.quiet) toast("No replay for this duel"); return null; }
+  const r = await rpKeep(bytes, S.packet ? S.packet.names : null, S.mode === "solo" ? "playtest" : "saved");
+  if (opts.quiet) return r;
+  if (S.premium) saveFile(replayName(), "data:application/octet-stream;base64," + b64(bytes));
+  else toast("Replay saved. Find it under Replays.", 3500);
+  return r;
 }
 async function sendReplay(to) {
   if (!S.worker) return;
@@ -3487,7 +3665,7 @@ window.addEventListener("message", (e) => {
   if (S.myProfile) next.profile = S.myProfile;
   S.mySkin = next;
   S.premium = d.premium === true; applyFieldTheme();
-  $("#replayBtn").hidden = !S.premium;
+  $("#replayBtn").hidden = false;
   S.signature = new Set(S.premium && Array.isArray(d.signature) ? d.signature.map(Number).filter((n) => n > 0).slice(0, 60) : []);
   S.finisher = S.premium && STYLES.includes(d.finisher) ? d.finisher : "";
   S.sigFx = {};
@@ -3890,10 +4068,24 @@ function placeQuick() {
   bar.hidden = false;
   const r = fab.getBoundingClientRect();
   if (!r.width) { bar.hidden = true; return; }
-  // beside the button when there is room, else just above it
-  const w = bar.offsetWidth || 260;
-  if (r.right + 8 + w < innerWidth - 8) Object.assign(bar.style, { left: Math.round(r.right + 8) + "px", top: Math.round(r.top + r.height / 2 - bar.offsetHeight / 2) + "px" });
-  else Object.assign(bar.style, { left: Math.round(Math.max(8, Math.min(r.left, innerWidth - w - 8))) + "px", top: Math.round(r.top - bar.offsetHeight - 8) + "px" });
+  // the first free place: beside the emote button (after the chain button when it sits there), above it, or (a phone
+  // turned sideways) above my plate in the left column. Never over another button, a plate, the phases or the hand.
+  const w = bar.offsetWidth || 260, h = bar.offsetHeight || 46, W = innerWidth, H = innerHeight;
+  const vis = (sel) => [...document.querySelectorAll(sel)].filter((e) => e.getClientRects().length && !e.closest("[hidden]")).map((e) => e.getBoundingClientRect()).filter((b) => b.width && b.height);
+  const busy = vis("#chainBtn, #quickBtn, #undoBtn, #sideFab, #panelBtn, #emoteBtn, .duelist.me, .duelist.op, .turnbar, #phases, #myHand .card");
+  const st = $("#status");                    // the status line: only where its words are
+  if (st && st.textContent.trim()) { const rg = document.createRange(); rg.selectNodeContents(st); busy.push(...[...rg.getClientRects()].filter((b) => b.width)); }
+  if (kxBox) busy.push({ left: W - kxBox.w, right: W, top: 0, bottom: kxBox.h + 4 });
+  const clear = (x, y) => x >= 6 && y >= 6 && x + w <= W - 6 && y + h <= H - 4 && !busy.some((b) => x < b.right + 4 && x + w > b.left - 4 && y < b.bottom + 4 && y + h > b.top - 4);
+  const cy = Math.round(r.top + r.height / 2 - h / 2), ch = $("#chainBtn"), cr = ch && ch.getClientRects().length ? ch.getBoundingClientRect() : null;
+  const me = document.querySelector(".duelist.me"), mr = me && me.getBoundingClientRect();
+  const low = H - h - 6, spots = [[r.right + 8, cy]];
+  if (cr && Math.abs(cr.top + cr.height / 2 - (r.top + r.height / 2)) < 24) spots.push([cr.right + 8, cy], [cr.right + 8, low]);
+  spots.push([r.right + 8, low]);
+  spots.push([r.left, r.top - h - 8], [r.right - w, r.top - h - 8]);
+  if (mr && mr.width) spots.push([mr.left, mr.top - h - 8]);
+  const at = spots.map(([x, y]) => [Math.round(x), Math.round(y)]).find(([x, y]) => clear(x, y)) || [Math.round(Math.max(8, Math.min(r.left, W - w - 8))), Math.round(r.top - h - 8)];
+  Object.assign(bar.style, { left: at[0] + "px", top: at[1] + "px" });
 }
 addEventListener("resize", () => { clearTimeout(placeQuick.t); placeQuick.t = setTimeout(placeQuick, 120); });
 /** Sends one of my custom emotes / sounds to the room before its first use. */
@@ -4055,7 +4247,12 @@ $("#emoteBtn").addEventListener("click", (e) => {
   const p = $("#emotePick"), on = p.hidden;
   if (on) renderEmotes();
   p.hidden = !on; $("#emoteBtn").setAttribute("aria-expanded", String(on));
-  if (on) { const r = $("#emoteBtn").getBoundingClientRect(); p.style.left = Math.max(8, Math.min(r.left, innerWidth - 300)) + "px"; p.style.bottom = Math.round(innerHeight - r.top + 8) + "px"; p.style.maxHeight = Math.round(r.top - 16) + "px"; }
+  if (on) {
+    // above the button, and below KodeX's buttons when it reaches under them
+    const r = $("#emoteBtn").getBoundingClientRect(), left = Math.max(8, Math.min(r.left, innerWidth - 300)), w = p.offsetWidth || 300;
+    const topMin = kxBox && left + w > innerWidth - kxBox.w - 4 ? kxBox.h + 10 : 8;
+    p.style.left = left + "px"; p.style.bottom = Math.round(innerHeight - r.top + 8) + "px"; p.style.maxHeight = Math.max(120, Math.round(r.top - 8 - topMin)) + "px";
+  }
 });
 $("#emotePick").addEventListener("click", (e) => {
   if (e.target.closest("[data-qedit]")) { S.qEdit = !S.qEdit; renderEmotes(); return; }

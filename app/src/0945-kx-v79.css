@@ -1,0 +1,65 @@
+/* KodeX 10.4 (v79): the free app's ad takes less room in the Arena, Premium codes, sharing links */
+/* a phone turned sideways: the banner is the short landscape kind (32 px), so the Arena keeps most of the height */
+@media (orientation: landscape) and (max-height: 540px) {
+  .top-ad-safe-area {
+    padding: calc(var(--sat) + 3px) 12px 3px;
+  }
+  .top-ad-slot {
+    height: 32px;
+    width: min(100%, 468px);
+  }
+  body.arena-on #Larena .arbar .ibtn {
+    width: 34px;
+    height: 34px;
+    min-height: 34px;
+  }
+}
+.kx-code {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 6px 0 2px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--panel2, #171d27);
+  color: var(--text);
+  font:
+    600 14px/1.35 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+  letter-spacing: 0.04em;
+  resize: vertical;
+}
+.kx-code-msg:empty {
+  display: none;
+}
+.pz-cta .pz-redeem {
+  background: transparent;
+  border-style: dashed;
+}
+.qa .qa-share {
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.cb-share {
+  display: grid;
+  gap: 8px;
+  margin-top: 6px;
+}
+.cb-share .btn {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: 10px;
+  text-align: left;
+  min-height: 54px;
+}
+.cb-share .btn small {
+  grid-column: 2;
+  font-weight: 500;
+  opacity: 0.75;
+  font-size: 0.78rem;
+}

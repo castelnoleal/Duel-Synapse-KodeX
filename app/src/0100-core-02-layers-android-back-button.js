@@ -42,8 +42,25 @@ const view0 = (n, on) => {
     const active = !!start && now >= start - 6e4 && now - start < D;
     return { start, used: !!start, active, left: active ? start + D - now : 0 };
   })();
-const PREMIUM = (document.querySelector('meta[name=kodex-edition]') || {}).content === 'premium' || KX_TRIAL.active;
-if (KX_TRIAL.active && (document.querySelector('meta[name=kodex-edition]') || {}).content !== 'premium')
+/* KodeX Premium by code: a signed key or a promo code from MEIOCG unlocks Premium in the free app (checked again on every
+   start by kxKeyCheck in module premium-codes; a code that does not check out is removed). */
+const KX_KEY = (() => {
+  let k = null;
+  try {
+    k = JSON.parse(localStorage.getItem('kx_key') || 'null');
+  } catch (e) {}
+  const now = Date.now(),
+    end = (k && +k.end) || 0;
+  const active = !!(k && k.code && (!end || now < end));
+  return { code: active ? String(k.code) : '', kind: (k && k.kind) || '', end, active, name: (k && k.name) || '' };
+})();
+const PREMIUM =
+  (document.querySelector('meta[name=kodex-edition]') || {}).content === 'premium' || KX_TRIAL.active || KX_KEY.active;
+/* no ad while a trial or a code runs (html.kx-trial hides it) */
+if (
+  (KX_TRIAL.active || KX_KEY.active) &&
+  (document.querySelector('meta[name=kodex-edition]') || {}).content !== 'premium'
+)
   document.documentElement.classList.add('kx-trial');
 const SKIN_T = [
   ['field', 'Field'],

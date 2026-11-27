@@ -121,8 +121,8 @@ async function activate(f, page, code) {
   // quick flag: surrender
   await page.waitForTimeout(800);
   await f.click("#quickBtn"); await page.waitForTimeout(200); await f.click("#qmSurrender"); await page.waitForTimeout(300);
-  ok(await f.evaluate(() => document.querySelector("#ask").open), "surrender asks first");
-  await f.click("#askYes");
+  ok(await f.evaluate(() => document.querySelector("#leaveDlg").open), "leaving asks first (save a replay or a combo, or leave)");
+  await f.click("#leaveQuit");
   await f.waitForFunction(() => window.__duel.packet && window.__duel.packet.ended, null, { timeout: 15000 }).catch(() => fail("surrender did not end the duel"));
   ok(/surrender/i.test(await f.evaluate(() => window.__duel.packet.ended.reason)), "surrendered");
   await page.close();

@@ -200,7 +200,7 @@ export function playFx(style, at, opts = {}) {
   const cv = document.createElement("canvas"), dpr = Math.min(2, window.devicePixelRatio || 1);
   const W = innerWidth, H = innerHeight;
   cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
-  cv.className = "cbfx-layer"; cv.setAttribute("aria-hidden", "true");
+  cv.className = "cbfx-layer"; cv.setAttribute("aria-hidden", "true"); if (opts.finale) cv.dataset.finale = "1";
   Object.assign(cv.style, { position: "fixed", inset: "0", width: W + "px", height: H + "px", pointerEvents: "none", zIndex: "80" });
   document.body.append(cv);
   const g = cv.getContext("2d"); g.scale(dpr, dpr);

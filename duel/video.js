@@ -141,7 +141,6 @@ export class Clip {
   feed(p) {
     const now = performance.now(), me = this.o.team();
     this.cbFxAt = false;
-    if (this.o.comboFx && p.combo && p.combo.last) this.fx.push({ k: "cbfin", style: this.o.comboFx, seed: Math.floor(Math.random() * 1e6), t0: now + 1500, d: 2100 });
     let nf = 0, lit = false;
     const light = (code, tag, team) => { if (!code) return; lit = true; if (this.cur && this.cur.code === Number(code) && this.cur.tag === tag && now - this.cur.t0 < 1500) return; this.cur = { code: Number(code), tag, team, t0: now }; };
     for (const e of p.events || []) {
@@ -619,6 +618,8 @@ export class Clip {
     if (sf > 0 && sub) { g.globalAlpha *= sf; this.text(sub, tx, by2 + 54 * u, 32 * u, "#e9ecff", { weight: 700, align, max: tw, font: '"Plus Jakarta Sans", "Chakra Petch", system-ui, sans-serif', stroke: 5 * u, strokeColor: "#05060f" }); g.globalAlpha /= sf; }
   }
   /** Starts the end credits; returns how long they last (ms). */
+  /** COMBO COMPLETE, now (the Arena calls it once the finished board has been shown for a few seconds). */
+  finale() { if (this.o.comboFx) this.fx.push({ k: "cbfin", style: this.o.comboFx, seed: Math.floor(Math.random() * 1e6), t0: performance.now(), d: 2100 }); }
   outro() { const c = this.o.credits || {}; this.outroMs = Math.max(3000, Math.min(8000, Number(c.ms) || 4500)); this.outroT0 = performance.now(); return this.outroMs + 250; }
   /** The end credits: who made the combo, the deck, a handle, their own line, and MEIOCG · Duel Synapse: KodeX. */
   drawOutro(k) {
