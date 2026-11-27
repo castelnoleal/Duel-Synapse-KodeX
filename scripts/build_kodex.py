@@ -113,10 +113,30 @@ def assemble():
     return man, free, prem
 
 
+WEB_HEAD = """<meta name="kodex-web-app" content="1">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="KodeX">
+<link rel="apple-touch-icon" href="icons/kodex-180.png">
+"""
+
+
+def web_app(free):
+    """The web app at kodex.meiocg.org/app/ (the free edition; Premium by code): installable on an iPhone from Safari
+    (Add to Home Screen) and on Android, with app/manifest.webmanifest and app/sw.js."""
+    mark = '<meta name="kodex-build"'
+    if free.count(mark) != 1:
+        raise SystemExit("web app: the kodex-build meta must appear exactly once")
+    return free.replace(mark, WEB_HEAD + mark, 1)
+
+
 def build(check=False):
     man, free, prem = assemble()
     v = man["version"]
-    targets = {ROOT / f"app/Kodex_Mei_Production_v{v}.html": free, ROOT / f"app/Kodex_Mei_Premium_v{v}.html": prem}
+    targets = {ROOT / f"app/Kodex_Mei_Production_v{v}.html": free, ROOT / f"app/Kodex_Mei_Premium_v{v}.html": prem,
+               ROOT / "app/index.html": web_app(free)}
     bad = 0
     for p, text in targets.items():
         if check:

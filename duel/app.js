@@ -584,13 +584,13 @@ async function rpToCombo(r, btn) {
   const turns = replayTurns(scan).filter((t) => t.plays > 0);
   if (!turns.length) { toast("No plays were found in that replay."); return; }
   const list = $("#rpTurnList"); list.replaceChildren();
+  const all = replayTurns(scan);
   for (const t of turns.slice(0, 40)) {
     const li = el("li"), d = el("div", "rp-t"); d.append(el("b", null, `Turn ${t.turn} · ${scan.names[t.tp] || "Duelist"}`), el("small", null, `${t.plays} ${t.plays === 1 ? "play" : "plays"}`));
-    const go = el("button", "btn primary", "Make combo"); go.type = "button";
-    go.onclick = async () => {
-      const c = comboFromReplay(scan, t.turn, S.db);
+    const make = async (two) => {
+      const c = comboFromReplay(scan, t.turn, S.db, two);
       if (!c) { toast("That turn has nothing to map out."); return; }
-      c.id = `rp-${r.id}-t${t.turn}`;
+      c.id = `rp-${r.id}-t${t.turn}${two ? "-2" : ""}`;
       await comboKeep(c);
       $("#rpTurn").close();
       const steps = c.lines.reduce((n, l) => n + l.length, 0);
@@ -598,7 +598,12 @@ async function rpToCombo(r, btn) {
       else toast(`Combo made: ${steps} steps. Watch it from this list.`, 5000);
       rpOpenLib();
     };
-    const ac = el("div", "rp-ac"); ac.append(go); li.append(d, ac); list.append(li);
+    const go = el("button", "btn primary", "Make combo"); go.type = "button"; go.onclick = () => make(false);
+    const ac = el("div", "rp-ac"); ac.append(go);
+    // with the next turn (the opponent's): their plays, and the answers to them
+    const nx = all[t.turn];
+    if (nx) { const g2 = el("button", "btn", "+ next turn"); g2.type = "button"; g2.title = `Turn ${t.turn} and turn ${t.turn + 1} (${scan.names[nx.tp] || "the opponent"}'s)`; g2.onclick = () => make(true); ac.append(g2); }
+    li.append(d, ac); list.append(li);
   }
   if (!$("#rpTurn").open) $("#rpTurn").showModal();
 }
@@ -709,7 +714,7 @@ async function watchReplay(src) {
   $("#replayBar").hidden = false; $("#rbPos").textContent = ""; document.body.classList.add("replaying");
   S.replay = { paused: false, speed: rpSpeed(), i: 0, n: 0, turns: [] };
   replayBarState(); rbWake();
-  $("#rbRec").hidden = !S.premium; $("#rbView").hidden = false; document.body.classList.remove("combo-play"); cbStep(null);
+  $("#rbRec").hidden = !S.premium; $("#rbView").hidden = false; document.body.classList.remove("combo-play", "combo-opp"); cbStep(null);
   S.worker.postMessage({ cmd: "playReplay", bytes, speed: S.replay.speed }, [bytes]);
 }
 // ----- combos made in KodeX: played on the table like a replay (watch, step, go back, record) -----
@@ -758,6 +763,8 @@ async function watchCombo(raw, { keep = false } = {}) {
   enterTable();
   const packets = comboPackets(c, S.db, [(S.myProfile && S.myProfile.name) || c.by || myName(), "Combo"]);
   $("#replayBar").hidden = false; document.body.classList.add("replaying", "combo-play");
+  // a combo where the opponent has cards (their turn, a hand trap, hand-ripping): their hand shows
+  document.body.classList.toggle("combo-opp", c.t2 >= 0 || c.lines.some((l) => l.some((n) => n.cards.some((x) => x.o))));
   S.replay = { combo: c, packets, paused: true, speed: rpSpeed(c.speed), i: 0, n: packets.length - 1, turns: [0] };
   $("#rbRec").hidden = !S.premium; $("#rbView").hidden = true;
   comboShow(0, true);
@@ -817,7 +824,7 @@ function comboEnd(c) {
 function cbStep(c) {
   const b = $("#cbStep"); if (!b) return;
   if (!c) { b.hidden = true; document.body.style.removeProperty("--cbs-bottom"); return; }
-  const tag = c.step ? `STEP ${c.step}/${c.steps}` : "START", line = c.caption || "", sub = [c.what && c.what !== line ? c.what : "", c.note || ""].filter(Boolean).join(" · ");
+  const tag = c.turnStart ? "TURN 2" : c.step ? `${c.turn === 2 ? "T2 · " : ""}STEP ${c.step}/${c.steps}` : "START", line = c.caption || "", sub = [c.what && c.what !== line ? c.what : "", c.note || ""].filter(Boolean).join(" · ");
   const changed = b.dataset.k !== tag + line;
   b.querySelector("b").textContent = tag; b.querySelector("span").textContent = line;
   const sm = b.querySelector("small"); sm.textContent = sub; sm.hidden = !sub;
@@ -1386,7 +1393,7 @@ function enterTable() {
 }
 function leaveTable() {
   duelState(false);
-  $("#replayBar").hidden = true; document.body.classList.remove("replaying", "combo-play"); cbStep(null); speedMenu(false);
+  $("#replayBar").hidden = true; document.body.classList.remove("replaying", "combo-play", "combo-opp"); cbStep(null); speedMenu(false);
   if (S.replay && S.replay.combo) { clearTimeout(S.replay.timer); S.replay = null; const ci = $("#comboIntro"); if (ci) ci.remove(); }
   if ((S.mode === "solo" || S.mode === "replay") && S.worker) S.worker.postMessage({ cmd: "stop" });
   if (S.mode === "guest" || S.mode === "spec") { if (S.room) S.room.close(); S.room = null; netStatus(null); }

@@ -20,7 +20,8 @@ export const RESULT = new Set(["add", "gy", "ban", "mat", "att", "ex", "deck", "
 // (summoned or placed there, or one of their cards that the combo sends, banishes, destroys or makes them discard),
 // r = the row z is in ("m" Monster Zones, "s" Spell & Trap Zones: a Pendulum Monster placed in a Pendulum Zone, a
 // monster placed as a Continuous Spell, a Trap Monster)
-const place = (x) => { const o = {}; if (x && (x.o === 1 || x.o === true)) o.o = 1; if (x && (x.r === "m" || x.r === "s")) o.r = x.r; for (const [k, max] of [["z", 7], ["p", 3], ["f", 7], ["s", 7]]) { const v = x && x[k] != null ? Number(x[k]) : NaN; if (Number.isInteger(v) && v >= (k === "z" || k === "s" ? 0 : 1) && v <= max) o[k] = v; } return o; };
+// b = 1: the opponent plays it (one of their cards, from their side: a hand trap, or a play in their turn); b implies o
+const place = (x) => { const o = {}; if (x && (x.o === 1 || x.o === true || x.b === 1 || x.b === true)) o.o = 1; if (x && (x.b === 1 || x.b === true)) o.b = 1; if (x && (x.r === "m" || x.r === "s")) o.r = x.r; for (const [k, max] of [["z", 7], ["p", 3], ["f", 7], ["s", 7]]) { const v = x && x[k] != null ? Number(x[k]) : NaN; if (Number.isInteger(v) && v >= (k === "z" || k === "s" ? 0 : 1) && v <= max) o[k] = v; } return o; };
 const str = (v, n) => String(v == null ? "" : v).replace(/[\u0000-\u001f<>]/g, " ").trim().slice(0, n);
 const code = (v) => { const n = Number(v); return Number.isInteger(n) && n > 0 && n < 1e10 ? n : 0; };
 const img = (u, max) => (typeof u === "string" && u.length < max && /^data:image\/(png|jpe?g|webp);base64,[A-Za-z0-9+/=]+$/.test(u) ? u : "");
@@ -39,10 +40,12 @@ export function cleanCombo(raw) {
     if (nodes.length) lines.push(nodes);
   }
   if (!hand.length && !lines.length) return null;
+  // two turns: the lines from t2 on happen in the opponent's turn (turn 2); -1 = one turn
+  const t2 = Number.isInteger(raw.t2) && raw.t2 >= 0 && raw.t2 <= lines.length ? raw.t2 : -1;
   const it = raw.intro && typeof raw.intro === "object" ? raw.intro : {};
   return {
     id: str(raw.id, 40), title: str(raw.title, 60) || "Combo", sub: str(raw.sub, 80), deck: str(raw.deck, 60), by: str(raw.by, 32),
-    hand, lines, extra: (Array.isArray(raw.extra) ? raw.extra : []).map(code).filter(Boolean).slice(0, 15), deckSize: Math.max(0, Math.min(60, Number(raw.deckSize) || 40)),
+    hand, lines, t2, extra: (Array.isArray(raw.extra) ? raw.extra : []).map(code).filter(Boolean).slice(0, 15), deckSize: Math.max(0, Math.min(60, Number(raw.deckSize) || 40)),
     intro: { ms: Math.max(0, Math.min(10000, Number.isFinite(Number(it.ms)) ? Number(it.ms) : 3000)), art: code(it.art), key: code(it.key), bg: img(it.bg, 2.4e6) },
     ...(cleanBoard(raw.endBoard) ? { endBoard: cleanBoard(raw.endBoard) } : {}),
     credits: cleanCredits(raw.credits),
@@ -90,15 +93,15 @@ export function comboPackets(combo, db, names = ["Duelist", "Opponent"]) {
   Z[0].hand = combo.hand.map((c) => make(c, C.POS_FACEUP_ATTACK));
   Z[0].extra = combo.extra.map((c) => make(c, C.POS_FACEDOWN_DEFENSE));
   // the opponent holds their opening five (unknown to us) and can lose them to hand-ripping effects
-  const opsOpp = combo.lines.some((l) => l.some((n) => n.cards.some((x) => x.o)));
+  const opsOpp = combo.lines.some((l) => l.some((n) => n.cards.some((x) => x.o))) || combo.t2 >= 0;
   Z[1].deck = 35; Z[1].hand = Array.from({ length: 5 }, () => make(0, C.POS_FACEDOWN_DEFENSE, 1));
   if (!opsOpp) { Z[1].deck = 40; Z[1].hand = []; }
   const copyZ = (z) => ({ ...z, hand: z.hand.map((c) => ({ ...c })), mzone: z.mzone.map((c) => c && { ...c }), szone: z.szone.map((c) => c && { ...c }), grave: z.grave.map((c) => ({ ...c })), banished: z.banished.map((c) => ({ ...c })), extra: z.extra.map((c) => ({ ...c })) });
   const snap = () => ({ teams: [copyZ(Z[0]), copyZ(Z[1])], chain: [] });
   const out = [];
-  let seq = 0, temp = [], normal = false;
+  let seq = 0, temp = [], normal = false, turn = 1, tp = me;
   const total = combo.lines.reduce((n, l) => n + l.length, 0);
-  const push = (events, meta) => out.push({ kind: "update", seq: ++seq, viewer: 3, turn: 1, turnPlayer: me, phase: C.PHASE.MAIN1, names, state: snap(), events, prompt: null, waitingFor: -1, ended: null, log: [], combo: meta });
+  const push = (events, meta) => out.push({ kind: "update", seq: ++seq, viewer: 3, turn, turnPlayer: tp, phase: C.PHASE.MAIN1, names, state: snap(), events, prompt: null, waitingFor: -1, ended: null, log: [], combo: meta });
   // where a card is now: [side, zone name, index]; the side asked for is looked at first
   const find = (c, order, pref = 0) => { for (const sd of [pref, 1 - pref]) for (const k of order) { const i = Z[sd][k].findIndex((x) => x && x.code === c); if (i >= 0) return [sd, k, i]; } return null; };
   const LOC = { hand: C.LOCATION_HAND, mzone: C.LOCATION_MZONE, szone: C.LOCATION_SZONE, grave: C.LOCATION_GRAVE, banished: C.LOCATION_REMOVED, extra: C.LOCATION_EXTRA, deck: C.LOCATION_DECK };
@@ -106,7 +109,7 @@ export function comboPackets(combo, db, names = ["Duelist", "Opponent"]) {
   /** Takes the card out of where it is (a card that is nowhere comes from its Deck or Extra Deck). */
   const SRC = { 1: ["hand"], 2: [], 3: ["extra"], 4: ["grave"], 5: ["banished"], 6: ["mzone", "szone"] };
   const take = (c, order, x) => {
-    const pref = x && x.o ? 1 : 0;
+    const pref = x && (x.o || x.b) ? 1 : 0;
     if (x && x.f === 7) return { card: make(c, C.POS_FACEUP_ATTACK), from: at("mzone", 0), k: "none", sd: me };       // was attached under an Xyz Monster
     let f = null;
     if (x && x.f === 6 && x.s != null) for (const sd of [pref, 1 - pref]) for (const k of ["mzone", "szone"]) if (!f && Z[sd][k][x.s] && Z[sd][k][x.s].code === c) f = [sd, k, x.s];
@@ -115,7 +118,7 @@ export function comboPackets(combo, db, names = ["Duelist", "Opponent"]) {
     // the opponent discarding or losing a card we can't see: one of their unknown hand cards, shown as this card
     if (!f && pref === 1 && order.includes("hand")) { const i = Z[1].hand.findIndex((h) => !h.code); if (i >= 0) { const card = Z[1].hand.splice(i, 1)[0]; Object.assign(card, make(c, C.POS_FACEUP_ATTACK, 1)); return { card, from: at("hand", i, C.POS_FACEDOWN_DEFENSE, 1), k: "hand", sd: 1 }; } }
     if (!f) {
-      const sd = x && x.o && !["ns", "ss", "put", "set"].includes(x.a) ? 1 : me;
+      const sd = x && (x.b || (x.o && !["ns", "ss", "put", "set"].includes(x.a))) ? 1 : me;
       if (isX(c)) return { card: make(c, C.POS_FACEDOWN_DEFENSE, sd), from: at("extra", 0, C.POS_FACEDOWN_DEFENSE, sd), k: "extra", sd };
       Z[sd].deck = Math.max(0, Z[sd].deck - 1); return { card: make(c, C.POS_FACEDOWN_DEFENSE, sd), from: at("deck", 0, C.POS_FACEDOWN_DEFENSE, sd), k: "deck", sd };
     }
@@ -153,7 +156,7 @@ export function comboPackets(combo, db, names = ["Duelist", "Opponent"]) {
     if (a === "act" && d.type & T.MONSTER) { const f = find(c, ["mzone", "szone"]); a = f ? "eff" : "scale"; }
     switch (a) {
       case "ns": case "ss": {
-        const t = take(c, a === "ns" ? ["hand", "extra", "grave", "banished"] : ["hand", "extra", "grave", "banished", "szone", "mzone"], { ...x, o: 0, a });
+        const t = take(c, a === "ns" ? ["hand", "extra", "grave", "banished"] : ["hand", "extra", "grave", "banished", "szone", "mzone"], { ...x, o: x.b ? 1 : 0, a });
         const i = zoneM(isX(c)); if (i < 0) { toPile(t, "grave", C.REASON.RULE || 0, ev, c); break; }
         const pos = a === "ss" && x.p ? POSN[x.p] : C.POS_FACEUP_ATTACK;
         t.card.position = pos; Z[dst].mzone[i] = t.card; if (a === "ns") normal = true;
@@ -165,7 +168,7 @@ export function comboPackets(combo, db, names = ["Duelist", "Opponent"]) {
       case "act": {
         const f = find(c, ["szone"], dst);
         if (f) { Z[f[0]].szone[f[2]].position = C.POS_FACEUP_ATTACK; ev.push({ type: M.CHAINING, code: c, controller: f[0], location: C.LOCATION_SZONE, sequence: f[2], chain_size: 1, description: "0" }); break; }
-        const t = take(c, ["hand", "grave", "banished"], { ...x, o: 0 });
+        const t = take(c, ["hand", "grave", "banished"], { ...x, o: x.b ? 1 : 0 });
         const i = zoneS(false); if (i < 0) { toPile(t, "grave", 0, ev, c); break; }
         t.card.position = C.POS_FACEUP_ATTACK; Z[dst].szone[i] = t.card;
         if (!(d.type & (T.CONTINUOUS | T.FIELD | T.EQUIP))) temp.push(c);     // Normal, Quick-Play and Ritual Spells, Normal and Counter Traps leave after resolving
@@ -175,7 +178,7 @@ export function comboPackets(combo, db, names = ["Duelist", "Opponent"]) {
         break;
       }
       case "scale": case "put": {
-        const t = take(c, ["hand", "extra", "grave", "banished"], { ...x, o: 0, a });
+        const t = take(c, ["hand", "extra", "grave", "banished"], { ...x, o: x.b ? 1 : 0, a });
         if (a === "put" && (x.r === "m" || (x.r !== "s" && d.type & T.MONSTER && !(d.type & T.PENDULUM)))) {      // a monster placed by an effect stands in a Monster Zone
           const i = zoneM(isX(c)); if (i < 0) { toPile(t, "grave", 0, ev, c); break; }
           t.card.position = x.p ? POSN[x.p] : C.POS_FACEUP_ATTACK; Z[dst].mzone[i] = t.card; ev.push({ type: M.MOVE, code: c, from: t.from, to: at("mzone", i, t.card.position, dst), reason: C.REASON.EFFECT }); break;
@@ -188,7 +191,8 @@ export function comboPackets(combo, db, names = ["Duelist", "Opponent"]) {
         break;
       }
       case "eff": {
-        const f = (x.f && SRC[x.f] && SRC[x.f].length && find(c, SRC[x.f], dst)) || find(c, ["mzone", "szone", "hand", "grave", "banished", "extra"], dst);
+        let f = (x.f && SRC[x.f] && SRC[x.f].length && find(c, SRC[x.f], dst)) || find(c, ["mzone", "szone", "hand", "grave", "banished", "extra"], dst);
+        if ((!f || f[0] !== 1) && x.b) { const i = Z[1].hand.findIndex((h) => !h.code); if (i >= 0) { Object.assign(Z[1].hand[i], make(c, C.POS_FACEUP_ATTACK, 1)); f = [1, "hand", i]; } }
         ev.push({ type: M.CHAINING, code: c, controller: f ? f[0] : me, location: f ? LOC[f[1]] : C.LOCATION_DECK, sequence: f ? f[2] : 0, chain_size: 1, description: "0" });
         break;
       }
@@ -201,7 +205,7 @@ export function comboPackets(combo, db, names = ["Duelist", "Opponent"]) {
         break;
       }
       case "set": {
-        const t = take(c, ["hand", "grave", "banished"], { ...x, o: 0, a });
+        const t = take(c, ["hand", "grave", "banished"], { ...x, o: x.b ? 1 : 0, a });
         if (d.type & T.MONSTER) { const i = zoneM(false); if (i < 0) { Z[t.sd].hand.push(t.card); break; } t.card.position = C.POS_FACEDOWN_DEFENSE; Z[dst].mzone[i] = t.card; ev.push({ type: M.MOVE, code: c, from: t.from, to: at("mzone", i, C.POS_FACEDOWN_DEFENSE, dst), reason: 0 }); }
         else { const i = zoneS(false); if (i < 0) { Z[t.sd].hand.push(t.card); break; } t.card.position = C.POS_FACEDOWN_ATTACK; Z[dst].szone[i] = t.card; ev.push({ type: M.MOVE, code: c, from: t.from, to: at("szone", i, C.POS_FACEDOWN_ATTACK, dst), reason: 0 }); }
         if (t.k === "deck") ev.push({ type: M.SHUFFLE_DECK, player: t.sd });
@@ -244,7 +248,17 @@ export function comboPackets(combo, db, names = ["Duelist", "Opponent"]) {
   push([{ type: M.NEW_TURN, player: me }, { type: M.DRAW, player: me, drawn: combo.hand.map((c) => ({ code: c, position: C.POS_FACEUP_ATTACK })) }],
     { step: 0, steps: total, caption: `Starting hand: ${combo.hand.map((c) => db.name(c)).join(" + ") || "any"}`, wait: 1900 });
   let step = 0;
+  const turnTwo = () => {
+    // Spells and Traps that resolved go to the GY, then the opponent's turn starts: they draw
+    const ev = [];
+    for (const c of temp) { const f = find(c, ["szone"]); if (f) { const [sd, , i] = f, card = Z[sd].szone[i]; Z[sd].szone[i] = null; const o = card.owner != null ? card.owner : sd; Z[o].grave.push(card); ev.push({ type: M.MOVE, code: c, from: at("szone", i, C.POS_FACEUP_ATTACK, sd), to: at("grave", Z[o].grave.length - 1, C.POS_FACEUP_ATTACK, o), reason: C.REASON.EFFECT }); } }
+    temp = []; turn = 2; tp = 1; normal = true;      // (no Normal Summon of ours in their turn)
+    Z[1].deck = Math.max(0, Z[1].deck - 1); Z[1].hand.push(make(0, C.POS_FACEDOWN_DEFENSE, 1));
+    ev.push({ type: M.NEW_TURN, player: 1 }, { type: M.DRAW, player: 1, drawn: [{ code: 0, position: C.POS_FACEDOWN_DEFENSE }] });
+    push(ev, { step, steps: total, caption: "Turn 2 · Your opponent's turn", what: "They draw 1 card", turn: 2, turnStart: true, wait: 1900 });
+  };
   combo.lines.forEach((line, li) => {
+    if (li === combo.t2) turnTwo();
     line.forEach((node, ni) => {
       step++;
       // Spells and Traps that resolved in the step before go to their owner's Graveyard
@@ -254,12 +268,14 @@ export function comboPackets(combo, db, names = ["Duelist", "Opponent"]) {
       const prev = ni ? nodeText(line[ni - 1], (c) => db.name(c)) : "";
       node.cards.forEach((x, ci) => {
         const { ev, a } = move(x.c, x.a, x);
-        const what = `${VERB[a] || ""}${VERB[a] ? ": " : ""}${db.name(x.c)}${x.o ? (a === "ss" || a === "put" || a === "set" ? " to your opponent's field" : " (your opponent's)") : ""}`;
-        push([...(ci ? [] : clear), ...ev], { step, steps: total, line: li, node: ni, code: x.c, action: a, opp: !!x.o,
+        const what = x.b ? `Your opponent: ${VERB[a] || "plays"}${VERB[a] ? ": " : " "}${db.name(x.c)}`
+          : `${VERB[a] || ""}${VERB[a] ? ": " : ""}${db.name(x.c)}${x.o ? (a === "ss" || a === "put" || a === "set" ? " to your opponent's field" : " (your opponent's)") : ""}`;
+        push([...(ci ? [] : clear), ...ev], { step, steps: total, line: li, node: ni, code: x.c, action: a, opp: !!x.o, by: x.b ? 1 : 0, turn,
           caption: `${prev ? prev + " → " : ""}${nodeText(node, (c) => db.name(c))}`, what, note: node.note, wait: RESULT.has(a) || a === "set" ? 1100 : 1900 });
       });
     });
   });
+  if (combo.t2 >= 0 && combo.t2 >= combo.lines.length && out.length) turnTwo();
   if (out.length) out[out.length - 1].combo.last = true;
   return out;
 }
@@ -278,46 +294,65 @@ export function replayTurns(scan) {
   return out;
 }
 /** One turn of a scanned replay as a combo (the same shape KodeX makes). Returns null when the turn has no plays.
+ *  two: the next turn (the opponent's) too: what they played and how the turn player answered, after a turn bar (t2).
  *  Every play is its own line: [what it used] → the play → what it led to. Each card keeps the zone and position it
  *  really went to and where it came from, so the combo plays back on the table exactly as the duel went. */
-export function comboFromReplay(scan, turnNo, db) {
+export function comboFromReplay(scan, turnNo, db, two = false) {
   const T = C.TYPE, R = C.REASON, info = (c) => db.get(c) || { type: 0 };
   const turns = replayTurns(scan), tinfo = turns[turnNo - 1]; if (!tinfo) return null;
-  const P = tinfo.tp, lines = [], stUp = new Set();
+  const P = tinfo.tp, Q = 1 - P, lines = [], stUp = new Set();
+  const T2 = two && !!turns[turnNo];          // a second turn to read (the opponent's)
+  let t2At = -1;
   let t = 0, hand = null, prevHands = null, line = null, res = null, mats = [], solving = false, actCard = 0, pend = null, endBoard = null, activating = false;
   const chainBy = [];                                     // who activated each link of the chain now building
   const myLink = () => !chainBy.length || chainBy[chainBy.length - 1] === P;
   const base = (l) => l & ~C.LOCATION_OVERLAY;
   const srcOf = (from) => (from.location & C.LOCATION_OVERLAY ? 7 : { [C.LOCATION_HAND]: 1, [C.LOCATION_DECK]: 2, [C.LOCATION_EXTRA]: 3, [C.LOCATION_GRAVE]: 4, [C.LOCATION_REMOVED]: 5, [C.LOCATION_MZONE]: 6, [C.LOCATION_SZONE]: 6 }[base(from.location)] || 0);
   const posOf = (p) => (p & C.POS_FACEDOWN ? 3 : p & C.POS_FACEUP_DEFENSE ? 2 : 1);
-  const card = (c, a, mv) => { const x = { c, a }; if (mv) { const onF = mv.to && (base(mv.to.location) === C.LOCATION_MZONE || base(mv.to.location) === C.LOCATION_SZONE);
+  const card = (c, a, mv, by) => { const x = { c, a }; if (by) { x.o = 1; x.b = 1; } if (mv) { const onF = mv.to && (base(mv.to.location) === C.LOCATION_MZONE || base(mv.to.location) === C.LOCATION_SZONE);
     if ((onF && mv.to.controller != null && mv.to.controller !== P) || (!onF && mv.from && mv.from.controller != null && mv.from.controller !== P)) x.o = 1; if (mv.to && (base(mv.to.location) === C.LOCATION_MZONE || base(mv.to.location) === C.LOCATION_SZONE) && !(mv.to.location & C.LOCATION_OVERLAY)) { x.z = Math.min(7, mv.to.sequence | 0); x.p = posOf(mv.to.position); x.r = base(mv.to.location) === C.LOCATION_SZONE ? "s" : "m"; } const f = mv.from ? srcOf(mv.from) : mv.f || 0; if (f) x.f = f; if (f === 6 && mv.from) x.s = Math.min(7, mv.from.sequence | 0); } return x; };
-  const begin = (c, a, mv) => {
+  const begin = (c, a, mv, by) => {
     if (!hand) hand = (prevHands && prevHands[P] ? prevHands[P] : []).filter(Boolean).slice(0, 12);
     if (lines.length >= 60) { line = null; res = null; mats = []; return; }
     line = []; lines.push(line);
     if (mats.length) line.push({ cards: mats.slice(0, 6), note: "" });
-    line.push({ cards: [card(c, a, mv)], note: "" });
+    line.push({ cards: [card(c, a, mv, by)], note: "" });
     mats = []; res = null; actCard = c;
   };
-  const result = (c, a, mv) => {
+  const result = (c, a, mv, by) => {
     if (!hand) return;
     if (!line) { if (lines.length >= 60) return; line = []; lines.push(line); }
     if (!res || res.cards.length >= 6) { if (line.length >= 12) return; res = { cards: [], note: "" }; line.push(res); }
-    res.cards.push(card(c, a, mv));
+    res.cards.push(card(c, a, mv, by));
   };
   // a card that came to the field and was not announced as a summon or an activation was placed there by an effect
-  const flush = () => { if (!pend) return; const m = pend; pend = null; if (!hand) return; const mz = base(m.to.location) === C.LOCATION_MZONE; result(m.c, mz ? "ss" : "put", m); };
+  const flush = () => { if (!pend) return; const m = pend; pend = null; if (!hand) return; const mz = base(m.to.location) === C.LOCATION_MZONE; result(m.c, mz ? "ss" : "put", m, m.by); };
   for (const s of scan.steps || []) {
     for (const e of s.events || []) {
-      if (e.type === M.NEW_TURN) { flush(); t++; continue; }
-      if (t !== turnNo) continue;
+      if (e.type === M.NEW_TURN) {
+        flush(); t++;
+        if (T2 && t === turnNo + 1) { t2At = lines.length; line = null; res = null; mats = []; chainBy.length = 0; solving = false; activating = false; if (!hand) hand = (prevHands && prevHands[P] ? prevHands[P] : []).filter(Boolean).slice(0, 12); }
+        continue;
+      }
+      const inT2 = T2 && t === turnNo + 1;
+      if (t !== turnNo && !inT2) continue;
       const c = Number(e.code) || 0;
       const mv = pend && pend.c === c ? pend : null;
       if (e.type === M.CHAINING) chainBy.push(e.controller);
       if (e.type === M.CHAIN_SOLVING) { flush(); solving = true; activating = false; }
       if ((e.type === M.SUMMONING || e.type === M.SPSUMMONING || e.type === M.FLIPSUMMONING) && !solving) activating = false;
-      if (e.type === M.CHAINING && e.controller !== P) activating = false;
+      if (inT2 && e.type === M.CHAINING && e.controller === Q && c) {
+        // the opponent plays a card in their turn: it starts a line of its own (what the turn player answers follows)
+        const d = info(c), loc = base(e.location);
+        const a = d.type & T.MONSTER ? (d.type & T.PENDULUM && mv && base(mv.to.location) === C.LOCATION_SZONE ? "scale" : "eff") : (mv || loc === C.LOCATION_HAND || loc & C.LOCATION_SZONE ? "act" : "eff");
+        if (mv) pend = null; else flush();
+        begin(c, a, mv || { f: srcOf({ location: e.location }) }, true);
+        activating = false;
+      } else if (inT2 && (e.type === M.SUMMONING || e.type === M.SPSUMMONING || e.type === M.FLIPSUMMONING) && e.controller === Q && c) {
+        if (mv) pend = null; else flush();
+        if (solving && hand && chainBy.length && chainBy[chainBy.length - 1] === Q) { if (line) { const x = card(c, e.type === M.FLIPSUMMONING ? "eff" : "ss", mv, true); if (!res || res.cards.length >= 6) { res = { cards: [], note: "" }; line.push(res); } res.cards.push(x); } }
+        else begin(c, e.type === M.SUMMONING ? "ns" : e.type === M.FLIPSUMMONING ? "eff" : "ss", mv || { f: 6 }, true);
+      } else if (e.type === M.CHAINING && e.controller !== P) activating = false;
       else if (e.type === M.CHAIN_SOLVED || e.type === M.CHAIN_END) { flush(); solving = false; if (e.type === M.CHAIN_END) chainBy.length = 0; else chainBy.pop(); }
       else if (e.type === M.CHAINING && e.controller === P && c) {
         const d = info(c), loc = base(e.location);
@@ -335,11 +370,12 @@ export function comboFromReplay(scan, turnNo, db) {
         const fl = base(e.from.location), tl = base(e.to.location), over = !!(e.to.location & C.LOCATION_OVERLAY);
         // the turn player's own cards, and the opponent's cards that the turn player's effects move (hand-ripping,
         // destroying or banishing their board); the opponent paying for their own hand trap is not part of the combo
-        const mine = e.to.controller === P || e.from.controller === P || (solving && myLink());
+        const mine = inT2 || e.to.controller === P || e.from.controller === P || (solving && myLink());
         if (!mine || (fl === tl && !over && !(e.from.location & C.LOCATION_OVERLAY))) continue;
         flush();
-        const m = { c, from: e.from, to: e.to };
-        if (over) { if (e.reason & R.MATERIAL && !solving) mats.push(card(c, "att", m)); else result(c, "att", m); continue; }
+        // in the opponent's turn, a card of theirs that stays on their side is theirs to play (it comes from their side)
+        const m = { c, from: e.from, to: e.to, by: inT2 && e.from.controller === Q && e.to.controller === Q };
+        if (over) { if (e.reason & R.MATERIAL && !solving) mats.push(card(c, "att", m, m.by)); else result(c, "att", m, m.by); continue; }
         if (tl === C.LOCATION_MZONE || tl === C.LOCATION_SZONE) {
           if (fl === C.LOCATION_HAND && e.to.position & C.POS_FACEDOWN && !solving) { begin(c, "set", m); continue; }
           pend = m; continue;                                    // a summon or an activation usually follows
@@ -348,24 +384,25 @@ export function comboFromReplay(scan, turnNo, db) {
         // left its zone before what the effect summons takes it
         if (activating && line && !solving && e.reason & R.COST && fl !== C.LOCATION_DECK) {
           const how = e.reason & R.RELEASE ? "trib" : e.reason & R.DISCARD ? "dis" : tl === C.LOCATION_REMOVED ? "ban" : tl === C.LOCATION_HAND ? "add" : tl === C.LOCATION_EXTRA ? "ex" : tl === C.LOCATION_DECK ? "deck" : "gy";
-          result(c, how, m); continue;
+          result(c, how, m, m.by); continue;
         }
-        if ((e.reason & R.MATERIAL || (e.reason & R.RELEASE && e.reason & R.SUMMON)) && !solving && (tl === C.LOCATION_GRAVE || tl === C.LOCATION_EXTRA || tl === C.LOCATION_REMOVED)) { mats.push(card(c, tl === C.LOCATION_REMOVED ? "ban" : "mat", m)); continue; }
+        if ((e.reason & R.MATERIAL || (e.reason & R.RELEASE && e.reason & R.SUMMON)) && !solving && (tl === C.LOCATION_GRAVE || tl === C.LOCATION_EXTRA || tl === C.LOCATION_REMOVED)) { mats.push(card(c, tl === C.LOCATION_REMOVED ? "ban" : "mat", m, m.by)); continue; }
         // a Spell or Trap going to the GY after it resolved is part of playing it, not a result
         if (tl === C.LOCATION_GRAVE && c === actCard && fl & C.LOCATION_SZONE && !(info(c).type & T.MONSTER)) continue;
         // how it left: Tributed, discarded and destroyed cards say so on the sheet instead of "sent"
         const how = e.reason & R.RELEASE ? "trib" : e.reason & R.DISCARD ? "dis" : e.reason & R.DESTROY ? "des" : "gy";
-        if ((e.reason & R.RELEASE) && !solving && tl === C.LOCATION_GRAVE) { mats.push(card(c, "trib", m)); continue; }
-        if (tl === C.LOCATION_HAND) result(c, "add", m); else if (tl === C.LOCATION_GRAVE) result(c, how, m); else if (tl === C.LOCATION_REMOVED) result(c, "ban", m);
-        else if (tl === C.LOCATION_EXTRA) result(c, "ex", m); else if (tl === C.LOCATION_DECK) result(c, "deck", m);
+        if ((e.reason & R.RELEASE) && !solving && tl === C.LOCATION_GRAVE) { mats.push(card(c, "trib", m, m.by)); continue; }
+        if (tl === C.LOCATION_HAND) result(c, "add", m, m.by); else if (tl === C.LOCATION_GRAVE) result(c, how, m, m.by); else if (tl === C.LOCATION_REMOVED) result(c, "ban", m, m.by);
+        else if (tl === C.LOCATION_EXTRA) result(c, "ex", m, m.by); else if (tl === C.LOCATION_DECK) result(c, "deck", m, m.by);
       }
     }
     prevHands = s.hands;
-    if (t === turnNo && s.board) endBoard = s.board;
+    if ((t === turnNo || (T2 && t === turnNo + 1)) && s.board) endBoard = s.board;
   }
   flush();
   const clean = lines.filter((l) => l.length);
   if (!clean.length) return null;
+  const t2 = T2 && t2At >= 0 ? lines.slice(0, t2At).filter((l) => l.length).length : -1;
   const names = scan.names || [], deck = (scan.decks || [])[P] || { main: 40, extra: [] };
   // the real end board of the turn, zone by zone (Pendulum Zones are Spell & Trap Zones 0 and 4; the old separate ones, 6 and 7, are shown there)
   const pos = (p) => (p & C.POS_FACEDOWN ? "down" : p & C.POS_FACEUP_DEFENSE ? "def" : "atk");
@@ -376,5 +413,5 @@ export function comboFromReplay(scan, turnNo, db) {
   const theirs = sideOf(endBoard && endBoard[1 - P]) || { m: Array(7).fill(null), s: Array(6).fill(null) };
   [theirs.m[5], theirs.m[6]] = [theirs.m[6], theirs.m[5]];
   const board = endBoard && endBoard[P] ? [sideOf(endBoard[P]), theirs] : null;
-  return cleanCombo({ id: "", title: `${names[P] || "Duelist"} · Turn ${turnNo}`.slice(0, 60), deck: names[P] || "", hand: hand || [], lines: clean, extra: deck.extra || [], deckSize: deck.main || 40, intro: { ms: 3000 }, endBoard: board });
+  return cleanCombo({ id: "", t2, title: `${names[P] || "Duelist"} · Turn ${turnNo}${t2 >= 0 ? "–" + (turnNo + 1) : ""}`.slice(0, 60), deck: names[P] || "", hand: hand || [], lines: clean, extra: deck.extra || [], deckSize: deck.main || 40, intro: { ms: 3000 }, endBoard: board });
 }

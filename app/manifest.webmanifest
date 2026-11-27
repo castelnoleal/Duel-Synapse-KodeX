@@ -1,0 +1,17 @@
+{
+  "name": "Duel Synapse: KodeX",
+  "short_name": "KodeX",
+  "description": "Yu-Gi-Oh! OCG cards, rulings, decks and the Duel Arena. A project of Meta Insider OCG.",
+  "id": "/app/",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b1024",
+  "theme_color": "#0b1024",
+  "icons": [
+    { "src": "icons/kodex-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/kodex-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/kodex-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

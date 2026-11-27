@@ -63,3 +63,174 @@
   opacity: 0.75;
   font-size: 0.78rem;
 }
+/* MEIOCG's own banner in the ad strip (iPhone app and web app, free edition) */
+.top-ad-slot.kx-house {
+  padding: 0;
+  overflow: hidden;
+}
+.kxh {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  border: 0;
+  background: linear-gradient(100deg, #121a46, #1b1440);
+  color: #eef1ff;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  animation: kxhIn 0.5s ease;
+}
+.kxh img {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+}
+.kxh span {
+  min-width: 0;
+  display: grid;
+  line-height: 1.2;
+}
+.kxh b {
+  font-size: 13px;
+}
+.kxh small {
+  font-size: 11px;
+  opacity: 0.78;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kxh i {
+  font-style: normal;
+  font-weight: 800;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #f0b429;
+  color: #1a1405;
+  white-space: nowrap;
+}
+@keyframes kxhIn {
+  from {
+    opacity: 0;
+  }
+}
+@media (orientation: landscape) and (max-height: 540px) {
+  .kxh img {
+    width: 22px;
+    height: 22px;
+  }
+  .kxh small {
+    display: none;
+  }
+  .kxh i {
+    padding: 3px 9px;
+  }
+}
+.kx-ios-steps {
+  margin: 8px 0 4px;
+  padding-left: 22px;
+  line-height: 1.6;
+}
+.kx-ios-share {
+  display: inline-block;
+  width: 14px;
+  height: 17px;
+  vertical-align: -3px;
+  border: 2px solid currentColor;
+  border-top: 0;
+  border-radius: 0 0 3px 3px;
+  position: relative;
+  margin: 0 2px;
+}
+.kx-ios-share::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -7px;
+  width: 2px;
+  height: 13px;
+  background: currentColor;
+  transform: translateX(-50%);
+}
+/* v80: a combo over two turns (yours, then your opponent's) */
+.cb-turns {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 4px 0 10px;
+}
+.cb-turns .cb-tl {
+  font-weight: 800;
+  font-size: 0.85rem;
+}
+.cb-turns small {
+  grid-column: 1 / -1;
+  opacity: 0.75;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+.cb-seg {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 3px;
+  justify-self: start;
+}
+.cb-seg button {
+  border: 0;
+  border-radius: 999px;
+  padding: 7px 14px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.cb-seg button[aria-checked='true'] {
+  background: var(--accent, #3347f0);
+  color: #fff;
+}
+.cb-t2bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0;
+  padding: 6px 8px 6px 14px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #5a1424, #2a0d22);
+  border: 1px solid #ff5a7a88;
+  color: #ffd9e0;
+  font-size: 0.85rem;
+}
+.cb-t2bar span {
+  flex: 1;
+}
+.cb-t2bar b {
+  color: #fff;
+}
+.cb-t2bar .ibtn {
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+}
+.cb-line.t2 {
+  border-left: 3px solid #ff5a7a;
+  padding-left: 6px;
+  background: #ff5a7a0d;
+  border-radius: 10px;
+}
+.cb-line.t2 .cb-ln {
+  background: #ff5a7a;
+  color: #1a0508;
+}
+.cb-chip.by-opp {
+  box-shadow: inset 0 0 0 2px #ff5a7a99;
+}

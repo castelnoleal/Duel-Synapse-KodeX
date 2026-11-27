@@ -85,5 +85,29 @@ ok(comboPackets(old, db).length === 3, "combos without placement still play");
   const e3 = comboPackets(cleanCombo(JSON.parse(JSON.stringify(c3))), db).pop().state.teams[0];
   ok(at(e3.mzone) === "0,0,0,5,0,0,0" && e3.grave.map((x) => x.code).join() === "7", "a summon after a Tribute cost takes the freed zone: " + at(e3.mzone));
 }
+// two turns: the turn player's turn, then the opponent's, where they Normal Summon 9 to zone 2
+{
+  const c2 = comboFromReplay(scan, 1, db, true);
+  const flat = c2.lines.map((l) => l.map((n) => n.cards.map((x) => `${x.c}:${x.a}${x.b ? "!" : ""}`).join("+")).join(">"));
+  console.log(c2.t2, flat);
+  const one = comboFromReplay(scan, 1, db);
+  ok(c2.t2 === one.lines.length && c2.lines.length === one.lines.length + 1, "two turns: the turn bar comes after turn 1's lines (" + c2.t2 + ")");
+  const opp = c2.lines[c2.t2][0].cards[0];
+  ok(opp.c === 9 && opp.a === "ns" && opp.b === 1 && opp.o === 1 && opp.z === 2, "the opponent's Normal Summon is theirs " + JSON.stringify(opp));
+  ok(one.t2 === -1, "one turn: no turn bar");
+  const pk = comboPackets(cleanCombo(JSON.parse(JSON.stringify(c2))), db);
+  const ts = pk.findIndex((p) => p.combo.turnStart);
+  ok(ts > 0 && pk[ts].turn === 2 && pk[ts].turnPlayer === 1 && pk[ts].events.some((e) => e.type === M.NEW_TURN && e.player === 1), "the replay shows the opponent's turn starting");
+  ok(pk.slice(ts + 1).every((p) => p.turn === 2) && pk.slice(0, ts).every((p) => p.turn === 1), "steps before it are turn 1, after it turn 2");
+  const end = pk.pop().state.teams[1];
+  ok(at(end.mzone) === "0,0,9,0,0,0,0" && end.hand.length === 5, "their monster stands in zone 2, from their hand (5 + 1 drawn − 1): " + at(end.mzone) + " hand " + end.hand.length);
+  // made by hand in KodeX: t2 = 0 (only the opponent's turn), a hand trap played by the opponent from their hand
+  const hk = cleanCombo({ hand: [5], t2: 1, lines: [[{ cards: [{ c: 5, a: "ns" }] }], [{ cards: [{ c: 2, a: "eff", b: 1 }] }, { cards: [{ c: 2, a: "gy", b: 1 }] }]] });
+  const hp = comboPackets(hk, db), ch = hp.find((p) => p.events.some((e) => e.type === M.CHAINING && e.controller === 1));
+  ok(hk.t2 === 1 && hk.lines[1][0].cards[0].b === 1 && hk.lines[1][0].cards[0].o === 1, "b (the opponent plays it) is kept and means their side");
+  ok(ch && ch.events.find((e) => e.type === M.CHAINING).location === C.LOCATION_HAND && /Your opponent/.test(ch.combo.what), "their hand trap is shown from their hand: " + (ch && ch.combo.what));
+  const hEnd = hp.pop().state.teams[1];
+  ok(hEnd.grave.map((x) => x.code).join() === "2" && hEnd.hand.length === 5, "then it goes to their GY");
+}
 if (bad) { console.log(bad + " failed"); process.exit(1); }
 console.log("OK: replay to combo keeps the table");

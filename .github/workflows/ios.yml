@@ -1,0 +1,100 @@
+name: KodeX iOS
+
+# Builds KodeX for iPhone / iPad (free and Premium) as unsigned .ipa files from the latest app build in app/, with
+# the Duel Arena and every card script inside. Sign and install them with Sideloadly or AltStore (your Apple ID), or
+# with your Apple Developer account (see ios/README.md). Also runs KodeX in an iPhone simulator and keeps screenshots.
+# The .ipa files go on the "ios-latest" release of this repository and are kept as run artifacts.
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+    paths: ["ios/**", "app/src/**", "duel/*.js", "duel/*.css", "duel/index.html", "duel/engine/**", ".github/workflows/ios.yml"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ios-build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Which build
+        id: v
+        run: |
+          V=$(python3 -c "import json;print(json.load(open('app/src/manifest.json'))['version'])")
+          B=$(python3 -c "import json;print(json.load(open('app/src/manifest.json'))['build'])")
+          echo "v=$V" >> $GITHUB_OUTPUT; echo "build=$B" >> $GITHUB_OUTPUT
+          echo "::notice title=KodeX::v$V ($B)"
+          ls -la app/Kodex_Mei_Production_v$V.html app/Kodex_Mei_Premium_v$V.html
+
+      - name: App files (with the Arena and the card scripts)
+        run: |
+          mkdir -p out
+          python3 scripts/build_app_bundle.py app/Kodex_Mei_Production_v${{ steps.v.outputs.v }}.html out/free.zip
+          python3 scripts/build_app_bundle.py app/Kodex_Mei_Premium_v${{ steps.v.outputs.v }}.html out/premium.zip
+          ls -la out
+
+      - name: XcodeGen
+        run: brew install xcodegen
+
+      - name: Build
+        run: |
+          set -eo pipefail
+          xcodebuild -version
+          build() {  # edition zip bundle-id name icon sdk out
+            rm -rf ios/KodeX/Web && mkdir -p ios/KodeX/Web && unzip -q "out/$1.zip" -d ios/KodeX/Web
+            (cd ios && xcodegen generate --quiet)
+            xcodebuild -project ios/KodeX.xcodeproj -scheme KodeX -configuration Release -sdk "$5" \
+              -destination "generic/platform=$( [ "$5" = iphoneos ] && echo iOS || echo 'iOS Simulator')" \
+              -derivedDataPath "build/$6" \
+              PRODUCT_BUNDLE_IDENTIFIER="$2" KX_DISPLAY_NAME="$3" ASSETCATALOG_COMPILER_APPICON_NAME="$4" \
+              MARKETING_VERSION="${{ steps.v.outputs.build }}" CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+              CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build | tail -n 25
+          }
+          build free com.duelsynapse.kodex "KodeX" AppIcon iphoneos free
+          rm -rf Payload && mkdir Payload && cp -R build/free/Build/Products/Release-iphoneos/KodeX.app Payload/
+          zip -qry "KodeX_v${{ steps.v.outputs.v }}.ipa" Payload
+          build premium com.duelsynapse.kodex.premium "KodeX Premium" AppIconPremium iphoneos premium
+          rm -rf Payload && mkdir Payload && cp -R build/premium/Build/Products/Release-iphoneos/KodeX.app Payload/
+          zip -qry "KodeX_Premium_v${{ steps.v.outputs.v }}.ipa" Payload
+          build free com.duelsynapse.kodex "KodeX" AppIcon iphonesimulator sim
+          ls -la *.ipa
+
+      - name: Try it in an iPhone simulator
+        run: |
+          set -x
+          DEV=$(xcrun simctl list devices available -j | python3 -c "import json,sys;d=json.load(sys.stdin)['devices'];print(next(x['udid'] for k in sorted(d,reverse=True) if 'iOS' in k for x in d[k] if x['name'].startswith('iPhone')))")
+          xcrun simctl boot "$DEV"; xcrun simctl bootstatus "$DEV" -b
+          xcrun simctl install "$DEV" build/sim/Build/Products/Release-iphonesimulator/KodeX.app
+          xcrun simctl launch "$DEV" com.duelsynapse.kodex
+          mkdir -p shots
+          sleep 25; xcrun simctl io "$DEV" screenshot shots/1-start.png
+          sleep 20; xcrun simctl io "$DEV" screenshot shots/2-later.png
+          # the Arena, as a link opens it (KodeX loads it inside itself)
+          xcrun simctl openurl "$DEV" "http://127.0.0.1:47127/duel/?app=1" || true
+          sleep 25; xcrun simctl io "$DEV" screenshot shots/3-arena.png
+          xcrun simctl spawn "$DEV" log show --last 3m --predicate 'process == "KodeX" OR process == "com.apple.WebKit.WebContent"' --style compact | grep -iE "error|exception|crash" | tail -n 60 > shots/log.txt || true
+          ls -la shots
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KodeX-iOS-v${{ steps.v.outputs.v }}
+          path: |
+            *.ipa
+            shots/
+          retention-days: 30
+
+      - name: Put the .ipa files on the ios-latest release
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view ios-latest >/dev/null 2>&1 || gh release create ios-latest --prerelease --title "KodeX for iPhone (latest)" --notes "Unsigned .ipa files of the latest KodeX. Install them with Sideloadly or AltStore (your Apple ID), or sign them with an Apple Developer account. See ios/README.md."
+          gh release upload ios-latest *.ipa --clobber
+          gh release edit ios-latest --notes "KodeX ${{ steps.v.outputs.build }} (v${{ steps.v.outputs.v }}), build ${{ github.run_number }}. Unsigned: install with Sideloadly or AltStore (your Apple ID), or sign with an Apple Developer account. See ios/README.md."

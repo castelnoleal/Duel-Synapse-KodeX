@@ -801,14 +801,20 @@ async function cbPayload(c) {
         l
           .map(n => ({
             cards: n.cards
-              .map(x => ({ c: pc(x.c), a: x.a, z: x.z, p: x.p, f: x.f, s: x.s, o: x.o, r: x.r }))
+              .map(x => ({ c: pc(x.c), a: x.a, z: x.z, p: x.p, f: x.f, s: x.s, o: x.o, b: x.b, r: x.r }))
               .filter(x => x.c),
             note: n.note || ''
           }))
           .filter(n => n.cards.length)
       )
       .filter(l => l.length),
-    intro: { ms: Math.round((+c.intro.s || 0) * 1000), art: pc(c.intro.art || key), key: pc(key), bg }
+    intro: { ms: Math.round((+c.intro.s || 0) * 1000), art: pc(c.intro.art || key), key: pc(key), bg },
+    // two turns (v80): the lines from t2 on are in the opponent's turn (counted among the lines that are sent)
+    t2:
+      c.turns === 2
+        ? c.lines.slice(0, c.t2 == null ? c.lines.length : c.t2).filter(l => l.some(n => n.cards.some(x => pc(x.c))))
+            .length
+        : -1
   };
 }
 /** Opens the Arena and hands it a message once it is ready. */
