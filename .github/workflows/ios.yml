@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
   push:
     branches: ["main", "ios"]
-    paths: ["ios/**", "app/src/manifest.json", ".github/workflows/ios.yml"]
+    paths: ["ios/**", "app/src/**", "duel/*.js", "duel/*.css", "duel/index.html", "duel/engine/**", ".github/workflows/ios.yml"]
 
 permissions:
   contents: write

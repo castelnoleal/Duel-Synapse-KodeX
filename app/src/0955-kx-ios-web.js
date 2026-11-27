@@ -88,3 +88,21 @@ if (
 ) {
   addEventListener('load', () => navigator.serviceWorker.register('sw.js', { scope: './' }).catch(() => {}));
 }
+
+/* ---------- iPhone app and Home Screen app: the top safe area (status bar, notch, Dynamic Island) ---------- */
+// The page is told to cover the whole screen only once it knows it is the app (v65), after the first measurement of
+// the safe area: measure it again then, and whenever the phone turns.
+if (KX_IOS_APP || KX_STANDALONE || kxInApp()) {
+  const again = () => {
+    try {
+      if (typeof applySat === 'function') applySat();
+    } catch (e) {}
+  };
+  setTimeout(again, 0);
+  setTimeout(again, 400);
+  addEventListener('orientationchange', () => setTimeout(again, 300));
+  addEventListener('resize', () => {
+    clearTimeout(again.t);
+    again.t = setTimeout(again, 200);
+  });
+}
