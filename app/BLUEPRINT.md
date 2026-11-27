@@ -66,6 +66,7 @@ the main script (`core-…`) is cut at its section comments. Later modules may r
 | `0945` | 10.4: the short landscape ad strip, code and share styles |
 | `0948` | 10.4: `app/premium-codes.json` built in as `window.KX_CODES` (public key for Premium keys, promo code hashes, revoked keys) |
 | `0950` | 10.4: Premium by code (`kxCodeRead`, `kxKeyCheck`, Redeem in Settings; `KX_KEY` is read in `0100` before `PREMIUM`), share a ruling (`kxRulingUrl`), share a combo (`cbLink`, `cbShare`) |
+| `0955` | 10.4.1: iPhone app and web app (`KX_IOS_APP`, `KX_STANDALONE`), MEIOCG's own banner where no ad network fills the ad strip, the Add to Home Screen tip; `scripts/build_kodex.py` also writes the web app `app/index.html` |
 | `0890`–`0905` | 10.2: deck statistics screen and image, finishing emote picker, combo sheet formats, uploaded banners, NRS link (`0900`); `0905-deck-stats.js` is not a file in `app/src`: its manifest entry has `"from": "duel/deckstats.js"`, so KodeX and the Arena share one copy of the statistics (the build leaves out its `export default` line) |
 | `0860`–`0880` | 10.1: button and spacing fixes (`0860`), KodeX button area sent to the Arena (`kxChromeToArena`, `{kx:"chrome"}`), screen checks used by the Master Editor (`kxDiagnose`) |
 | `0820`–`0840` | 10.0: combo sheet (`buildComboSvg`, `cbFinalBoard`), combo code v2 (`CBQ2`, `cbqPack`, `cbqRead`), placement on combo cards (`cbPlaceOf`), landscape rail, Combo Generator hand-off from the Arena (`{kx:"combos"}`) |

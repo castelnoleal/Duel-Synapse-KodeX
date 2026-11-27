@@ -10,7 +10,10 @@ function kxInApp() {
     !!(window.CastelApp || window.KodexBridge || window.AndroidBridge) ||
     /; wv\)/.test(navigator.userAgent) ||
     navigator.webdriver === true ||
-    /[?&]app=1/.test(location.search)
+    /[?&]app=1/.test(location.search) ||
+    // the web app opened from the Home Screen (iPhone, Android)
+    (window.matchMedia && matchMedia('(display-mode: standalone)').matches) ||
+    navigator.standalone === true
   );
 }
 /* ---------- no zoom in the app ---------- */

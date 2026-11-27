@@ -63,3 +63,97 @@
   opacity: 0.75;
   font-size: 0.78rem;
 }
+/* MEIOCG's own banner in the ad strip (iPhone app and web app, free edition) */
+.top-ad-slot.kx-house {
+  padding: 0;
+  overflow: hidden;
+}
+.kxh {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  border: 0;
+  background: linear-gradient(100deg, #121a46, #1b1440);
+  color: #eef1ff;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  animation: kxhIn 0.5s ease;
+}
+.kxh img {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+}
+.kxh span {
+  min-width: 0;
+  display: grid;
+  line-height: 1.2;
+}
+.kxh b {
+  font-size: 13px;
+}
+.kxh small {
+  font-size: 11px;
+  opacity: 0.78;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kxh i {
+  font-style: normal;
+  font-weight: 800;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #f0b429;
+  color: #1a1405;
+  white-space: nowrap;
+}
+@keyframes kxhIn {
+  from {
+    opacity: 0;
+  }
+}
+@media (orientation: landscape) and (max-height: 540px) {
+  .kxh img {
+    width: 22px;
+    height: 22px;
+  }
+  .kxh small {
+    display: none;
+  }
+  .kxh i {
+    padding: 3px 9px;
+  }
+}
+.kx-ios-steps {
+  margin: 8px 0 4px;
+  padding-left: 22px;
+  line-height: 1.6;
+}
+.kx-ios-share {
+  display: inline-block;
+  width: 14px;
+  height: 17px;
+  vertical-align: -3px;
+  border: 2px solid currentColor;
+  border-top: 0;
+  border-radius: 0 0 3px 3px;
+  position: relative;
+  margin: 0 2px;
+}
+.kx-ios-share::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -7px;
+  width: 2px;
+  height: 13px;
+  background: currentColor;
+  transform: translateX(-50%);
+}
