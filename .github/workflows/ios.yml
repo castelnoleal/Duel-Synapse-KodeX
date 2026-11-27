@@ -7,7 +7,7 @@ name: KodeX iOS
 on:
   workflow_dispatch:
   push:
-    branches: ["main", "ios"]
+    branches: ["main"]
     paths: ["ios/**", "app/src/**", "duel/*.js", "duel/*.css", "duel/index.html", "duel/engine/**", ".github/workflows/ios.yml"]
 
 permissions:
@@ -89,14 +89,6 @@ jobs:
             *.ipa
             shots/
           retention-days: 30
-
-      - name: Keep the .ipa files and screenshots on the ios-build branch (one commit, replaced each time)
-        run: |
-          rm -rf /tmp/ib && mkdir -p /tmp/ib && cp *.ipa /tmp/ib/ && cp -R shots /tmp/ib/
-          cd /tmp/ib && git init -q && git checkout -q -b ios-build
-          printf '# KodeX iOS build\n\nKodeX ${{ steps.v.outputs.build }} (v${{ steps.v.outputs.v }}), run ${{ github.run_number }}, from ${{ github.sha }}.\nUnsigned .ipa files: see ios/README.md on main.\n' > README.md
-          git add -A && git -c user.name=kodex-bot -c user.email=kodex-bot@users.noreply.github.com commit -q -m "KodeX iOS build ${{ github.run_number }} (v${{ steps.v.outputs.v }})"
-          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ios-build
 
       - name: Put the .ipa files on the ios-latest release
         if: github.ref == 'refs/heads/main'
