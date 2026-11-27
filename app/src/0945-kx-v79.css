@@ -157,3 +157,80 @@
   background: currentColor;
   transform: translateX(-50%);
 }
+/* v80: a combo over two turns (yours, then your opponent's) */
+.cb-turns {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 4px 0 10px;
+}
+.cb-turns .cb-tl {
+  font-weight: 800;
+  font-size: 0.85rem;
+}
+.cb-turns small {
+  grid-column: 1 / -1;
+  opacity: 0.75;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+.cb-seg {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 3px;
+  justify-self: start;
+}
+.cb-seg button {
+  border: 0;
+  border-radius: 999px;
+  padding: 7px 14px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.cb-seg button[aria-checked='true'] {
+  background: var(--accent, #3347f0);
+  color: #fff;
+}
+.cb-t2bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0;
+  padding: 6px 8px 6px 14px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #5a1424, #2a0d22);
+  border: 1px solid #ff5a7a88;
+  color: #ffd9e0;
+  font-size: 0.85rem;
+}
+.cb-t2bar span {
+  flex: 1;
+}
+.cb-t2bar b {
+  color: #fff;
+}
+.cb-t2bar .ibtn {
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+}
+.cb-line.t2 {
+  border-left: 3px solid #ff5a7a;
+  padding-left: 6px;
+  background: #ff5a7a0d;
+  border-radius: 10px;
+}
+.cb-line.t2 .cb-ln {
+  background: #ff5a7a;
+  color: #1a0508;
+}
+.cb-chip.by-opp {
+  box-shadow: inset 0 0 0 2px #ff5a7a99;
+}

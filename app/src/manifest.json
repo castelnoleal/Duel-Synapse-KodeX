@@ -477,6 +477,11 @@
    "close": "</script>"
   },
   {
+   "file": "0960-kx-v80-late.js",
+   "open": "<script id=\"kx-v80-late\">",
+   "close": "</script>"
+  },
+  {
    "file": "0570-html.html",
    "open": "",
    "close": ""

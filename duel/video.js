@@ -656,7 +656,7 @@ export class Clip {
     if (this.capKey !== (c.step || 0) + c.caption) { this.capKey = (c.step || 0) + c.caption; this.capT0 = performance.now(); }
     const kin = Math.min(1, (performance.now() - (this.capT0 || 0)) / 300); g.save(); g.globalAlpha = .35 + .65 * kin; g.translate(0, (1 - kin) * -8 * u);
     this.rr(x, y, w, h, 20 * u); g.fillStyle = "#0c0f1fe6"; g.fill(); g.lineWidth = 2 * u; g.strokeStyle = "#f0b42988"; g.stroke();
-    const tag = c.step ? `STEP ${c.step}/${c.steps}` : "START";
+    const tag = c.turnStart ? "TURN 2" : c.step ? `${c.turn === 2 ? "T2 · " : ""}STEP ${c.step}/${c.steps}` : "START";
     g.font = `800 ${Math.round(24 * u)}px "Chakra Petch", system-ui, sans-serif`; const tw = g.measureText(tag).width + 36 * u;
     this.rr(x + 10 * u, y + 11 * u, tw, h - 22 * u, 14 * u); g.fillStyle = "#f0b429"; g.fill();
     this.text(tag, x + 10 * u + tw / 2, y + h / 2 + 9 * u, 24 * u, "#1a1405", { align: "center" });

@@ -67,6 +67,7 @@ const cbPlaceOf = x => {
     if (Number.isInteger(v) && v >= min && v <= max) o[k] = v;
   }
   if (x && (x.o === 1 || x.o === true)) o.o = 1; // on the opponent's side (summoned there, or one of their cards)
+  if (x && (x.b === 1 || x.b === true)) o.o = o.b = 1; // played by the opponent (a hand trap, a play in their turn)
   if (x && (x.r === 'm' || x.r === 's')) o.r = x.r; // the row of z: Monster Zones or Spell & Trap Zones (a Pendulum Zone)
   return o;
 };
@@ -427,6 +428,11 @@ function cbAdopt(raw, from) {
   });
   if (from) c.from = from;
   if (!cbHas(c)) return null;
+  // two turns: a replay read with its next turn (the opponent's) brings where that turn starts
+  if (Number.isInteger(raw.t2) && raw.t2 >= 0) {
+    c.turns = 2;
+    c.t2 = Math.min(raw.t2, c.lines.length);
+  }
   // a combo read from a replay brings the table exactly as it stood at the end of that turn
   const eb = cbBoardOf(raw.endBoard);
   if (eb) c.endBoard = { sig: cbLinesSig(c.lines), b: eb };
@@ -777,9 +783,32 @@ function buildComboSvg(list, meta, bg) {
         if (t.note) h += wrap(t.note, tw - 24, 14, 3).length * 18 + 8;
         return h + 14;
       };
-      for (let r = 0; r < tiles.length; r += cols) {
-        const row = tiles.slice(r, r + cols),
+      // two turns: the opponent's turn starts a new row, under its own heading
+      const t2 = c.turns === 2 && c.t2 != null ? c.t2 : Infinity,
+        rowsOf = [];
+      {
+        let cur = [];
+        tiles.forEach(t => {
+          t.t2 = t.line >= t2;
+          if (cur.length && (cur.length >= cols || cur[0].t2 !== t.t2)) {
+            rowsOf.push(cur);
+            cur = [];
+          }
+          cur.push(t);
+        });
+        if (cur.length) rowsOf.push(cur);
+      }
+      let stepNo = 0,
+        t2Shown = false;
+      for (const row of rowsOf) {
+        if (row[0].t2 && !t2Shown) {
+          t2Shown = true;
+          cuts.push(y);
+          y = section("TURN 2 · YOUR OPPONENT'S TURN", y);
+        }
+        const r = stepNo,
           rh = Math.max(...row.map(hOf));
+        stepNo += row.length;
         row.forEach((t, i) => {
           const x = pad + i * (tw + gap),
             n = t.cards.length,
@@ -798,11 +827,13 @@ function buildComboSvg(list, meta, bg) {
           const lab = !main
               ? 'Then'
               : (a === 'ss' && k && t.groups.some(g => g.t === 'USING') ? k + ' Summon' : LABEL[a] || 'Play') +
-                (main.o && ['ss', 'put', 'set', 'ns'].includes(a)
-                  ? " · to opponent's field"
-                  : main.o
-                    ? " · opponent's card"
-                    : ''),
+                (main.b
+                  ? ' · opponent plays'
+                  : main.o && ['ss', 'put', 'set', 'ns'].includes(a)
+                    ? " · to opponent's field"
+                    : main.o
+                      ? " · opponent's card"
+                      : ''),
             // the label shrinks to fit its tile (a summon to the opponent's field is a long label)
             lfs = Math.max(11, Math.min(17, Math.floor((tw - 40) / (lab.length * 0.56)))),
             lw = lab.length * lfs * 0.553 + 26;

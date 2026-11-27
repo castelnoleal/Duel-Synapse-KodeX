@@ -19759,14 +19759,20 @@ async function cbPayload(c) {
         l
           .map(n => ({
             cards: n.cards
-              .map(x => ({ c: pc(x.c), a: x.a, z: x.z, p: x.p, f: x.f, s: x.s, o: x.o, r: x.r }))
+              .map(x => ({ c: pc(x.c), a: x.a, z: x.z, p: x.p, f: x.f, s: x.s, o: x.o, b: x.b, r: x.r }))
               .filter(x => x.c),
             note: n.note || ''
           }))
           .filter(n => n.cards.length)
       )
       .filter(l => l.length),
-    intro: { ms: Math.round((+c.intro.s || 0) * 1000), art: pc(c.intro.art || key), key: pc(key), bg }
+    intro: { ms: Math.round((+c.intro.s || 0) * 1000), art: pc(c.intro.art || key), key: pc(key), bg },
+    // two turns (v80): the lines from t2 on are in the opponent's turn (counted among the lines that are sent)
+    t2:
+      c.turns === 2
+        ? c.lines.slice(0, c.t2 == null ? c.lines.length : c.t2).filter(l => l.some(n => n.cards.some(x => pc(x.c))))
+            .length
+        : -1
   };
 }
 /** Opens the Arena and hands it a message once it is ready. */
@@ -21527,6 +21533,7 @@ const cbPlaceOf = x => {
     if (Number.isInteger(v) && v >= min && v <= max) o[k] = v;
   }
   if (x && (x.o === 1 || x.o === true)) o.o = 1; // on the opponent's side (summoned there, or one of their cards)
+  if (x && (x.b === 1 || x.b === true)) o.o = o.b = 1; // played by the opponent (a hand trap, a play in their turn)
   if (x && (x.r === 'm' || x.r === 's')) o.r = x.r; // the row of z: Monster Zones or Spell & Trap Zones (a Pendulum Zone)
   return o;
 };
@@ -21887,6 +21894,11 @@ function cbAdopt(raw, from) {
   });
   if (from) c.from = from;
   if (!cbHas(c)) return null;
+  // two turns: a replay read with its next turn (the opponent's) brings where that turn starts
+  if (Number.isInteger(raw.t2) && raw.t2 >= 0) {
+    c.turns = 2;
+    c.t2 = Math.min(raw.t2, c.lines.length);
+  }
   // a combo read from a replay brings the table exactly as it stood at the end of that turn
   const eb = cbBoardOf(raw.endBoard);
   if (eb) c.endBoard = { sig: cbLinesSig(c.lines), b: eb };
@@ -22237,9 +22249,32 @@ function buildComboSvg(list, meta, bg) {
         if (t.note) h += wrap(t.note, tw - 24, 14, 3).length * 18 + 8;
         return h + 14;
       };
-      for (let r = 0; r < tiles.length; r += cols) {
-        const row = tiles.slice(r, r + cols),
+      // two turns: the opponent's turn starts a new row, under its own heading
+      const t2 = c.turns === 2 && c.t2 != null ? c.t2 : Infinity,
+        rowsOf = [];
+      {
+        let cur = [];
+        tiles.forEach(t => {
+          t.t2 = t.line >= t2;
+          if (cur.length && (cur.length >= cols || cur[0].t2 !== t.t2)) {
+            rowsOf.push(cur);
+            cur = [];
+          }
+          cur.push(t);
+        });
+        if (cur.length) rowsOf.push(cur);
+      }
+      let stepNo = 0,
+        t2Shown = false;
+      for (const row of rowsOf) {
+        if (row[0].t2 && !t2Shown) {
+          t2Shown = true;
+          cuts.push(y);
+          y = section("TURN 2 · YOUR OPPONENT'S TURN", y);
+        }
+        const r = stepNo,
           rh = Math.max(...row.map(hOf));
+        stepNo += row.length;
         row.forEach((t, i) => {
           const x = pad + i * (tw + gap),
             n = t.cards.length,
@@ -22258,11 +22293,13 @@ function buildComboSvg(list, meta, bg) {
           const lab = !main
               ? 'Then'
               : (a === 'ss' && k && t.groups.some(g => g.t === 'USING') ? k + ' Summon' : LABEL[a] || 'Play') +
-                (main.o && ['ss', 'put', 'set', 'ns'].includes(a)
-                  ? " · to opponent's field"
-                  : main.o
-                    ? " · opponent's card"
-                    : ''),
+                (main.b
+                  ? ' · opponent plays'
+                  : main.o && ['ss', 'put', 'set', 'ns'].includes(a)
+                    ? " · to opponent's field"
+                    : main.o
+                      ? " · opponent's card"
+                      : ''),
             // the label shrinks to fit its tile (a summon to the opponent's field is a long label)
             lfs = Math.max(11, Math.min(17, Math.floor((tw - 40) / (lab.length * 0.56)))),
             lw = lab.length * lfs * 0.553 + 26;
@@ -26197,6 +26234,83 @@ window.cbSettings = cbSettings;
   background: currentColor;
   transform: translateX(-50%);
 }
+/* v80: a combo over two turns (yours, then your opponent's) */
+.cb-turns {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 4px 0 10px;
+}
+.cb-turns .cb-tl {
+  font-weight: 800;
+  font-size: 0.85rem;
+}
+.cb-turns small {
+  grid-column: 1 / -1;
+  opacity: 0.75;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+.cb-seg {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 3px;
+  justify-self: start;
+}
+.cb-seg button {
+  border: 0;
+  border-radius: 999px;
+  padding: 7px 14px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.cb-seg button[aria-checked='true'] {
+  background: var(--accent, #3347f0);
+  color: #fff;
+}
+.cb-t2bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0;
+  padding: 6px 8px 6px 14px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #5a1424, #2a0d22);
+  border: 1px solid #ff5a7a88;
+  color: #ffd9e0;
+  font-size: 0.85rem;
+}
+.cb-t2bar span {
+  flex: 1;
+}
+.cb-t2bar b {
+  color: #fff;
+}
+.cb-t2bar .ibtn {
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+}
+.cb-line.t2 {
+  border-left: 3px solid #ff5a7a;
+  padding-left: 6px;
+  background: #ff5a7a0d;
+  border-radius: 10px;
+}
+.cb-line.t2 .cb-ln {
+  background: #ff5a7a;
+  color: #1a0508;
+}
+.cb-chip.by-opp {
+  box-shadow: inset 0 0 0 2px #ff5a7a99;
+}
 </style><script id="kx-codes">window.KX_CODES = {
   "about": "KodeX Premium by code. pub: the public key that checks Premium keys (scripts/kodex_keys.mjs; the private key is kept by MEIOCG, never here). promos: SHA-256 hashes of promo codes. revoked: ids of keys that no longer work.",
   "pub": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAESQFP6Gc8z4lDzxtQgnddiWKS8A2et67QazJ72Xs/7lTE9mVk+L0+OSfAAk7DCWoS60dps4FIIP/fIao8lx1LLg==",
@@ -26603,6 +26717,125 @@ if (
   location.protocol === 'https:'
 ) {
   addEventListener('load', () => navigator.serviceWorker.register('sw.js', { scope: './' }).catch(() => {}));
+}
+</script><script id="kx-v80-late">/* ===================================================================================================================
+   KodeX 10.4.1 · module: combo-two-turns
+   A combo can show two turns: yours, then your opponent's, so plays in their turn (your negates and interruptions,
+   their hand traps and summons) are on the table too. Created by Castel Noleal, creator of MEIOCG.
+   - c.turns: 1 or 2; c.t2: the first line that happens in the opponent's turn (a bar in the editor moves it).
+   - A card in a step can be "played by your opponent" (x.b; one of their cards, from their side).
+   - The Arena plays the turn change ("Turn 2 · Your opponent's turn"); the combo sheet starts a new heading there.
+   =================================================================================================================== */
+function cbTurnsUi(c, box) {
+  const lines = box.querySelector('.cb-lines');
+  if (!lines) return;
+  if (c.turns === 2) c.t2 = Math.max(0, Math.min(c.t2 == null ? c.lines.length : c.t2, c.lines.length));
+  const save = () => {
+    cbStore(c);
+    if (typeof cbRefreshList === 'function') cbRefreshList();
+  };
+  // Turns: one or two, right above the steps
+  let bar = box.querySelector('.cb-turns');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.className = 'cb-turns';
+    lines.parentNode.insertBefore(bar, lines);
+  }
+  bar.innerHTML = `<span class="cb-tl">Turns</span><div class="cb-seg" role="radiogroup" aria-label="Turns shown">
+  <button type="button" role="radio" data-turns="1" aria-checked="${c.turns !== 2}">Your turn</button>
+  <button type="button" role="radio" data-turns="2" aria-checked="${c.turns === 2}">+ Opponent's turn</button></div>
+  <small>${c.turns === 2 ? 'Lines under the red bar happen in your opponent’s turn. Move the bar with its arrows; tap a card to mark it as played by your opponent.' : 'Add your opponent’s turn to show plays in it: your negates and interruptions, their summons and hand traps.'}</small>`;
+  bar.querySelectorAll('[data-turns]').forEach(
+    b =>
+      (b.onclick = () => {
+        const two = b.dataset.turns === '2';
+        if (two === (c.turns === 2)) return;
+        if (two) {
+          c.turns = 2;
+          c.t2 = c.lines.length; // the bar starts after the last line: new lines go to their turn
+        } else {
+          delete c.turns;
+          delete c.t2;
+        }
+        save();
+        cbTurnsUi(c, box);
+        if (two) toast('Opponent’s turn on: new lines go under the red bar');
+      })
+  );
+  // the bar between the two turns, and which lines are in the opponent's turn
+  box.querySelectorAll('.cb-t2bar').forEach(x => x.remove());
+  const rows = [...lines.querySelectorAll(':scope > .cb-line')];
+  rows.forEach((r, i) => r.classList.toggle('t2', c.turns === 2 && i >= c.t2));
+  // cards the opponent plays say so on their chip
+  box.querySelectorAll('.cb-chip[data-chip]').forEach(ch => {
+    const [l, n, i] = ch.dataset.chip.split(',').map(Number),
+      x = c.lines[l] && c.lines[l][n] && c.lines[l][n].cards[i];
+    ch.classList.toggle('by-opp', !!(x && x.b));
+    const em = ch.querySelector('em');
+    if (x && x.b && em && !/plays/.test(em.textContent)) em.textContent = em.textContent.replace('Opp.', 'Opp. plays');
+  });
+  if (c.turns !== 2) return;
+  const t = document.createElement('div');
+  t.className = 'cb-t2bar';
+  t.setAttribute('role', 'separator');
+  t.innerHTML = `<span><b>Turn 2</b> · Your opponent’s turn</span><button type="button" class="ibtn" data-t2="-1" aria-label="Move the opponent's turn up a line" ${c.t2 <= 0 ? 'disabled' : ''}>▲</button><button type="button" class="ibtn" data-t2="1" aria-label="Move the opponent's turn down a line" ${c.t2 >= c.lines.length ? 'disabled' : ''}>▼</button>`;
+  lines.insertBefore(t, rows[c.t2] || lines.querySelector('[data-add=line]') || null);
+  t.querySelectorAll('[data-t2]').forEach(
+    b =>
+      (b.onclick = () => {
+        c.t2 = Math.max(0, Math.min(c.lines.length, c.t2 + Number(b.dataset.t2)));
+        save();
+        cbTurnsUi(c, box);
+      })
+  );
+}
+{
+  const ce = cbEdit;
+  cbEdit = function (c) {
+    const m = ce.apply(this, arguments),
+      box = m && m.querySelector('.cb-ed');
+    if (!box) return m;
+    // a line deleted above the bar moves the bar up with it
+    box.addEventListener(
+      'click',
+      e => {
+        const d = e.target.closest('[data-ldel]');
+        if (d && c.turns === 2 && Number(d.dataset.ldel) < c.t2) c.t2--;
+      },
+      true
+    );
+    cbTurnsUi(c, box);
+    // the editor draws itself again after each change: the turn bar comes back with it
+    new MutationObserver(() => {
+      if (!box.querySelector('.cb-turns') || (c.turns === 2 && !box.querySelector('.cb-t2bar'))) cbTurnsUi(c, box);
+    }).observe(box, { childList: true });
+    return m;
+  };
+}
+{
+  const cc = cbChip;
+  cbChip = function (c, l, n, i) {
+    const out = cc.apply(this, arguments),
+      m = document.querySelector('.mdl[data-k=cbc]'),
+      x = c.lines[l] && c.lines[l][n] && c.lines[l][n].cards[i];
+    const sel = m && m.querySelector('[data-o]');
+    if (!sel || !x) return out;
+    const op = document.createElement('option');
+    op.value = '2';
+    op.textContent = 'Played by your opponent (their card: a hand trap, a play in their turn)';
+    sel.appendChild(op);
+    if (x.b) sel.value = '2';
+    // after the usual Done (which keeps "their side"), keep whether they play it
+    m.querySelector('[data-ok]').addEventListener(
+      'click',
+      () => {
+        if (sel.value === '2') x.b = 1;
+        else delete x.b;
+      },
+      true
+    );
+    return out;
+  };
 }
 </script>
 </body>

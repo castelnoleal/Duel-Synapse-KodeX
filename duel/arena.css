@@ -1368,3 +1368,4 @@ body.combo-play .rb-cap { display: none; }
   .turnbar .phases button { min-width: 0; flex: 1 1 0; padding: 0 2px; }
   .turnbar .quick-btn { width: 28px; height: 28px; }
 }
+body.combo-play.combo-opp #opHand { visibility: visible; }
