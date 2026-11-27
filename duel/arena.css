@@ -335,7 +335,7 @@ dialog.info-top::backdrop { background: #00000080; }
   #table { grid-template-columns: minmax(0, 1fr) 270px; }
 }
 @media (max-width: 780px) {
-  :root { --z: min(calc((100vw - 22px) / 7.75), calc((100vh - 268px) / 8.1)); }
+  :root { --z: min(calc((100vw - 22px) / 7.75), calc((100vh - 300px) / 8.1)); }
   .lobby-grid { grid-template-columns: 1fr; }
   .play-panel { order: -1; }
   .deck-grid { grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 4px; }
@@ -389,7 +389,7 @@ dialog.info-top::backdrop { background: #00000080; }
 .embed #offBack { display: none !important; }
 .embed { --z: clamp(40px, min(calc((100vw - 410px) / 7.6), calc((100vh - 255px) / 7.6)), 104px); }
 @media (max-width: 1120px) { .embed { --z: clamp(36px, min(calc((100vw - 350px) / 7.6), calc((100vh - 255px) / 7.6)), 96px); } }
-@media (max-width: 780px) { .embed { --z: min(calc((100vw - 22px) / 7.75), calc((100vh - 215px) / 8.1)); } }
+@media (max-width: 780px) { .embed { --z: min(calc((100vw - 22px) / 7.75), calc((100vh - 252px) / 8.1)); } }
 
 @media (orientation: portrait), (max-width: 639px) {
   #table:not([hidden]) .arena { padding-bottom: 0; }
@@ -459,10 +459,10 @@ dialog.info-top::backdrop { background: #00000080; }
 @media (max-width: 780px) { .side { margin-top: 0; max-height: none; } }
 :root { --z: clamp(40px, min(calc((100vw - 140px) / 7.6), calc((100vh - 318px) / 7.6)), 104px); }
 @media (max-width: 1120px) { :root { --z: clamp(36px, min(calc((100vw - 90px) / 7.6), calc((100vh - 305px) / 7.6)), 96px); } }
-@media (max-width: 780px) { :root { --z: min(calc((100vw - 22px) / 7.75), calc((100vh - 268px) / 8.1)); } }
+@media (max-width: 780px) { :root { --z: min(calc((100vw - 22px) / 7.75), calc((100vh - 300px) / 8.1)); } }
 .embed { --z: clamp(40px, min(calc((100vw - 140px) / 7.6), calc((100vh - 255px) / 7.6)), 104px); }
 @media (max-width: 1120px) { .embed { --z: clamp(36px, min(calc((100vw - 90px) / 7.6), calc((100vh - 255px) / 7.6)), 96px); } }
-@media (max-width: 780px) { .embed { --z: min(calc((100vw - 22px) / 7.75), calc((100vh - 215px) / 8.1)); } }
+@media (max-width: 780px) { .embed { --z: min(calc((100vw - 22px) / 7.75), calc((100vh - 252px) / 8.1)); } }
 
 
 
@@ -1364,8 +1364,13 @@ body.combo-play .rb-cap { display: none; }
 .leave-dlg h3 { margin: 0 0 6px; }
 /* portrait: the phases stay on one line beside the take-back and the flag (they share the width) */
 @media (orientation: portrait), (max-width: 639px) {
-  .turnbar .phases { flex: 1 1 auto; flex-wrap: nowrap; }
-  .turnbar .phases button { min-width: 0; flex: 1 1 0; padding: 0 2px; }
+  .arena .turnbar { justify-self: stretch; width: 100%; max-width: 520px; margin-inline: auto; box-sizing: border-box; padding-inline: 6px; }
+  .turnbar .phases { flex: 1 1 300px; max-width: 380px; flex-wrap: nowrap; gap: 3px; }
+  .turnbar .phases button { min-width: 0; min-height: 34px; flex: 1 1 0; padding: 0 2px; font-size: 12.5px; }
   .turnbar .quick-btn { width: 28px; height: 28px; }
 }
 body.combo-play.combo-opp #opHand { visibility: visible; }
+/* portrait: the table keeps clear of the row of round buttons at the bottom (emotes, chain, chat) */
+@media (orientation: portrait), (max-width: 639px) {
+  body:not(.replaying) #table:not([hidden]) .arena { padding-bottom: 58px; box-sizing: border-box; }
+}
